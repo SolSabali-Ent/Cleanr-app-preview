@@ -23,6 +23,12 @@ routes=(
   csp/login
   csp/signup
   csp/dashboard
+  csp/growth
+  csp/growth/milestones
+  csp/growth/capabilities
+  csp/growth/opportunities
+  csp/growth/fit
+  csp/growth/contributions
   csp/dashboard/growth
   csp/dashboard/growth/milestones
   csp/dashboard/growth/capabilities
