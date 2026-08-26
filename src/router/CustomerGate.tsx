@@ -1,16 +1,15 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Navigate } from "react-router-dom";
-import { supabase } from "@/lib/supabase";
+import { isOfflinePreviewMode, supabase } from "@/lib/supabase";
 import { attachRefereeByCode } from "@/lib/referralApi";
 import { getStoredReferralCode, clearStoredReferralCode } from "@/lib/referralRef";
 
 export function CustomerGate({ children }: { children: ReactNode }) {
-  const publicHostMode = import.meta.env.VITE_PUBLIC_HOST_MODE === "1";
-  const [loading, setLoading] = useState(!publicHostMode);
+  const [loading, setLoading] = useState(!isOfflinePreviewMode);
   const [redirectPath, setRedirectPath] = useState<string | null>(null);
 
   useEffect(() => {
-    if (publicHostMode) return;
+    if (isOfflinePreviewMode) return;
 
     let mounted = true;
 
@@ -53,19 +52,19 @@ export function CustomerGate({ children }: { children: ReactNode }) {
     return () => {
       mounted = false;
     };
-  }, [publicHostMode]);
+  }, []);
 
   useEffect(() => {
-    if (publicHostMode || loading || redirectPath !== null) return;
+    if (isOfflinePreviewMode || loading || redirectPath !== null) return;
     const code = getStoredReferralCode();
     if (!code) return;
     clearStoredReferralCode();
     attachRefereeByCode(code).catch(() => {}).finally(() => {
       clearStoredReferralCode();
     });
-  }, [loading, publicHostMode, redirectPath]);
+  }, [loading, redirectPath]);
 
-  if (publicHostMode) return <>{children}</>;
+  if (isOfflinePreviewMode) return <>{children}</>;
   if (loading) return null;
   if (redirectPath) return <Navigate to={redirectPath} replace />;
 
