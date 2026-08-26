@@ -1,9 +1,12 @@
 import { isOfflinePreviewMode, supabase } from "@/lib/supabase";
 import type {
+  Contribution,
   GrowthOpportunity,
   NorthStar,
   NorthStarCategory,
   NorthStarMilestone,
+  OpportunityMatch,
+  OpportunityMatchStatus,
   PersonCapability,
 } from "@/domain/growth";
 
@@ -42,6 +45,36 @@ type OpportunityRow = {
   title: string;
   description: string | null;
   status: "draft" | "open" | "closed";
+  geographic_scope: string | null;
+  starts_at: string | null;
+  closes_at: string | null;
+};
+
+type OpportunityMatchRow = {
+  id: string;
+  opportunity_id: string;
+  person_id: string;
+  match_reason: string | null;
+  north_star_alignment: string | null;
+  match_source: OpportunityMatch["matchSource"];
+  status: OpportunityMatch["status"];
+  matched_at: string;
+  created_at: string;
+  updated_at: string;
+  growth_opportunities: OpportunityRow | null;
+};
+
+type ContributionRow = {
+  id: string;
+  person_id: string;
+  beneficiary_person_id: string | null;
+  contribution_type: Contribution["type"];
+  source_type: string | null;
+  source_id: string | null;
+  source_system: Contribution["sourceSystem"];
+  metadata: Record<string, unknown> | null;
+  occurred_at: string;
+  created_at: string;
 };
 
 function mapNorthStar(row: NorthStarRow): NorthStar {
@@ -65,6 +98,30 @@ function mapMilestone(row: MilestoneRow): NorthStarMilestone {
     status: row.status,
     targetDate: row.target_date,
     completedAt: row.completed_at,
+  };
+}
+
+function mapCapability(row: CapabilityRow): PersonCapability {
+  return {
+    id: row.id,
+    personId: row.person_id,
+    capabilityKey: row.capability_key,
+    label: row.label,
+    source: row.source,
+    status: row.status,
+  };
+}
+
+function mapOpportunity(row: OpportunityRow): GrowthOpportunity {
+  return {
+    id: row.id,
+    type: row.opportunity_type,
+    title: row.title,
+    description: row.description,
+    geographicScope: row.geographic_scope,
+    startsAt: row.starts_at,
+    closesAt: row.closes_at,
+    status: row.status === "closed" ? "closed" : "open",
   };
 }
 
@@ -111,88 +168,110 @@ export async function listMyNorthStarMilestones(northStarId: string): Promise<No
   return ((data ?? []) as MilestoneRow[]).map(mapMilestone);
 }
 
-export async function addNorthStarMilestone(
-  northStarId: string,
-  description: string
-): Promise<NorthStarMilestone> {
-  if (isOfflinePreviewMode) {
-    throw new Error("Milestone persistence is unavailable in offline preview mode.");
-  }
-
+export async function addNorthStarMilestone(northStarId: string, description: string): Promise<NorthStarMilestone> {
+  if (isOfflinePreviewMode) throw new Error("Milestone persistence is unavailable in offline preview mode.");
   const { data, error } = await supabase
     .from("north_star_milestones")
-    .insert({
-      north_star_id: northStarId,
-      description: description.trim(),
-      status: "not_started",
-    })
+    .insert({ north_star_id: northStarId, description: description.trim(), status: "not_started" })
     .select("id, north_star_id, description, status, target_date, completed_at")
     .single();
-
   if (error) throw error;
   return mapMilestone(data as MilestoneRow);
 }
 
-export async function setNorthStarMilestoneStatus(
-  milestoneId: string,
-  status: NorthStarMilestone["status"]
-): Promise<NorthStarMilestone> {
-  if (isOfflinePreviewMode) {
-    throw new Error("Milestone persistence is unavailable in offline preview mode.");
-  }
-
+export async function setNorthStarMilestoneStatus(milestoneId: string, status: NorthStarMilestone["status"]): Promise<NorthStarMilestone> {
+  if (isOfflinePreviewMode) throw new Error("Milestone persistence is unavailable in offline preview mode.");
   const { data, error } = await supabase
     .from("north_star_milestones")
-    .update({
-      status,
-      completed_at: status === "completed" ? new Date().toISOString() : null,
-      updated_at: new Date().toISOString(),
-    })
+    .update({ status, completed_at: status === "completed" ? new Date().toISOString() : null, updated_at: new Date().toISOString() })
     .eq("id", milestoneId)
     .select("id, north_star_id, description, status, target_date, completed_at")
     .single();
-
   if (error) throw error;
   return mapMilestone(data as MilestoneRow);
 }
 
 export async function listMyCapabilities(): Promise<PersonCapability[]> {
   if (isOfflinePreviewMode) return [];
-
   const { data, error } = await supabase
     .from("person_capabilities")
     .select("id, person_id, capability_key, label, source, status")
     .order("updated_at", { ascending: false });
-
   if (error) throw error;
+  return ((data ?? []) as CapabilityRow[]).map(mapCapability);
+}
 
-  return ((data ?? []) as CapabilityRow[]).map((row) => ({
-    id: row.id,
-    personId: row.person_id,
-    capabilityKey: row.capability_key,
-    label: row.label,
-    source: row.source,
-    status: row.status,
-  }));
+export async function setMySelfCapability(label: string, status: "developing" | "active" = "active"): Promise<PersonCapability> {
+  if (isOfflinePreviewMode) throw new Error("Capability persistence is unavailable in offline preview mode.");
+  const { data, error } = await supabase.rpc("set_my_self_capability", {
+    p_capability_key: label,
+    p_label: label.trim(),
+    p_status: status,
+  });
+  if (error) throw error;
+  return mapCapability(data as CapabilityRow);
 }
 
 export async function listOpenGrowthOpportunities(): Promise<GrowthOpportunity[]> {
   if (isOfflinePreviewMode) return [];
-
   const { data, error } = await supabase
     .from("growth_opportunities")
-    .select("id, opportunity_type, title, description, status")
+    .select("id, opportunity_type, title, description, status, geographic_scope, starts_at, closes_at")
     .eq("status", "open")
     .order("created_at", { ascending: false })
-    .limit(12);
-
+    .limit(24);
   if (error) throw error;
+  return ((data ?? []) as OpportunityRow[]).map(mapOpportunity);
+}
 
-  return ((data ?? []) as OpportunityRow[]).map((row) => ({
+export async function listMyOpportunityMatches(): Promise<OpportunityMatch[]> {
+  if (isOfflinePreviewMode) return [];
+  const { data, error } = await supabase
+    .from("opportunity_matches")
+    .select("id, opportunity_id, person_id, match_reason, north_star_alignment, match_source, status, matched_at, created_at, updated_at, growth_opportunities(id, opportunity_type, title, description, status, geographic_scope, starts_at, closes_at)")
+    .order("matched_at", { ascending: false });
+  if (error) throw error;
+  return ((data ?? []) as OpportunityMatchRow[])
+    .filter((row) => row.growth_opportunities)
+    .map((row) => ({
+      id: row.id,
+      opportunityId: row.opportunity_id,
+      personId: row.person_id,
+      opportunity: mapOpportunity(row.growth_opportunities as OpportunityRow),
+      matchReason: row.match_reason,
+      northStarAlignment: row.north_star_alignment,
+      matchSource: row.match_source,
+      status: row.status,
+      matchedAt: row.matched_at,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    }));
+}
+
+export async function respondToMyOpportunityMatch(matchId: string, status: Extract<OpportunityMatchStatus, "viewed" | "interested" | "accepted" | "declined">): Promise<void> {
+  if (isOfflinePreviewMode) throw new Error("Opportunity responses are unavailable in offline preview mode.");
+  const { error } = await supabase.rpc("respond_to_my_opportunity_match", { p_match_id: matchId, p_status: status });
+  if (error) throw error;
+}
+
+export async function listMyContributions(): Promise<Contribution[]> {
+  if (isOfflinePreviewMode) return [];
+  const { data, error } = await supabase
+    .from("contributions")
+    .select("id, person_id, beneficiary_person_id, contribution_type, source_type, source_id, source_system, metadata, occurred_at, created_at")
+    .order("occurred_at", { ascending: false })
+    .limit(50);
+  if (error) throw error;
+  return ((data ?? []) as ContributionRow[]).map((row) => ({
     id: row.id,
-    type: row.opportunity_type,
-    title: row.title,
-    description: row.description,
-    status: "open",
+    personId: row.person_id,
+    type: row.contribution_type,
+    beneficiaryPersonId: row.beneficiary_person_id,
+    sourceType: row.source_type,
+    sourceId: row.source_id,
+    sourceSystem: row.source_system,
+    metadata: row.metadata ?? {},
+    occurredAt: row.occurred_at,
+    createdAt: row.created_at,
   }));
 }
