@@ -42,13 +42,16 @@ export interface NorthStarMilestone {
   completedAt?: string | null;
 }
 
+export type CapabilitySource = "self" | "cleanr" | "verified" | "network";
+export type CapabilityStatus = "developing" | "active" | "verified";
+
 export interface PersonCapability {
   id: string;
   personId: string;
   capabilityKey: string;
   label: string;
-  source: "self" | "cleanr" | "verified" | "network";
-  status: "developing" | "active" | "verified";
+  source: CapabilitySource;
+  status: CapabilityStatus;
 }
 
 export type GrowthOpportunityType =
@@ -69,8 +72,34 @@ export interface GrowthOpportunity {
   type: GrowthOpportunityType;
   title: string;
   description?: string | null;
-  northStarAlignment?: string | null;
+  geographicScope?: string | null;
+  startsAt?: string | null;
+  closesAt?: string | null;
   status: "open" | "matched" | "closed";
+}
+
+export type OpportunityMatchStatus =
+  | "suggested"
+  | "viewed"
+  | "interested"
+  | "accepted"
+  | "declined"
+  | "completed";
+
+export type OpportunityMatchSource = "kinex" | "admin" | "system";
+
+export interface OpportunityMatch {
+  id: string;
+  opportunityId: string;
+  personId: string;
+  opportunity: GrowthOpportunity;
+  matchReason?: string | null;
+  northStarAlignment?: string | null;
+  matchSource: OpportunityMatchSource;
+  status: OpportunityMatchStatus;
+  matchedAt: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export type ContributionType =
@@ -86,10 +115,17 @@ export type ContributionType =
   | "capital"
   | "leadership";
 
+export type ContributionSourceSystem = "cleanr" | "kinex" | "admin" | "import";
+
 export interface Contribution {
   id: string;
   personId: string;
   type: ContributionType;
   beneficiaryPersonId?: string | null;
+  sourceType?: string | null;
+  sourceId?: string | null;
+  sourceSystem: ContributionSourceSystem;
+  metadata: Record<string, unknown>;
+  occurredAt: string;
   createdAt: string;
 }
