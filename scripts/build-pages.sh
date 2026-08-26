@@ -28,12 +28,14 @@ routes=(
   csp/growth/capabilities
   csp/growth/opportunities
   csp/growth/fit
+  csp/growth/network
   csp/growth/contributions
   csp/dashboard/growth
   csp/dashboard/growth/milestones
   csp/dashboard/growth/capabilities
   csp/dashboard/growth/opportunities
   csp/dashboard/growth/opportunities/fit
+  csp/dashboard/growth/network
   csp/dashboard/growth/contributions
   trust-safety
   booking-confirmed
