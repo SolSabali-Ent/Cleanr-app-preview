@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Handshake, Network, ShieldCheck, Sparkles, Users } from "lucide-react";
+import { ArrowLeft, Handshake, Home, Network, ShieldCheck, Sparkles, Users } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import type { NetworkConnectionSummary, NetworkRelationship } from "@/domain/network";
+import type { ProviderHouseholdRelationshipSummary } from "@/domain/serviceRelationship";
 import type { TrustedServiceHandoffSummary } from "@/domain/trustedHandoff";
 import { isOfflinePreviewMode } from "@/lib/supabase";
 import { listMyNetworkRelationships, respondToNetworkRelationship } from "@/lib/networkApi";
+import { listMyHouseholdContinuity } from "@/lib/serviceRelationshipApi";
 import { listMyTrustedServiceHandoffs } from "@/lib/trustedHandoffApi";
 import {
   CSP_CARD_PADDING,
@@ -28,18 +30,21 @@ export default function NetworkScreen() {
   const navigate = useNavigate();
   const [connections, setConnections] = useState<NetworkConnectionSummary[]>([]);
   const [handoffs, setHandoffs] = useState<TrustedServiceHandoffSummary[]>([]);
+  const [households, setHouseholds] = useState<ProviderHouseholdRelationshipSummary[]>([]);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   async function refresh() {
     try {
       setError(null);
-      const [networkRelationships, trustedHandoffs] = await Promise.all([
+      const [networkRelationships, trustedHandoffs, householdContinuity] = await Promise.all([
         listMyNetworkRelationships(),
         listMyTrustedServiceHandoffs(),
+        listMyHouseholdContinuity(),
       ]);
       setConnections(networkRelationships);
       setHandoffs(trustedHandoffs);
+      setHouseholds(householdContinuity);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to load your network");
     }
@@ -51,6 +56,8 @@ export default function NetworkScreen() {
   const pending = useMemo(() => connections.filter(({ relationship }) => ["suggested", "requested"].includes(relationship.status)), [connections]);
   const coveragePartners = useMemo(() => active.filter(({ relationship }) => relationship.type === "coverage_partner"), [active]);
   const liveHandoffs = useMemo(() => handoffs.filter(({ handoff }) => ["proposed", "backup_accepted", "customer_confirmed", "active"].includes(handoff.status)), [handoffs]);
+  const repeatHouseholds = useMemo(() => households.filter((household) => household.completedServicesCount >= 2), [households]);
+  const scheduledHouseholds = useMemo(() => households.filter((household) => Boolean(household.nextScheduledAt)), [households]);
 
   async function respond(id: string, response: "accept" | "decline" | "end") {
     if (isOfflinePreviewMode || busyId) return;
@@ -79,7 +86,7 @@ export default function NetworkScreen() {
         </div>
         <h1 className="text-2xl font-semibold">Your Network</h1>
         <p className="mt-2 text-sm leading-6" style={{ color: CSP_TEXT_SECONDARY }}>
-          Cleanr can connect you with people for mentorship, peer support, trusted coverage, and collaboration. This is not a follower graph or social feed—each connection exists for a clear purpose.
+          Cleanr can connect you with households, mentors, peers, trusted coverage, and collaborators. This is not a follower graph or social feed—each relationship exists for a clear purpose.
         </p>
       </header>
 
@@ -88,10 +95,36 @@ export default function NetworkScreen() {
           <div className="flex items-start gap-3">
             <ShieldCheck size={19} style={{ color: CSP_PRIMARY_BUTTON, marginTop: 2 }} />
             <div>
-              <p className="text-sm font-medium">Connections are mutual.</p>
+              <p className="text-sm font-medium">Relationships are earned, mutual, and portable.</p>
               <p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>
-                A suggested connection does not become active until both people accept it. Cleanr keeps the relationship purpose and provenance clear.
+                Cleanr supports continuity and trust without pretending to own the relationship. New peer connections become active only with consent, and household continuity comes from real service together.
               </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section style={{ marginBottom: CSP_SECTION_GAP }}>
+        <h2 className="mb-3 text-sm font-medium" style={{ color: CSP_TEXT_SECONDARY }}>Households you know</h2>
+        <div className="rounded-2xl border" style={{ backgroundColor: CSP_SURFACE, borderColor: "rgba(248,250,252,.08)", padding: CSP_CARD_PADDING }}>
+          <div className="flex items-start gap-3">
+            <Home size={19} style={{ color: CSP_PRIMARY_BUTTON, marginTop: 2 }} />
+            <div className="flex-1">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-sm font-medium">Residential relationship continuity</p>
+                <span className="text-xs" style={{ color: CSP_TEXT_SECONDARY }}>{isOfflinePreviewMode ? "Preview" : `${households.length} household${households.length === 1 ? "" : "s"}`}</span>
+              </div>
+              <p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>
+                A booking is a transaction. Repeated service creates familiarity. Cleanr is beginning to preserve that continuity so each visit can build on the last instead of starting over.
+              </p>
+              {!isOfflinePreviewMode ? (
+                <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs" style={{ color: CSP_TEXT_SECONDARY }}>
+                  <span>{repeatHouseholds.length} repeat household{repeatHouseholds.length === 1 ? "" : "s"}</span>
+                  <span>{scheduledHouseholds.length} with a next visit</span>
+                </div>
+              ) : (
+                <p className="mt-3 text-xs" style={{ color: CSP_TEXT_SECONDARY }}>Once live data is available, this will show real household continuity from booking history.</p>
+              )}
             </div>
           </div>
         </div>
@@ -161,13 +194,13 @@ export default function NetworkScreen() {
       </section>
 
       <section>
-        <h2 className="mb-3 text-sm font-medium" style={{ color: CSP_TEXT_SECONDARY }}>Active relationships</h2>
+        <h2 className="mb-3 text-sm font-medium" style={{ color: CSP_TEXT_SECONDARY }}>Active peer relationships</h2>
         {active.length === 0 ? (
           <div className="rounded-2xl border" style={{ backgroundColor: CSP_SURFACE, borderColor: "rgba(248,250,252,.08)", padding: CSP_CARD_PADDING }}>
             <div className="flex items-start gap-3">
               <Handshake size={19} style={{ color: CSP_PRIMARY_BUTTON, marginTop: 2 }} />
               <div>
-                <p className="text-sm font-medium">Your trusted network will appear here.</p>
+                <p className="text-sm font-medium">Your trusted peer network will appear here.</p>
                 <p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>The goal is useful relationships, not a high connection count.</p>
               </div>
             </div>
