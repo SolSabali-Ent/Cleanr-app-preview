@@ -10,8 +10,6 @@ cp docs/index.html docs/404.html
 printf 'go.cleanr.app\n' > docs/CNAME
 touch docs/.nojekyll
 
-# GitHub Pages serves static files directly. Add route entry shells so
-# BrowserRouter URLs work on first load as well as client-side navigation.
 routes=(
   app
   app/bookings
@@ -29,6 +27,7 @@ routes=(
   csp/dashboard/growth/milestones
   csp/dashboard/growth/capabilities
   csp/dashboard/growth/opportunities
+  csp/dashboard/growth/opportunities/fit
   csp/dashboard/growth/contributions
   trust-safety
   booking-confirmed
