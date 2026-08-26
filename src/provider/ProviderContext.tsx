@@ -1,33 +1,30 @@
 // src/provider/ProviderContext.tsx
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { supabase } from "../lib/supabase";
+import { listBookingsForCustomer } from "../lib/bookingApi";
 import type { PublicProvider } from "./types";
+
+export type ProviderRelationshipSource = "booking_history" | "customer_selection" | null;
 
 interface ProviderContextValue {
   providers: PublicProvider[];
   selectedProvider: PublicProvider | null;
+  relationshipSource: ProviderRelationshipSource;
   selectProvider: (id: string) => void;
 }
 
-const ProviderContext = createContext<ProviderContextValue | undefined>(
-  undefined
-);
+const ProviderContext = createContext<ProviderContextValue | undefined>(undefined);
 
 const LOCAL_STORAGE_KEY = "cleanr:selectedProviderId";
 
-export function ProviderContextProvider({
-  children,
-}: {
-  children: ReactNode;
-}) {
+export function ProviderContextProvider({ children }: { children: ReactNode }) {
   const [providers, setProviders] = useState<PublicProvider[]>([]);
-  const [selectedProviderId, setSelectedProviderId] = useState<string | null>(
-    () => {
-      if (typeof window === "undefined") return null;
-      return localStorage.getItem(LOCAL_STORAGE_KEY);
-    }
-  );
+  const [explicitProviderId, setExplicitProviderId] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    return localStorage.getItem(LOCAL_STORAGE_KEY);
+  });
+  const [bookingProviderId, setBookingProviderId] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -47,19 +44,44 @@ export function ProviderContextProvider({
   }, []);
 
   useEffect(() => {
-    if (!selectedProviderId && providers.length > 0) {
-      setSelectedProviderId(providers[0].id);
-      if (typeof window !== "undefined") {
-        localStorage.setItem(LOCAL_STORAGE_KEY, providers[0].id);
+    let active = true;
+    async function loadRelationshipFromBookings() {
+      try {
+        const bookings = await listBookingsForCustomer();
+        if (!active) return;
+        const withProvider = bookings
+          .filter((booking) => Boolean(booking.provider_id))
+          .sort((a, b) => {
+            const aTime = new Date(a.scheduled_start || a.created_at).getTime();
+            const bTime = new Date(b.scheduled_start || b.created_at).getTime();
+            return bTime - aTime;
+          })[0];
+        setBookingProviderId(withProvider?.provider_id ?? null);
+      } catch {
+        if (active) setBookingProviderId(null);
       }
     }
-  }, [selectedProviderId, providers]);
+    void loadRelationshipFromBookings();
+    return () => {
+      active = false;
+    };
+  }, []);
 
-  const selectedProvider =
-    providers.find((p) => p.id === selectedProviderId) ?? providers[0] ?? null;
+  const selectedProviderId = explicitProviderId ?? bookingProviderId;
+
+  const selectedProvider = useMemo(
+    () => providers.find((provider) => provider.id === selectedProviderId) ?? null,
+    [providers, selectedProviderId]
+  );
+
+  const relationshipSource: ProviderRelationshipSource = explicitProviderId
+    ? "customer_selection"
+    : bookingProviderId
+      ? "booking_history"
+      : null;
 
   const selectProvider = (id: string) => {
-    setSelectedProviderId(id);
+    setExplicitProviderId(id);
     if (typeof window !== "undefined") {
       localStorage.setItem(LOCAL_STORAGE_KEY, id);
     }
@@ -70,6 +92,7 @@ export function ProviderContextProvider({
       value={{
         providers,
         selectedProvider,
+        relationshipSource,
         selectProvider,
       }}
     >
@@ -85,4 +108,3 @@ export function useProviderContext() {
   }
   return ctx;
 }
-
