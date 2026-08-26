@@ -1,4 +1,5 @@
 # Cleanr public host deployment
+# Fresh deploy after GitHub Pages source switched to GitHub Actions.
 name: Deploy Cleanr to GitHub Pages
 
 on:
