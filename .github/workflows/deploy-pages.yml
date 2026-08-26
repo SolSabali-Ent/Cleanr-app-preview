@@ -1,4 +1,4 @@
-name: Deploy Cleanr Preview to GitHub Pages
+name: Deploy Cleanr to GitHub Pages
 
 on:
   push:
@@ -17,6 +17,8 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      VITE_PUBLIC_HOST_MODE: "1"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -31,6 +33,9 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      - name: Add SPA fallback
+        run: cp dist/index.html dist/404.html
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
