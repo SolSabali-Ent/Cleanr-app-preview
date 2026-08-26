@@ -26,6 +26,8 @@ type TrustedServiceHandoffRow = {
   updated_at: string;
 };
 
+const HANDOFF_SELECT = "id, booking_id, customer_id, from_provider_id, to_provider_id, coverage_relationship_id, reason, reason_note, status, source_confirmed_at, backup_accepted_at, customer_confirmed_at, activated_at, declined_at, cancelled_at, completed_at, created_at, updated_at";
+
 function mapHandoff(row: TrustedServiceHandoffRow): TrustedServiceHandoff {
   return {
     id: row.id,
@@ -59,7 +61,7 @@ export async function listMyTrustedServiceHandoffs(): Promise<TrustedServiceHand
 
   const { data, error } = await supabase
     .from("trusted_service_handoffs")
-    .select("id, booking_id, customer_id, from_provider_id, to_provider_id, coverage_relationship_id, reason, reason_note, status, source_confirmed_at, backup_accepted_at, customer_confirmed_at, activated_at, declined_at, cancelled_at, completed_at, created_at, updated_at")
+    .select(HANDOFF_SELECT)
     .or(`from_provider_id.eq.${personId},to_provider_id.eq.${personId}`)
     .order("updated_at", { ascending: false });
 
@@ -69,6 +71,28 @@ export async function listMyTrustedServiceHandoffs(): Promise<TrustedServiceHand
     handoff: mapHandoff(row),
     viewerRole: row.from_provider_id === personId ? "from_provider" : "backup_provider",
   }));
+}
+
+/**
+ * Booking-scoped read for a participant, including the customer. RLS remains authoritative;
+ * this helper does not broaden who can see the handoff.
+ */
+export async function getTrustedServiceHandoffForBooking(
+  bookingId: string
+): Promise<TrustedServiceHandoff | null> {
+  if (isOfflinePreviewMode) return null;
+
+  const { data, error } = await supabase
+    .from("trusted_service_handoffs")
+    .select(HANDOFF_SELECT)
+    .eq("booking_id", bookingId)
+    .in("status", ["proposed", "backup_accepted", "customer_confirmed", "active"])
+    .order("updated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data ? mapHandoff(data as TrustedServiceHandoffRow) : null;
 }
 
 export async function proposeTrustedServiceHandoff(input: {
