@@ -49,18 +49,15 @@ import { AdminGate } from "./AdminGate";
 import { ProviderHub } from "../app/provider/screens/ProviderHub";
 import { CustomerGate } from "./CustomerGate";
 
-/**
- * One Cleanr platform, two role experiences.
- * Role is decided by path prefix; no role checks inside screens.
- */
 export function AppRouter() {
+  const publicHostMode = import.meta.env.VITE_PUBLIC_HOST_MODE === "1";
+
   return (
     <BrowserRouter>
       <ScrollToTop />
       <div className="app-shell">
         <Routes>
-        {/* Runtime root route: public Cleanr landing page */}
-        <Route path="/" element={<Landing />} />
+        <Route path="/" element={publicHostMode ? <Navigate to="/app" replace /> : <Landing />} />
         <Route path="/signin" element={<CustomerLogin />} />
         <Route path="/dashboard" element={<AuthGate />} />
         <Route path="/csp" element={<ProviderHub />} />
@@ -69,12 +66,10 @@ export function AppRouter() {
         <Route path="/booking-confirmed" element={<BookingConfirmation />} />
         <Route path="/trust-safety" element={<TrustSafety />} />
 
-        {/* Customer booking flow under customer shell */}
         <Route path="/book/*" element={<CustomerLayout />}>
           <Route index element={<BookService />} />
         </Route>
 
-        {/* Customer app: layout defines role context */}
         <Route path="/app" element={<CustomerGate><CustomerLayout /></CustomerGate>}>
           <Route index element={<CustomerHome />} />
           <Route path="bookings" element={<Schedule />} />
@@ -88,7 +83,6 @@ export function AppRouter() {
           <Route path="payments" element={<Payments />} />
         </Route>
 
-        {/* Provider (CSP) app: onboarding standalone (no nav); dashboard layout has bottom nav */}
         <Route path="/csp/login" element={<CSPLogin />} />
         <Route path="/csp/signup" element={<CSPSignup />} />
         <Route path="/onboarding" element={<Navigate to="/csp/dashboard" replace />} />
@@ -117,7 +111,6 @@ export function AppRouter() {
           </Route>
         </Route>
 
-        {/* Admin: role-checked so only profiles.role = admin can access */}
         <Route path="/admin" element={<AdminGate><AdminLayout /></AdminGate>}>
           <Route index element={<Navigate to="/admin/ops" replace />} />
           <Route path="geo" element={<GeoHarness />} />
@@ -126,10 +119,7 @@ export function AppRouter() {
           <Route path="providers" element={<ProviderApplications />} />
         </Route>
 
-        {/* Legacy */}
         <Route path="/provider" element={<Navigate to="/csp/login" replace />} />
-
-        {/* Fallback */}
         <Route path="*" element={<NotFound />} />
         </Routes>
       </div>
