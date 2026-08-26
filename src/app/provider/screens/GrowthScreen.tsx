@@ -1,4 +1,14 @@
+import { useEffect, useMemo, useState } from "react";
 import { ArrowRight, Compass, Lightbulb, Network, Sparkles } from "lucide-react";
+import type { NorthStar, NorthStarCategory } from "@/domain/growth";
+import { isOfflinePreviewMode } from "@/lib/supabase";
+import {
+  getMyNorthStar,
+  listMyCapabilities,
+  listMyNorthStarMilestones,
+  listOpenGrowthOpportunities,
+  setMyNorthStar,
+} from "@/lib/growthApi";
 import {
   CSP_CARD_PADDING,
   CSP_PRIMARY_BUTTON,
@@ -8,14 +18,102 @@ import {
   CSP_TEXT_SECONDARY,
 } from "@/theme/cspTheme";
 
-/**
- * Growth is the CSP transformation surface.
- *
- * This screen is intentionally persistence-light until the North Star/opportunity
- * tables are live. It establishes the product boundary and language without
- * inventing stored state while Supabase is unavailable.
- */
+const northStarOptions: Array<{ value: NorthStarCategory; label: string }> = [
+  { value: "cleaning_practice", label: "Build a strong cleaning practice" },
+  { value: "stability", label: "Create more financial stability" },
+  { value: "homeownership", label: "Buy a home" },
+  { value: "education", label: "Continue my education" },
+  { value: "entrepreneurship", label: "Build a business" },
+  { value: "career_transition", label: "Move into another career" },
+  { value: "investing", label: "Build through investing" },
+  { value: "family_time", label: "Create more time for family or life" },
+  { value: "retirement_from_physical_cleaning", label: "Reduce or retire from physical cleaning" },
+  { value: "other", label: "Something else" },
+];
+
+function categoryLabel(category: NorthStarCategory): string {
+  return northStarOptions.find((option) => option.value === category)?.label ?? "Personal North Star";
+}
+
 export default function GrowthScreen() {
+  const [northStar, setNorthStar] = useState<NorthStar | null>(null);
+  const [category, setCategory] = useState<NorthStarCategory>("cleaning_practice");
+  const [goal, setGoal] = useState("");
+  const [editing, setEditing] = useState(false);
+  const [loading, setLoading] = useState(!isOfflinePreviewMode);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [milestoneCount, setMilestoneCount] = useState(0);
+  const [capabilityCount, setCapabilityCount] = useState(0);
+  const [opportunityCount, setOpportunityCount] = useState(0);
+
+  useEffect(() => {
+    if (isOfflinePreviewMode) {
+      setLoading(false);
+      return;
+    }
+
+    let active = true;
+    void (async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const current = await getMyNorthStar();
+        if (!active) return;
+        setNorthStar(current);
+
+        const [capabilities, opportunities] = await Promise.all([
+          listMyCapabilities(),
+          listOpenGrowthOpportunities(),
+        ]);
+        if (!active) return;
+        setCapabilityCount(capabilities.length);
+        setOpportunityCount(opportunities.length);
+
+        if (current) {
+          const milestones = await listMyNorthStarMilestones(current.id);
+          if (!active) return;
+          setMilestoneCount(milestones.length);
+        }
+      } catch (err) {
+        if (!active) return;
+        setError(err instanceof Error ? err.message : "Unable to load your growth profile");
+      } finally {
+        if (active) setLoading(false);
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!northStar) return;
+    setCategory(northStar.category);
+    setGoal(northStar.goal);
+  }, [northStar?.id]);
+
+  const canSave = useMemo(
+    () => !isOfflinePreviewMode && goal.trim().length >= 3 && !saving,
+    [goal, saving]
+  );
+
+  async function handleSaveNorthStar() {
+    if (!canSave) return;
+    try {
+      setSaving(true);
+      setError(null);
+      const saved = await setMyNorthStar(goal.trim(), category);
+      setNorthStar(saved);
+      setEditing(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to save your North Star");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <div className="pb-24" style={{ color: CSP_TEXT_PRIMARY }}>
       <header style={{ marginBottom: CSP_SECTION_GAP }}>
@@ -29,6 +127,15 @@ export default function GrowthScreen() {
           You decide what you&apos;re building toward.
         </p>
       </header>
+
+      {error ? (
+        <div
+          className="mb-4 rounded-xl border px-4 py-3 text-sm"
+          style={{ borderColor: "rgba(248, 113, 113, 0.25)", backgroundColor: "rgba(248, 113, 113, 0.08)" }}
+        >
+          {error}
+        </div>
+      ) : null}
 
       <section style={{ marginBottom: CSP_SECTION_GAP }}>
         <div
@@ -47,51 +154,136 @@ export default function GrowthScreen() {
               <Compass size={20} style={{ color: CSP_PRIMARY_BUTTON }} />
             </div>
             <div>
-              <p className="text-sm font-medium">What are you building toward?</p>
+              <p className="text-sm font-medium">
+                {northStar && !editing ? categoryLabel(northStar.category) : "What are you building toward?"}
+              </p>
               <p className="text-xs" style={{ color: CSP_TEXT_SECONDARY }}>
                 Your answer belongs to you.
               </p>
             </div>
           </div>
 
-          <p className="text-sm leading-6" style={{ color: CSP_TEXT_SECONDARY }}>
-            This will become your persistent North Star when the growth data layer is connected. It may be a
-            thriving cleaning practice, homeownership, education, a business, another career, investing, more
-            family time, or something Cleanr never predicted.
-          </p>
+          {loading ? (
+            <p className="text-sm" style={{ color: CSP_TEXT_SECONDARY }}>
+              Loading your North Star...
+            </p>
+          ) : northStar && !editing ? (
+            <>
+              <p className="text-lg font-semibold leading-7">{northStar.goal}</p>
+              <p className="mt-2 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>
+                This is your current direction, not a requirement. You can change it as your life changes.
+              </p>
+              <button
+                type="button"
+                onClick={() => setEditing(true)}
+                className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold"
+              >
+                Update my North Star
+                <ArrowRight size={16} />
+              </button>
+            </>
+          ) : isOfflinePreviewMode ? (
+            <>
+              <p className="text-sm leading-6" style={{ color: CSP_TEXT_SECONDARY }}>
+                A North Star can be a thriving cleaning practice, homeownership, education, a business, another
+                career, investing, more family time, or something Cleanr never predicted.
+              </p>
+              <button
+                type="button"
+                disabled
+                className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold opacity-70"
+                title="North Star persistence activates with the backend"
+              >
+                Define my North Star
+                <ArrowRight size={16} />
+              </button>
+            </>
+          ) : (
+            <div className="space-y-3">
+              <label className="block">
+                <span className="mb-1 block text-xs" style={{ color: CSP_TEXT_SECONDARY }}>
+                  Direction
+                </span>
+                <select
+                  value={category}
+                  onChange={(event) => setCategory(event.target.value as NorthStarCategory)}
+                  className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-sm outline-none"
+                >
+                  {northStarOptions.map((option) => (
+                    <option key={option.value} value={option.value} className="text-black">
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
 
-          <button
-            type="button"
-            disabled
-            className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold opacity-70"
-            title="North Star persistence will activate when the backend is available"
-          >
-            Define my North Star
-            <ArrowRight size={16} />
-          </button>
+              <label className="block">
+                <span className="mb-1 block text-xs" style={{ color: CSP_TEXT_SECONDARY }}>
+                  In your words
+                </span>
+                <textarea
+                  value={goal}
+                  onChange={(event) => setGoal(event.target.value)}
+                  rows={3}
+                  maxLength={500}
+                  placeholder="What are you trying to build or make possible?"
+                  className="w-full resize-none rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-sm outline-none"
+                />
+              </label>
+
+              <button
+                type="button"
+                disabled={!canSave}
+                onClick={() => void handleSaveNorthStar()}
+                className="flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                style={{ backgroundColor: CSP_PRIMARY_BUTTON }}
+              >
+                {saving ? "Saving..." : northStar ? "Save changes" : "Set my North Star"}
+                {!saving ? <ArrowRight size={16} /> : null}
+              </button>
+
+              {northStar ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditing(false);
+                    setCategory(northStar.category);
+                    setGoal(northStar.goal);
+                  }}
+                  className="w-full py-2 text-xs"
+                  style={{ color: CSP_TEXT_SECONDARY }}
+                >
+                  Cancel
+                </button>
+              ) : null}
+            </div>
+          )}
         </div>
       </section>
 
       <section style={{ marginBottom: CSP_SECTION_GAP }}>
         <h2 className="mb-3 text-sm font-medium" style={{ color: CSP_TEXT_SECONDARY }}>
-          What Cleanr can grow with you
+          Your growth system
         </h2>
         <div className="space-y-3">
           <div
             className="rounded-2xl border"
-            style={{
-              backgroundColor: CSP_SURFACE,
-              borderColor: "rgba(248, 250, 252, 0.08)",
-              padding: CSP_CARD_PADDING,
-            }}
+            style={{ backgroundColor: CSP_SURFACE, borderColor: "rgba(248, 250, 252, 0.08)", padding: CSP_CARD_PADDING }}
           >
             <div className="flex items-start gap-3">
               <Lightbulb size={19} style={{ color: CSP_PRIMARY_BUTTON, marginTop: 2 }} />
-              <div>
-                <p className="text-sm font-medium">Capabilities</p>
+              <div className="flex-1">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-sm font-medium">Capabilities</p>
+                  {!isOfflinePreviewMode ? (
+                    <span className="text-xs" style={{ color: CSP_TEXT_SECONDARY }}>
+                      {capabilityCount}
+                    </span>
+                  ) : null}
+                </div>
                 <p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>
-                  Cleaning skills are one part of what you can do. Over time, Cleanr can recognize service,
-                  mentoring, leadership, business, and other capabilities without changing your current role.
+                  Cleaning skills are one part of what you can do. Cleanr can recognize service, mentoring,
+                  leadership, business, and other capabilities without changing your current role.
                 </p>
               </div>
             </div>
@@ -99,19 +291,22 @@ export default function GrowthScreen() {
 
           <div
             className="rounded-2xl border"
-            style={{
-              backgroundColor: CSP_SURFACE,
-              borderColor: "rgba(248, 250, 252, 0.08)",
-              padding: CSP_CARD_PADDING,
-            }}
+            style={{ backgroundColor: CSP_SURFACE, borderColor: "rgba(248, 250, 252, 0.08)", padding: CSP_CARD_PADDING }}
           >
             <div className="flex items-start gap-3">
               <Compass size={19} style={{ color: CSP_PRIMARY_BUTTON, marginTop: 2 }} />
-              <div>
-                <p className="text-sm font-medium">Opportunities</p>
+              <div className="flex-1">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-sm font-medium">Opportunities</p>
+                  {!isOfflinePreviewMode ? (
+                    <span className="text-xs" style={{ color: CSP_TEXT_SECONDARY }}>
+                      {opportunityCount}
+                    </span>
+                  ) : null}
+                </div>
                 <p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>
-                  Jobs stay in Jobs. Growth opportunities will be broader: mentorship, training, referrals,
-                  leadership, business, vendor, education, external, and other North-Star-aligned paths.
+                  Jobs stay in Jobs. Growth opportunities can include mentorship, training, referrals, leadership,
+                  business, vendor, education, external, and other North-Star-aligned paths.
                 </p>
               </div>
             </div>
@@ -119,19 +314,22 @@ export default function GrowthScreen() {
 
           <div
             className="rounded-2xl border"
-            style={{
-              backgroundColor: CSP_SURFACE,
-              borderColor: "rgba(248, 250, 252, 0.08)",
-              padding: CSP_CARD_PADDING,
-            }}
+            style={{ backgroundColor: CSP_SURFACE, borderColor: "rgba(248, 250, 252, 0.08)", padding: CSP_CARD_PADDING }}
           >
             <div className="flex items-start gap-3">
               <Network size={19} style={{ color: CSP_PRIMARY_BUTTON, marginTop: 2 }} />
-              <div>
-                <p className="text-sm font-medium">Contribution</p>
+              <div className="flex-1">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-sm font-medium">Milestones & contribution</p>
+                  {!isOfflinePreviewMode && northStar ? (
+                    <span className="text-xs" style={{ color: CSP_TEXT_SECONDARY }}>
+                      {milestoneCount} milestones
+                    </span>
+                  ) : null}
+                </div>
                 <p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>
-                  As you grow, you may mentor, refer, create opportunities, build a business, employ others, or
-                  strengthen the network in ways that have nothing to do with cleaning more houses.
+                  Progress can create value for you and the network. Over time that can include milestones,
+                  mentoring, referrals, coverage, opportunities, businesses, employment, and leadership.
                 </p>
               </div>
             </div>
