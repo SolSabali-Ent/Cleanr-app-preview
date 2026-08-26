@@ -1,112 +1,16 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#0A84FF" />
-  <title>Cleanr | On-Demand Cleaning</title>
-  <style>
-    :root{--blue:#0A84FF;--ink:#10233f;--muted:#607089;--line:#e6ebf2;--bg:#f7f9fc;--green:#17a673}
-    *{box-sizing:border-box}body{margin:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--ink);background:#fff}button,input,select{font:inherit}a{text-decoration:none;color:inherit}
-    .wrap{width:min(1120px,calc(100% - 32px));margin:auto}.nav{height:72px;display:flex;align-items:center;justify-content:space-between}.brand{display:flex;align-items:center;gap:10px;font-size:25px;font-weight:800}.mark{width:36px;height:36px;border-radius:10px;background:var(--blue);display:grid;place-items:center;color:white;font-weight:900}.nav-actions{display:flex;gap:10px;align-items:center}.btn{border:0;border-radius:12px;padding:12px 18px;font-weight:750;cursor:pointer}.btn-primary{background:var(--blue);color:#fff}.btn-light{background:#eef5ff;color:#0567c7}.btn-ghost{background:transparent;color:var(--ink)}
-    .hero{padding:72px 0 56px;background:linear-gradient(180deg,#f7fbff 0%,#fff 100%)}.eyebrow{color:var(--blue);font-weight:800;text-transform:uppercase;letter-spacing:.08em;font-size:13px}.hero-grid{display:grid;grid-template-columns:1.1fr .9fr;gap:54px;align-items:center}.hero h1{font-size:clamp(42px,6vw,72px);line-height:.98;margin:12px 0 20px;letter-spacing:-.04em}.hero p{font-size:19px;line-height:1.6;color:var(--muted);max-width:650px}.hero-ctas{display:flex;gap:12px;flex-wrap:wrap;margin-top:28px}.card{background:#fff;border:1px solid var(--line);border-radius:22px;box-shadow:0 18px 55px rgba(16,35,63,.08)}.preview{padding:22px}.status{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--green);font-weight:750}.dot{width:9px;height:9px;background:var(--green);border-radius:50%}.preview h3{font-size:22px;margin:14px 0}.job{padding:16px;border:1px solid var(--line);border-radius:16px;margin-top:12px}.job-top{display:flex;justify-content:space-between;gap:12px}.pill{font-size:12px;font-weight:800;padding:6px 9px;border-radius:999px;background:#eaf3ff;color:#0769c7}.price{font-weight:850}.small{font-size:13px;color:var(--muted);line-height:1.5}
-    .features{padding:72px 0}.section-head{text-align:center;max-width:700px;margin:auto}.section-head h2{font-size:38px;margin:10px 0}.section-head p{color:var(--muted);line-height:1.6}.feature-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:34px}.feature{padding:24px}.icon{width:46px;height:46px;border-radius:13px;background:#eaf3ff;display:grid;place-items:center;font-size:22px}.feature h3{margin:18px 0 8px}.feature p{color:var(--muted);line-height:1.55;margin:0}
-    .notice{margin:0 auto 54px;padding:14px 18px;border-radius:14px;background:#fff7e5;border:1px solid #ffe2a8;color:#76521a;font-size:14px}.footer{border-top:1px solid var(--line);padding:28px 0;color:var(--muted);font-size:14px}
-    .overlay{position:fixed;inset:0;background:rgba(5,18,36,.56);display:none;align-items:flex-end;justify-content:center;z-index:50}.overlay.open{display:flex}.sheet{background:#fff;width:min(680px,100%);max-height:92vh;overflow:auto;border-radius:24px 24px 0 0;padding:24px}.sheet-head{display:flex;justify-content:space-between;gap:16px;align-items:center}.close{width:38px;height:38px;border-radius:50%;border:0;background:#f1f4f8;cursor:pointer}.progress{height:7px;background:#eef2f7;border-radius:999px;overflow:hidden;margin:20px 0}.progress span{display:block;height:100%;background:var(--blue);transition:.25s}.step{display:none}.step.active{display:block}.step h2{margin:0 0 8px}.step p{color:var(--muted)}.options{display:grid;gap:10px;margin:20px 0}.option{border:1px solid var(--line);border-radius:14px;padding:15px;cursor:pointer;background:#fff;text-align:left}.option.selected{border-color:var(--blue);box-shadow:0 0 0 2px rgba(10,132,255,.12)}.field{display:grid;gap:7px;margin:14px 0}.field label{font-size:13px;font-weight:750}.field input,.field select{width:100%;border:1px solid #d8e0ea;border-radius:12px;padding:13px;background:#fff}.actions{display:flex;justify-content:space-between;gap:10px;margin-top:22px}.summary{background:var(--bg);padding:16px;border-radius:16px;line-height:1.7}.demo-panel{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:18px 0}.metric{padding:16px;border:1px solid var(--line);border-radius:14px}.metric b{display:block;font-size:23px}.hide{display:none!important}
-    @media(max-width:800px){.nav-actions .btn-ghost{display:none}.hero{padding-top:38px}.hero-grid{grid-template-columns:1fr}.hero h1{font-size:48px}.feature-grid{grid-template-columns:1fr}.demo-panel{grid-template-columns:1fr}.preview{display:none}}
-  </style>
-</head>
-<body>
-  <header class="wrap nav">
-    <a class="brand" href="#top"><span class="mark">C</span><span>Cleanr</span></a>
-    <div class="nav-actions">
-      <button class="btn btn-ghost" onclick="openDemo('customer')">Sign in</button>
-      <button class="btn btn-light" onclick="openDemo('csp')">I'm a cleaner</button>
-      <button class="btn btn-primary" onclick="openBooking()">Book a cleaning</button>
-    </div>
-  </header>
-
-  <main id="top">
-    <section class="hero">
-      <div class="wrap hero-grid">
-        <div>
-          <div class="eyebrow">Cleaning, without the runaround</div>
-          <h1>A cleaner home, on your terms.</h1>
-          <p>Choose your service, schedule, and cleaner in one simple flow. Cleanr connects customers with independent cleaning professionals through a mobile-first experience.</p>
-          <div class="hero-ctas">
-            <button class="btn btn-primary" onclick="openBooking()">Book a cleaning</button>
-            <button class="btn btn-light" onclick="openDemo('csp')">Explore cleaner view</button>
-          </div>
-        </div>
-        <div class="card preview">
-          <div class="status"><span class="dot"></span> Preview available</div>
-          <h3>Your next cleaning</h3>
-          <div class="job"><div class="job-top"><div><b>Standard cleaning</b><div class="small">Saturday · 10:00 AM</div></div><span class="pill">Matched</span></div></div>
-          <div class="job"><div class="job-top"><div><b>Cleaner</b><div class="small">Top-rated provider · 4.9 ★</div></div><span class="price">$128</span></div></div>
-          <div class="small" style="margin-top:14px">This temporary preview runs entirely in your browser while the production backend is offline.</div>
-        </div>
-      </div>
-    </section>
-
-    <section class="features wrap">
-      <div class="section-head"><div class="eyebrow">One simple experience</div><h2>From booking to clean</h2><p>Explore the Cleanr customer and cleaner experience without requiring a live production database.</p></div>
-      <div class="feature-grid">
-        <div class="card feature"><div class="icon">⌂</div><h3>Book your way</h3><p>Select service type, frequency, home details and a preferred time in a guided flow.</p></div>
-        <div class="card feature"><div class="icon">★</div><h3>Choose a provider</h3><p>Preview how customers discover and select cleaning professionals based on fit and reputation.</p></div>
-        <div class="card feature"><div class="icon">✓</div><h3>Stay informed</h3><p>See the lifecycle from booking through arrival, completion and post-service follow-up.</p></div>
-      </div>
-    </section>
-
-    <div class="wrap notice"><b>Temporary preview mode:</b> production database, authentication, payments and live provider data are currently disabled. Demo interactions are stored only in this browser and do not create real bookings.</div>
-  </main>
-
-  <footer class="footer"><div class="wrap">© Cleanr · Public preview</div></footer>
-
-  <div id="bookingOverlay" class="overlay" onclick="if(event.target===this)closeBooking()">
-    <div class="sheet">
-      <div class="sheet-head"><div><div class="eyebrow">Demo booking</div><b id="stepLabel">Step 1 of 5</b></div><button class="close" onclick="closeBooking()">×</button></div>
-      <div class="progress"><span id="progressBar" style="width:20%"></span></div>
-
-      <div class="step active" data-step="1"><h2>What do you need cleaned?</h2><p>Choose a service for this demo booking.</p><div class="options" data-name="service"><button class="option" onclick="choose(this,'service','Standard cleaning')"><b>Standard cleaning</b><div class="small">Routine home cleaning</div></button><button class="option" onclick="choose(this,'service','Deep cleaning')"><b>Deep cleaning</b><div class="small">More detailed reset</div></button><button class="option" onclick="choose(this,'service','Move-in / move-out')"><b>Move-in / move-out</b><div class="small">Empty-home cleaning</div></button></div></div>
-      <div class="step" data-step="2"><h2>How often?</h2><p>Set the booking frequency.</p><div class="options" data-name="frequency"><button class="option" onclick="choose(this,'frequency','One time')">One time</button><button class="option" onclick="choose(this,'frequency','Weekly')">Weekly</button><button class="option" onclick="choose(this,'frequency','Every two weeks')">Every two weeks</button></div></div>
-      <div class="step" data-step="3"><h2>Tell us about the home</h2><div class="field"><label>Bedrooms</label><select id="bedrooms"><option>1</option><option selected>2</option><option>3</option><option>4+</option></select></div><div class="field"><label>Bathrooms</label><select id="bathrooms"><option>1</option><option selected>2</option><option>3</option><option>4+</option></select></div><div class="field"><label>ZIP code</label><input id="zip" inputmode="numeric" maxlength="5" placeholder="30318" /></div></div>
-      <div class="step" data-step="4"><h2>Pick a preferred time</h2><div class="field"><label>Date</label><input id="date" type="date" /></div><div class="field"><label>Time</label><select id="time"><option>8:00 AM</option><option>10:00 AM</option><option>12:00 PM</option><option>2:00 PM</option><option>4:00 PM</option></select></div></div>
-      <div class="step" data-step="5"><h2>Review your demo booking</h2><div id="bookingSummary" class="summary"></div><div class="field"><label>Name</label><input id="name" placeholder="Your name" /></div><div class="field"><label>Email</label><input id="email" type="email" placeholder="you@example.com" /></div></div>
-      <div class="step" data-step="6"><h2>Demo booking saved</h2><p>No real reservation or payment was created.</p><div id="savedSummary" class="summary"></div><button class="btn btn-primary" style="margin-top:18px;width:100%" onclick="closeBooking()">Done</button></div>
-
-      <div id="bookingActions" class="actions"><button class="btn btn-light" id="backBtn" onclick="prevStep()">Back</button><button class="btn btn-primary" id="nextBtn" onclick="nextStep()">Continue</button></div>
-    </div>
-  </div>
-
-  <div id="demoOverlay" class="overlay" onclick="if(event.target===this)closeDemo()">
-    <div class="sheet">
-      <div class="sheet-head"><div><div class="eyebrow">Cleanr preview</div><h2 id="demoTitle" style="margin:3px 0 0">Customer dashboard</h2></div><button class="close" onclick="closeDemo()">×</button></div>
-      <div id="customerDemo">
-        <div class="demo-panel"><div class="metric"><span class="small">Upcoming</span><b>1</b></div><div class="metric"><span class="small">Completed</span><b>6</b></div><div class="metric"><span class="small">Saved cleaner</span><b>4.9 ★</b></div></div>
-        <div class="job"><b>Saturday · 10:00 AM</b><div class="small">Standard cleaning · 2 bed / 2 bath</div></div>
-        <button class="btn btn-primary" style="width:100%;margin-top:18px" onclick="closeDemo();openBooking()">Start another booking</button>
-      </div>
-      <div id="cspDemo" class="hide">
-        <div class="demo-panel"><div class="metric"><span class="small">Today</span><b>2 jobs</b></div><div class="metric"><span class="small">This week</span><b>$684</b></div><div class="metric"><span class="small">Rating</span><b>4.9 ★</b></div></div>
-        <div class="job"><div class="job-top"><div><b>10:00 AM · Standard clean</b><div class="small">3.2 miles away · 2 bed / 2 bath</div></div><span class="pill">Confirmed</span></div></div>
-        <div class="job"><div class="job-top"><div><b>2:30 PM · Deep clean</b><div class="small">5.8 miles away · 3 bed / 2 bath</div></div><span class="pill">Upcoming</span></div></div>
-      </div>
-    </div>
-  </div>
-
-  <script>
-    const booking={service:'',frequency:'',step:1};
-    function openBooking(){booking.step=1;showStep();document.getElementById('bookingOverlay').classList.add('open')}
-    function closeBooking(){document.getElementById('bookingOverlay').classList.remove('open')}
-    function choose(el,key,value){booking[key]=value;el.parentElement.querySelectorAll('.option').forEach(x=>x.classList.remove('selected'));el.classList.add('selected')}
-    function showStep(){document.querySelectorAll('#bookingOverlay .step').forEach(x=>x.classList.toggle('active',Number(x.dataset.step)===booking.step));const done=booking.step===6;document.getElementById('bookingActions').classList.toggle('hide',done);if(!done){document.getElementById('stepLabel').textContent=`Step ${booking.step} of 5`;document.getElementById('progressBar').style.width=`${booking.step*20}%`;document.getElementById('backBtn').style.visibility=booking.step===1?'hidden':'visible';document.getElementById('nextBtn').textContent=booking.step===5?'Save demo booking':'Continue'}if(booking.step===5)renderSummary()}
-    function nextStep(){if(booking.step===1&&!booking.service)return alert('Choose a service.');if(booking.step===2&&!booking.frequency)return alert('Choose a frequency.');if(booking.step===3&&!/^\d{5}$/.test(document.getElementById('zip').value.trim()))return alert('Enter a 5-digit ZIP code.');if(booking.step===4&&!document.getElementById('date').value)return alert('Choose a date.');if(booking.step===5){saveBooking();booking.step=6;showStep();return}booking.step++;showStep()}
-    function prevStep(){if(booking.step>1){booking.step--;showStep()}}
-    function renderSummary(){booking.bedrooms=document.getElementById('bedrooms').value;booking.bathrooms=document.getElementById('bathrooms').value;booking.zip=document.getElementById('zip').value;booking.date=document.getElementById('date').value;booking.time=document.getElementById('time').value;document.getElementById('bookingSummary').innerHTML=`<b>${booking.service}</b><br>${booking.frequency}<br>${booking.bedrooms} bed / ${booking.bathrooms} bath<br>${booking.zip}<br>${booking.date} · ${booking.time}`}
-    function saveBooking(){renderSummary();booking.name=document.getElementById('name').value||'Demo customer';booking.email=document.getElementById('email').value||'';const record={...booking,id:'DEMO-'+Date.now(),createdAt:new Date().toISOString()};localStorage.setItem('cleanr_demo_booking',JSON.stringify(record));document.getElementById('savedSummary').innerHTML=`<b>${record.id}</b><br>${record.service}<br>${record.date} · ${record.time}<br>${record.name}`}
-    function openDemo(type){document.getElementById('demoOverlay').classList.add('open');const c=type==='customer';document.getElementById('customerDemo').classList.toggle('hide',!c);document.getElementById('cspDemo').classList.toggle('hide',c);document.getElementById('demoTitle').textContent=c?'Customer dashboard':'Cleaner dashboard'}
-    function closeDemo(){document.getElementById('demoOverlay').classList.remove('open')}
-    const tomorrow=new Date(Date.now()+86400000);document.getElementById('date').min=new Date().toISOString().slice(0,10);document.getElementById('date').value=tomorrow.toISOString().slice(0,10);
-  </script>
-</body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <title>Cleanr | On-Demand Cleaning</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
 </html>
