@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { Compass } from "lucide-react";
 import { findAvailableJobsForProvider, listMyJobsAsProvider, type AvailableJob } from "../../../lib/bookingApi";
 import type { Booking } from "../../../domain/booking";
 import { useStableSessionProfile } from "@/hooks/useStableSessionProfile";
@@ -127,7 +128,6 @@ export default function TodayScreen() {
   ] as const;
 
   if (showInitialBlocking) {
-    // Entry splash + resolver live in CspDashboardResolvedShell — avoid a second full-screen loader here.
     return null;
   }
 
@@ -224,6 +224,40 @@ export default function TodayScreen() {
               Pick jobs fast, stay consistent, and keep your rating high.
             </p>
           </header>
+
+          <section style={{ marginBottom: CSP_SECTION_GAP }}>
+            <button
+              type="button"
+              onClick={() => navigate("/csp/dashboard/growth")}
+              className="w-full rounded-2xl border text-left transition-opacity hover:opacity-90"
+              style={{
+                backgroundColor: "rgba(141, 204, 100, 0.08)",
+                borderColor: "rgba(141, 204, 100, 0.24)",
+                padding: CSP_CARD_PADDING,
+              }}
+            >
+              <div className="flex items-start gap-3">
+                <div
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
+                  style={{ backgroundColor: `${CSP_PRIMARY_BUTTON}20` }}
+                >
+                  <Compass size={20} style={{ color: CSP_PRIMARY_BUTTON }} />
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-sm font-semibold">Your North Star</p>
+                    <span className="text-xs font-medium" style={{ color: CSP_PRIMARY_BUTTON }}>
+                      Explore →
+                    </span>
+                  </div>
+                  <p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>
+                    Your work today can support what you want to build next. Define your direction, grow capabilities,
+                    and discover opportunities beyond the job queue.
+                  </p>
+                </div>
+              </div>
+            </button>
+          </section>
 
           <section style={{ marginBottom: CSP_SECTION_GAP }}>
             <div
