@@ -5,10 +5,13 @@ import { attachRefereeByCode } from "@/lib/referralApi";
 import { getStoredReferralCode, clearStoredReferralCode } from "@/lib/referralRef";
 
 export function CustomerGate({ children }: { children: ReactNode }) {
-  const [loading, setLoading] = useState(true);
+  const publicHostMode = import.meta.env.VITE_PUBLIC_HOST_MODE === "1";
+  const [loading, setLoading] = useState(!publicHostMode);
   const [redirectPath, setRedirectPath] = useState<string | null>(null);
 
   useEffect(() => {
+    if (publicHostMode) return;
+
     let mounted = true;
 
     async function checkCustomerAccess() {
@@ -45,24 +48,24 @@ export function CustomerGate({ children }: { children: ReactNode }) {
       }
     }
 
-    checkCustomerAccess();
+    void checkCustomerAccess();
 
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [publicHostMode]);
 
-  // One-time referral attach: if user landed with ?ref= and is now customer, attach then clear.
   useEffect(() => {
-    if (loading || redirectPath !== null) return;
+    if (publicHostMode || loading || redirectPath !== null) return;
     const code = getStoredReferralCode();
     if (!code) return;
     clearStoredReferralCode();
     attachRefereeByCode(code).catch(() => {}).finally(() => {
       clearStoredReferralCode();
     });
-  }, [loading, redirectPath]);
+  }, [loading, publicHostMode, redirectPath]);
 
+  if (publicHostMode) return <>{children}</>;
   if (loading) return null;
   if (redirectPath) return <Navigate to={redirectPath} replace />;
 
