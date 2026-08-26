@@ -30,6 +30,7 @@ import ApplicationStatusScreen from "../app/provider/screens/ApplicationStatusSc
 import CSPTermsScreen from "../app/provider/screens/CSPTermsScreen";
 import CandidateReadinessScreen from "../app/provider/screens/CandidateReadinessScreen";
 import ProviderVerificationScreen from "../app/provider/screens/ProviderVerificationScreen";
+import GrowthScreen from "../app/provider/screens/GrowthScreen";
 import { AICheck } from "../screens/provider/AICheck";
 import { IncidentLog } from "../screens/provider/IncidentLog";
 import CSPLogin from "../app/provider/screens/CSPLogin";
@@ -85,6 +86,12 @@ export function AppRouter() {
         <Route path="/csp/signup" element={<CSPSignup />} />
         <Route path="/onboarding" element={<Navigate to="/csp/dashboard" replace />} />
         <Route path="/csp/onboarding" element={<Navigate to="/csp/dashboard" replace />} />
+
+        {/* Offline-host inspection route. Same product URL, no invented CSP data. */}
+        <Route path="/csp/dashboard/growth" element={<ProviderLayout />}>
+          <Route index element={<GrowthScreen />} />
+        </Route>
+
         <Route path="/csp/dashboard" element={<ProviderLayout />}>
           <Route element={<CspDashboardResolvedShell />}>
             <Route path="candidate-readiness" element={<CandidateReadinessScreen />} />
@@ -103,6 +110,7 @@ export function AppRouter() {
             <Route path="jobs/:jobId/incident" element={<IncidentLog />} />
             <Route path="calendar" element={<ProviderCalendar />} />
             <Route path="earnings" element={<Earnings />} />
+            <Route path="growth" element={<GrowthScreen />} />
             <Route path="availability" element={<Availability />} />
             <Route path="profile" element={<ProviderProfile />} />
             </Route>
