@@ -50,14 +50,12 @@ import { ProviderHub } from "../app/provider/screens/ProviderHub";
 import { CustomerGate } from "./CustomerGate";
 
 export function AppRouter() {
-  const publicHostMode = import.meta.env.VITE_PUBLIC_HOST_MODE === "1";
-
   return (
     <BrowserRouter>
       <ScrollToTop />
       <div className="app-shell">
         <Routes>
-        <Route path="/" element={publicHostMode ? <Navigate to="/app" replace /> : <Landing />} />
+        <Route path="/" element={<Landing />} />
         <Route path="/signin" element={<CustomerLogin />} />
         <Route path="/dashboard" element={<AuthGate />} />
         <Route path="/csp" element={<ProviderHub />} />
