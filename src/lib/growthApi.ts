@@ -57,6 +57,17 @@ function mapNorthStar(row: NorthStarRow): NorthStar {
   };
 }
 
+function mapMilestone(row: MilestoneRow): NorthStarMilestone {
+  return {
+    id: row.id,
+    northStarId: row.north_star_id,
+    description: row.description,
+    status: row.status,
+    targetDate: row.target_date,
+    completedAt: row.completed_at,
+  };
+}
+
 export async function getMyNorthStar(): Promise<NorthStar | null> {
   if (isOfflinePreviewMode) return null;
 
@@ -97,15 +108,52 @@ export async function listMyNorthStarMilestones(northStarId: string): Promise<No
     .order("created_at", { ascending: true });
 
   if (error) throw error;
+  return ((data ?? []) as MilestoneRow[]).map(mapMilestone);
+}
 
-  return ((data ?? []) as MilestoneRow[]).map((row) => ({
-    id: row.id,
-    northStarId: row.north_star_id,
-    description: row.description,
-    status: row.status,
-    targetDate: row.target_date,
-    completedAt: row.completed_at,
-  }));
+export async function addNorthStarMilestone(
+  northStarId: string,
+  description: string
+): Promise<NorthStarMilestone> {
+  if (isOfflinePreviewMode) {
+    throw new Error("Milestone persistence is unavailable in offline preview mode.");
+  }
+
+  const { data, error } = await supabase
+    .from("north_star_milestones")
+    .insert({
+      north_star_id: northStarId,
+      description: description.trim(),
+      status: "not_started",
+    })
+    .select("id, north_star_id, description, status, target_date, completed_at")
+    .single();
+
+  if (error) throw error;
+  return mapMilestone(data as MilestoneRow);
+}
+
+export async function setNorthStarMilestoneStatus(
+  milestoneId: string,
+  status: NorthStarMilestone["status"]
+): Promise<NorthStarMilestone> {
+  if (isOfflinePreviewMode) {
+    throw new Error("Milestone persistence is unavailable in offline preview mode.");
+  }
+
+  const { data, error } = await supabase
+    .from("north_star_milestones")
+    .update({
+      status,
+      completed_at: status === "completed" ? new Date().toISOString() : null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", milestoneId)
+    .select("id, north_star_id, description, status, target_date, completed_at")
+    .single();
+
+  if (error) throw error;
+  return mapMilestone(data as MilestoneRow);
 }
 
 export async function listMyCapabilities(): Promise<PersonCapability[]> {
