@@ -5,7 +5,7 @@
  * survives any single booking without implying ownership or exclusivity.
  */
 
-export type ServiceRelationshipKind = "established" | "preferred" | "recurring";
+export type ServiceRelationshipKind = "established" | "recurring";
 export type ServiceRelationshipStatus = "active" | "paused" | "ended";
 export type ServiceRelationshipOrigin =
   | "booking_history"
@@ -20,6 +20,8 @@ export interface ServiceRelationship {
   kind: ServiceRelationshipKind;
   status: ServiceRelationshipStatus;
   origin: ServiceRelationshipOrigin;
+  customerPreferred: boolean;
+  preferredAt?: string | null;
   firstBookingId?: string | null;
   latestBookingId?: string | null;
   completedServicesCount: number;

@@ -2,12 +2,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useProviderContext } from "./ProviderContext";
-import { CalendarDays, MessageCircleMore } from "lucide-react";
+import { CalendarDays, Heart, MessageCircleMore } from "lucide-react";
 import { Button } from "../components/ui/Button";
 import { providerDisplayName } from "./types";
 import { listBookingsForCustomer } from "../lib/bookingApi";
 import type { Booking } from "../domain/booking";
+import type { ServiceRelationship } from "../domain/serviceRelationship";
 import { customerFacingServiceLabel } from "../lib/serviceCatalog";
+import { getMyServiceRelationshipWithProvider, setMyPreferredServiceProvider } from "../lib/serviceRelationshipApi";
+import { isOfflinePreviewMode } from "../lib/supabase";
 
 function formatDateTime(value: string): string {
   try {
@@ -25,6 +28,9 @@ export function ProviderOverview() {
   const { selectedProvider, relationshipSource } = useProviderContext();
   const [messageLoading, setMessageLoading] = useState(false);
   const [bookings, setBookings] = useState<Booking[]>([]);
+  const [durableRelationship, setDurableRelationship] = useState<ServiceRelationship | null>(null);
+  const [preferenceBusy, setPreferenceBusy] = useState(false);
+  const [preferenceError, setPreferenceError] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -61,6 +67,25 @@ export function ProviderOverview() {
     ["completed_by_provider", "confirmed"].includes(booking.status)
   ).length;
 
+  useEffect(() => {
+    if (!selectedProvider?.id || isOfflinePreviewMode) {
+      setDurableRelationship(null);
+      return;
+    }
+
+    let active = true;
+    void getMyServiceRelationshipWithProvider(selectedProvider.id)
+      .then((relationship) => {
+        if (active) setDurableRelationship(relationship);
+      })
+      .catch(() => {
+        // Relationship migrations are intentionally dormant until the backend is ready.
+        if (active) setDurableRelationship(null);
+      });
+
+    return () => { active = false; };
+  }, [selectedProvider?.id]);
+
   const handleMessageProvider = async () => {
     if (!selectedProvider?.id) return;
     setMessageLoading(true);
@@ -74,6 +99,23 @@ export function ProviderOverview() {
       }
     } finally {
       setMessageLoading(false);
+    }
+  };
+
+  const handlePreferredProvider = async () => {
+    if (!selectedProvider?.id || !durableRelationship || preferenceBusy) return;
+    setPreferenceBusy(true);
+    setPreferenceError(null);
+    try {
+      const updated = await setMyPreferredServiceProvider(
+        selectedProvider.id,
+        !durableRelationship.customerPreferred
+      );
+      setDurableRelationship(updated);
+    } catch {
+      setPreferenceError("We couldn't update your CSP preference right now.");
+    } finally {
+      setPreferenceBusy(false);
     }
   };
 
@@ -97,11 +139,13 @@ export function ProviderOverview() {
     );
   }
 
-  const relationshipLabel = relationshipSource === "customer_selection"
+  const relationshipLabel = durableRelationship?.customerPreferred
     ? "Your preferred CSP"
-    : relationshipSource === "booking_history"
-      ? "Your recent CSP"
-      : "Your CSP";
+    : relationshipSource === "customer_selection"
+      ? "Your selected CSP"
+      : relationshipSource === "booking_history"
+        ? "Your recent CSP"
+        : "Your CSP";
 
   return (
     <div className="text-[#0B1220] pb-4">
@@ -160,6 +204,32 @@ export function ProviderOverview() {
           </p>
         )}
       </section>
+
+      {durableRelationship ? (
+        <section className="provider-card mb-3">
+          <div className="flex items-start gap-3">
+            <Heart className="w-4 h-4 mt-0.5 text-[#8DCC64]" fill={durableRelationship.customerPreferred ? "#8DCC64" : "none"} />
+            <div className="flex-1">
+              <p className="text-sm font-semibold">{durableRelationship.customerPreferred ? "Preferred CSP" : "Make this my preferred CSP"}</p>
+              <p className="text-xs text-[#667085] mt-1">
+                Preference helps Cleanr preserve continuity when possible. It does not lock you in—you can choose someone else or change this anytime.
+              </p>
+            </div>
+          </div>
+          <Button
+            variant="secondary"
+            size="md"
+            fullWidth
+            className="mt-3"
+            loading={preferenceBusy}
+            disabled={preferenceBusy}
+            onClick={() => void handlePreferredProvider()}
+          >
+            {durableRelationship.customerPreferred ? "Remove preference" : "Prefer this CSP"}
+          </Button>
+          {preferenceError ? <p className="text-xs text-red-600 mt-2">{preferenceError}</p> : null}
+        </section>
+      ) : null}
 
       {nextCleaning ? (
         <section className="mb-3">
