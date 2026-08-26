@@ -3,8 +3,9 @@ import ReactDOM from "react-dom/client";
 import "./index.css";
 import { AppRouter } from "./router/AppRouter";
 
-// Dev: drop stale PWA service workers so `/` does not serve an old cached bundle.
-if (import.meta.env.DEV && "serviceWorker" in navigator) {
+const publicHostMode = import.meta.env.VITE_PUBLIC_HOST_MODE === "1";
+
+if ("serviceWorker" in navigator && (import.meta.env.DEV || publicHostMode)) {
   void navigator.serviceWorker.getRegistrations().then((registrations) => {
     registrations.forEach((registration) => void registration.unregister());
   });
