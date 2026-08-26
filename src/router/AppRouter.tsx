@@ -33,6 +33,7 @@ import ProviderVerificationScreen from "../app/provider/screens/ProviderVerifica
 import GrowthScreen from "../app/provider/screens/GrowthScreen";
 import CapabilitiesScreen from "../app/provider/screens/CapabilitiesScreen";
 import GrowthOpportunitiesScreen from "../app/provider/screens/GrowthOpportunitiesScreen";
+import OpportunityFitScreen from "../app/provider/screens/OpportunityFitScreen";
 import ContributionsScreen from "../app/provider/screens/ContributionsScreen";
 import MilestonesScreen from "../app/provider/screens/MilestonesScreen";
 import { AICheck } from "../screens/provider/AICheck";
@@ -55,82 +56,14 @@ import { ProviderHub } from "../app/provider/screens/ProviderHub";
 import { CustomerGate } from "./CustomerGate";
 
 export function AppRouter() {
-  return (
-    <BrowserRouter>
-      <ScrollToTop />
-      <div className="app-shell">
-        <Routes>
-        <Route path="/" element={<Landing />} />
-        <Route path="/signin" element={<CustomerLogin />} />
-        <Route path="/dashboard" element={<AuthGate />} />
-        <Route path="/csp" element={<ProviderHub />} />
-        <Route path="/start-booking" element={<Navigate to="/book" replace />} />
-        <Route path="/service" element={<Navigate to="/book" replace />} />
-        <Route path="/booking-confirmed" element={<BookingConfirmation />} />
-        <Route path="/trust-safety" element={<TrustSafety />} />
-        <Route path="/book/*" element={<CustomerLayout />}><Route index element={<BookService />} /></Route>
-        <Route path="/app" element={<CustomerGate><CustomerLayout /></CustomerGate>}>
-          <Route index element={<CustomerHome />} />
-          <Route path="bookings" element={<Schedule />} />
-          <Route path="bookings/:bookingId" element={<CustomerBookingDetails />} />
-          <Route path="bookings/:bookingId/prep" element={<BeforeYourCleaning />} />
-          <Route path="bookings/:bookingId/message" element={<CustomerBookingMessagePage />} />
-          <Route path="provider" element={<ProviderOverview />} />
-          <Route path="provider/list" element={<ProviderList />} />
-          <Route path="provider/:providerId" element={<ProviderDetail />} />
-          <Route path="profile" element={<CustomerProfile />} />
-          <Route path="payments" element={<Payments />} />
-        </Route>
-        <Route path="/csp/login" element={<CSPLogin />} />
-        <Route path="/csp/signup" element={<CSPSignup />} />
-        <Route path="/onboarding" element={<Navigate to="/csp/dashboard" replace />} />
-        <Route path="/csp/onboarding" element={<Navigate to="/csp/dashboard" replace />} />
-        <Route path="/csp/dashboard/growth" element={<ProviderLayout />}>
-          <Route index element={<GrowthScreen />} />
-          <Route path="milestones" element={<MilestonesScreen />} />
-          <Route path="capabilities" element={<CapabilitiesScreen />} />
-          <Route path="opportunities" element={<GrowthOpportunitiesScreen />} />
-          <Route path="contributions" element={<ContributionsScreen />} />
-        </Route>
-        <Route path="/csp/dashboard" element={<ProviderLayout />}>
-          <Route element={<CspDashboardResolvedShell />}>
-            <Route path="candidate-readiness" element={<CandidateReadinessScreen />} />
-            <Route path="onboarding" element={<OnboardingRoute />} />
-            <Route path="verification" element={<ProviderVerificationScreen />} />
-            <Route path="application-status" element={<ApplicationStatusScreen />} />
-            <Route element={<CspDashboardGate />}>
-              <Route path="terms" element={<CSPTermsScreen />} />
-              <Route path="application" element={<ApplicationHubScreen />} />
-              <Route path="application/:step" element={<ApplicationStepScreen />} />
-              <Route index element={<ProviderHome />} />
-              <Route path="jobs" element={<JobQueue />} />
-              <Route path="jobs/:jobId" element={<JobDetails />} />
-              <Route path="jobs/:jobId/message" element={<JobMessagePage />} />
-              <Route path="jobs/:jobId/ai-check" element={<AICheck />} />
-              <Route path="jobs/:jobId/incident" element={<IncidentLog />} />
-              <Route path="calendar" element={<ProviderCalendar />} />
-              <Route path="earnings" element={<Earnings />} />
-              <Route path="growth" element={<GrowthScreen />} />
-              <Route path="growth/milestones" element={<MilestonesScreen />} />
-              <Route path="growth/capabilities" element={<CapabilitiesScreen />} />
-              <Route path="growth/opportunities" element={<GrowthOpportunitiesScreen />} />
-              <Route path="growth/contributions" element={<ContributionsScreen />} />
-              <Route path="availability" element={<Availability />} />
-              <Route path="profile" element={<ProviderProfile />} />
-            </Route>
-          </Route>
-        </Route>
-        <Route path="/admin" element={<AdminGate><AdminLayout /></AdminGate>}>
-          <Route index element={<Navigate to="/admin/ops" replace />} />
-          <Route path="geo" element={<GeoHarness />} />
-          <Route path="ops" element={<OperationsDashboard />} />
-          <Route path="booking/:bookingId/messages" element={<AdminBookingMessagesScreen />} />
-          <Route path="providers" element={<ProviderApplications />} />
-        </Route>
-        <Route path="/provider" element={<Navigate to="/csp/login" replace />} />
-        <Route path="*" element={<NotFound />} />
-        </Routes>
-      </div>
-    </BrowserRouter>
-  );
+  return <BrowserRouter><ScrollToTop /><div className="app-shell"><Routes>
+    <Route path="/" element={<Landing />} /><Route path="/signin" element={<CustomerLogin />} /><Route path="/dashboard" element={<AuthGate />} /><Route path="/csp" element={<ProviderHub />} /><Route path="/start-booking" element={<Navigate to="/book" replace />} /><Route path="/service" element={<Navigate to="/book" replace />} /><Route path="/booking-confirmed" element={<BookingConfirmation />} /><Route path="/trust-safety" element={<TrustSafety />} />
+    <Route path="/book/*" element={<CustomerLayout />}><Route index element={<BookService />} /></Route>
+    <Route path="/app" element={<CustomerGate><CustomerLayout /></CustomerGate>}><Route index element={<CustomerHome />} /><Route path="bookings" element={<Schedule />} /><Route path="bookings/:bookingId" element={<CustomerBookingDetails />} /><Route path="bookings/:bookingId/prep" element={<BeforeYourCleaning />} /><Route path="bookings/:bookingId/message" element={<CustomerBookingMessagePage />} /><Route path="provider" element={<ProviderOverview />} /><Route path="provider/list" element={<ProviderList />} /><Route path="provider/:providerId" element={<ProviderDetail />} /><Route path="profile" element={<CustomerProfile />} /><Route path="payments" element={<Payments />} /></Route>
+    <Route path="/csp/login" element={<CSPLogin />} /><Route path="/csp/signup" element={<CSPSignup />} /><Route path="/onboarding" element={<Navigate to="/csp/dashboard" replace />} /><Route path="/csp/onboarding" element={<Navigate to="/csp/dashboard" replace />} />
+    <Route path="/csp/dashboard/growth" element={<ProviderLayout />}><Route index element={<GrowthScreen />} /><Route path="milestones" element={<MilestonesScreen />} /><Route path="capabilities" element={<CapabilitiesScreen />} /><Route path="opportunities" element={<GrowthOpportunitiesScreen />} /><Route path="opportunities/fit" element={<OpportunityFitScreen />} /><Route path="contributions" element={<ContributionsScreen />} /></Route>
+    <Route path="/csp/dashboard" element={<ProviderLayout />}><Route element={<CspDashboardResolvedShell />}><Route path="candidate-readiness" element={<CandidateReadinessScreen />} /><Route path="onboarding" element={<OnboardingRoute />} /><Route path="verification" element={<ProviderVerificationScreen />} /><Route path="application-status" element={<ApplicationStatusScreen />} /><Route element={<CspDashboardGate />}><Route path="terms" element={<CSPTermsScreen />} /><Route path="application" element={<ApplicationHubScreen />} /><Route path="application/:step" element={<ApplicationStepScreen />} /><Route index element={<ProviderHome />} /><Route path="jobs" element={<JobQueue />} /><Route path="jobs/:jobId" element={<JobDetails />} /><Route path="jobs/:jobId/message" element={<JobMessagePage />} /><Route path="jobs/:jobId/ai-check" element={<AICheck />} /><Route path="jobs/:jobId/incident" element={<IncidentLog />} /><Route path="calendar" element={<ProviderCalendar />} /><Route path="earnings" element={<Earnings />} /><Route path="growth" element={<GrowthScreen />} /><Route path="growth/milestones" element={<MilestonesScreen />} /><Route path="growth/capabilities" element={<CapabilitiesScreen />} /><Route path="growth/opportunities" element={<GrowthOpportunitiesScreen />} /><Route path="growth/opportunities/fit" element={<OpportunityFitScreen />} /><Route path="growth/contributions" element={<ContributionsScreen />} /><Route path="availability" element={<Availability />} /><Route path="profile" element={<ProviderProfile />} /></Route></Route></Route>
+    <Route path="/admin" element={<AdminGate><AdminLayout /></AdminGate>}><Route index element={<Navigate to="/admin/ops" replace />} /><Route path="geo" element={<GeoHarness />} /><Route path="ops" element={<OperationsDashboard />} /><Route path="booking/:bookingId/messages" element={<AdminBookingMessagesScreen />} /><Route path="providers" element={<ProviderApplications />} /></Route>
+    <Route path="/provider" element={<Navigate to="/csp/login" replace />} /><Route path="*" element={<NotFound />} />
+  </Routes></div></BrowserRouter>;
 }
