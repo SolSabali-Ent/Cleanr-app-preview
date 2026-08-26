@@ -5,6 +5,7 @@ import { getMyHouseholdContext, setMyHouseholdContext } from "../../lib/househol
 import type { Booking } from "../../domain/booking";
 import { BEFORE_VISIT_TRUTH_SLOTS } from "../../product/beforeVisitTruth";
 import { Button } from "../../components/ui/Button";
+import { CustomerTrustedHandoffCard } from "../components/CustomerTrustedHandoffCard";
 import { ArrowLeft } from "lucide-react";
 import { isUuid } from "@/utils/isUuid";
 import { isOfflinePreviewMode } from "@/lib/supabase";
@@ -151,6 +152,8 @@ export function BeforeYourCleaning() {
 
       <h1 className="text-xl font-semibold mb-1">Before your cleaning</h1>
       <p className="text-xs text-[#667085] mb-4">Anything different this visit? Update what your CSP needs for this cleaning.</p>
+
+      <CustomerTrustedHandoffCard bookingId={booking.id} />
 
       <div className="space-y-3 mb-6">
         {BEFORE_VISIT_TRUTH_SLOTS.map((slot) => (
