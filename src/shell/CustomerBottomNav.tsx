@@ -4,7 +4,7 @@ import { Home, CalendarDays, UserCircle2, Sparkles } from "lucide-react";
 const tabs = [
   { to: "/app", label: "Home", icon: Home },
   { to: "/app/bookings", label: "Bookings", icon: CalendarDays },
-  { to: "/app/provider", label: "Provider", icon: Sparkles },
+  { to: "/app/provider", label: "My CSP", icon: Sparkles },
   { to: "/app/profile", label: "Profile", icon: UserCircle2 },
 ];
 
