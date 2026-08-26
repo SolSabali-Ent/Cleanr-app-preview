@@ -118,7 +118,7 @@ export async function proposeTrustedServiceHandoff(input: {
 
 export async function respondToTrustedServiceHandoff(
   handoffId: string,
-  response: "accept" | "decline" | "cancel" | "complete"
+  response: "accept" | "decline" | "cancel"
 ): Promise<TrustedServiceHandoff> {
   if (isOfflinePreviewMode) throw new Error("Trusted handoff responses are unavailable in offline preview mode.");
 

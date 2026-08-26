@@ -3,6 +3,7 @@ import { ArrowLeft, BadgeCheck, Plus, Sparkles } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import type { PersonCapability } from "@/domain/growth";
 import { isOfflinePreviewMode } from "@/lib/supabase";
+import { CSP_GROWTH_ROUTES } from "@/app/provider/growthRoutes";
 import { listMyCapabilities, setMySelfCapability } from "@/lib/growthApi";
 import {
   CSP_CARD_PADDING,
@@ -57,7 +58,7 @@ export default function CapabilitiesScreen() {
 
   return (
     <div className="pb-24" style={{ color: CSP_TEXT_PRIMARY }}>
-      <button type="button" onClick={() => navigate("/csp/dashboard/growth")} className="mb-5 flex items-center gap-2 text-sm" style={{ color: CSP_TEXT_SECONDARY }}>
+      <button type="button" onClick={() => navigate(CSP_GROWTH_ROUTES.home)} className="mb-5 flex items-center gap-2 text-sm" style={{ color: CSP_TEXT_SECONDARY }}>
         <ArrowLeft size={16} /> Growth
       </button>
 
@@ -81,22 +82,8 @@ export default function CapabilitiesScreen() {
             Self-declared capabilities are yours to add. Cleanr-verified capabilities remain separate so provenance stays clear.
           </p>
           <div className="mt-4 flex gap-2">
-            <input
-              value={label}
-              onChange={(event) => setLabel(event.target.value)}
-              disabled={isOfflinePreviewMode}
-              placeholder={isOfflinePreviewMode ? "Available when backend returns" : "e.g. mentoring new CSPs"}
-              className="min-w-0 flex-1 rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-sm outline-none disabled:opacity-60"
-            />
-            <button
-              type="button"
-              disabled={isOfflinePreviewMode || label.trim().length < 2 || saving}
-              onClick={() => void addCapability()}
-              className="flex items-center justify-center rounded-xl px-4 text-white disabled:opacity-50"
-              style={{ backgroundColor: CSP_PRIMARY_BUTTON }}
-            >
-              <Plus size={18} />
-            </button>
+            <input value={label} onChange={(event) => setLabel(event.target.value)} disabled={isOfflinePreviewMode} placeholder={isOfflinePreviewMode ? "Available when backend returns" : "e.g. mentoring new CSPs"} className="min-w-0 flex-1 rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-sm outline-none disabled:opacity-60" />
+            <button type="button" disabled={isOfflinePreviewMode || label.trim().length < 2 || saving} onClick={() => void addCapability()} className="flex items-center justify-center rounded-xl px-4 text-white disabled:opacity-50" style={{ backgroundColor: CSP_PRIMARY_BUTTON }}><Plus size={18} /></button>
           </div>
         </div>
       </section>

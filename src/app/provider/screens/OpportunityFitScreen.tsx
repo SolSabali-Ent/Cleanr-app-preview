@@ -7,6 +7,7 @@ import type {
   OpportunityLocationPreference,
   OpportunityTimePreference,
 } from "@/domain/growth";
+import { CSP_GROWTH_ROUTES } from "@/app/provider/growthRoutes";
 import { isOfflinePreviewMode } from "@/lib/supabase";
 import {
   getMyOpportunityFitPreferences,
@@ -95,7 +96,7 @@ export default function OpportunityFitScreen() {
 
   return (
     <div className="pb-24" style={{ color: CSP_TEXT_PRIMARY }}>
-      <button type="button" onClick={() => navigate("/csp/dashboard/growth/opportunities")} className="mb-5 flex items-center gap-2 text-sm" style={{ color: CSP_TEXT_SECONDARY }}>
+      <button type="button" onClick={() => navigate(CSP_GROWTH_ROUTES.opportunities)} className="mb-5 flex items-center gap-2 text-sm" style={{ color: CSP_TEXT_SECONDARY }}>
         <ArrowLeft size={16} /> Opportunities
       </button>
 
@@ -138,32 +139,10 @@ export default function OpportunityFitScreen() {
         </div>
 
         <div className="rounded-2xl border space-y-3" style={{ backgroundColor: CSP_SURFACE, borderColor: "rgba(248,250,252,.08)", padding: CSP_CARD_PADDING }}>
-          <label className="block">
-            <span className="mb-1 block text-xs" style={{ color: CSP_TEXT_SECONDARY }}>Time fit</span>
-            <select value={timePreference} disabled={isOfflinePreviewMode} onChange={(event) => { setTimePreference(event.target.value as OpportunityTimePreference | ""); setSaved(false); }} className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-sm">
-              <option value="" className="text-black">No preference</option>
-              <option value="light" className="text-black">Occasional / light commitment</option>
-              <option value="weekly" className="text-black">Weekly commitment is okay</option>
-              <option value="flexible" className="text-black">Flexible</option>
-            </select>
-          </label>
-          <label className="block">
-            <span className="mb-1 block text-xs" style={{ color: CSP_TEXT_SECONDARY }}>Location fit</span>
-            <select value={locationPreference} disabled={isOfflinePreviewMode} onChange={(event) => { setLocationPreference(event.target.value as OpportunityLocationPreference | ""); setSaved(false); }} className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-sm">
-              <option value="" className="text-black">No preference</option>
-              <option value="local" className="text-black">Local / in-person</option>
-              <option value="remote" className="text-black">Remote</option>
-              <option value="either" className="text-black">Either</option>
-            </select>
-          </label>
-          <label className="block">
-            <span className="mb-1 block text-xs" style={{ color: CSP_TEXT_SECONDARY }}>Travel radius, if relevant</span>
-            <input type="number" min={0} max={250} value={travelRadiusMiles} disabled={isOfflinePreviewMode} onChange={(event) => { setTravelRadiusMiles(event.target.value); setSaved(false); }} placeholder="Miles" className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-sm" />
-          </label>
-          <label className="block">
-            <span className="mb-1 block text-xs" style={{ color: CSP_TEXT_SECONDARY }}>Anything else that affects fit?</span>
-            <textarea rows={3} maxLength={500} value={fitNotes} disabled={isOfflinePreviewMode} onChange={(event) => { setFitNotes(event.target.value); setSaved(false); }} placeholder="Keep this practical—availability or fit context, not sensitive personal details." className="w-full resize-none rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-sm" />
-          </label>
+          <label className="block"><span className="mb-1 block text-xs" style={{ color: CSP_TEXT_SECONDARY }}>Time fit</span><select value={timePreference} disabled={isOfflinePreviewMode} onChange={(event) => { setTimePreference(event.target.value as OpportunityTimePreference | ""); setSaved(false); }} className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-sm"><option value="" className="text-black">No preference</option><option value="light" className="text-black">Occasional / light commitment</option><option value="weekly" className="text-black">Weekly commitment is okay</option><option value="flexible" className="text-black">Flexible</option></select></label>
+          <label className="block"><span className="mb-1 block text-xs" style={{ color: CSP_TEXT_SECONDARY }}>Location fit</span><select value={locationPreference} disabled={isOfflinePreviewMode} onChange={(event) => { setLocationPreference(event.target.value as OpportunityLocationPreference | ""); setSaved(false); }} className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-sm"><option value="" className="text-black">No preference</option><option value="local" className="text-black">Local / in-person</option><option value="remote" className="text-black">Remote</option><option value="either" className="text-black">Either</option></select></label>
+          <label className="block"><span className="mb-1 block text-xs" style={{ color: CSP_TEXT_SECONDARY }}>Travel radius, if relevant</span><input type="number" min={0} max={250} value={travelRadiusMiles} disabled={isOfflinePreviewMode} onChange={(event) => { setTravelRadiusMiles(event.target.value); setSaved(false); }} placeholder="Miles" className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-sm" /></label>
+          <label className="block"><span className="mb-1 block text-xs" style={{ color: CSP_TEXT_SECONDARY }}>Anything else that affects fit?</span><textarea rows={3} maxLength={500} value={fitNotes} disabled={isOfflinePreviewMode} onChange={(event) => { setFitNotes(event.target.value); setSaved(false); }} placeholder="Keep this practical—availability or fit context, not sensitive personal details." className="w-full resize-none rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-sm" /></label>
         </div>
       </section>
 

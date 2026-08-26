@@ -3,6 +3,7 @@ import { ArrowLeft, CheckCircle2, Circle, Plus, Sparkles } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import type { NorthStar, NorthStarMilestone } from "@/domain/growth";
 import { isOfflinePreviewMode } from "@/lib/supabase";
+import { CSP_GROWTH_ROUTES } from "@/app/provider/growthRoutes";
 import {
   addNorthStarMilestone,
   getMyNorthStar,
@@ -72,7 +73,7 @@ export default function MilestonesScreen() {
 
   return (
     <div className="pb-24" style={{ color: CSP_TEXT_PRIMARY }}>
-      <button type="button" onClick={() => navigate("/csp/dashboard/growth")} className="mb-5 flex items-center gap-2 text-sm" style={{ color: CSP_TEXT_SECONDARY }}>
+      <button type="button" onClick={() => navigate(CSP_GROWTH_ROUTES.home)} className="mb-5 flex items-center gap-2 text-sm" style={{ color: CSP_TEXT_SECONDARY }}>
         <ArrowLeft size={16} /> Growth
       </button>
 
@@ -103,23 +104,8 @@ export default function MilestonesScreen() {
               <p className="text-xs" style={{ color: CSP_TEXT_SECONDARY }}>Current North Star</p>
               <p className="mt-1 text-sm font-semibold">{northStar.goal}</p>
               <div className="mt-4 flex gap-2">
-                <input
-                  value={description}
-                  onChange={(event) => setDescription(event.target.value)}
-                  disabled={isOfflinePreviewMode}
-                  maxLength={300}
-                  placeholder={isOfflinePreviewMode ? "Available when backend returns" : "Add a next meaningful step"}
-                  className="min-w-0 flex-1 rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-sm outline-none disabled:opacity-60"
-                />
-                <button
-                  type="button"
-                  disabled={isOfflinePreviewMode || description.trim().length < 2 || saving}
-                  onClick={() => void addMilestone()}
-                  className="flex items-center justify-center rounded-xl px-4 text-white disabled:opacity-50"
-                  style={{ backgroundColor: CSP_PRIMARY_BUTTON }}
-                >
-                  <Plus size={18} />
-                </button>
+                <input value={description} onChange={(event) => setDescription(event.target.value)} disabled={isOfflinePreviewMode} maxLength={300} placeholder={isOfflinePreviewMode ? "Available when backend returns" : "Add a next meaningful step"} className="min-w-0 flex-1 rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-sm outline-none disabled:opacity-60" />
+                <button type="button" disabled={isOfflinePreviewMode || description.trim().length < 2 || saving} onClick={() => void addMilestone()} className="flex items-center justify-center rounded-xl px-4 text-white disabled:opacity-50" style={{ backgroundColor: CSP_PRIMARY_BUTTON }}><Plus size={18} /></button>
               </div>
             </div>
           </section>
@@ -136,14 +122,7 @@ export default function MilestonesScreen() {
                 {milestones.map((milestone) => {
                   const complete = milestone.status === "completed";
                   return (
-                    <button
-                      key={milestone.id}
-                      type="button"
-                      disabled={isOfflinePreviewMode || busyId === milestone.id}
-                      onClick={() => void toggleMilestone(milestone)}
-                      className="w-full rounded-2xl border text-left disabled:opacity-70"
-                      style={{ backgroundColor: CSP_SURFACE, borderColor: "rgba(248,250,252,.08)", padding: CSP_CARD_PADDING }}
-                    >
+                    <button key={milestone.id} type="button" disabled={isOfflinePreviewMode || busyId === milestone.id} onClick={() => void toggleMilestone(milestone)} className="w-full rounded-2xl border text-left disabled:opacity-70" style={{ backgroundColor: CSP_SURFACE, borderColor: "rgba(248,250,252,.08)", padding: CSP_CARD_PADDING }}>
                       <div className="flex items-start gap-3">
                         {complete ? <CheckCircle2 size={20} style={{ color: CSP_PRIMARY_BUTTON, marginTop: 1 }} /> : <Circle size={20} style={{ color: CSP_TEXT_SECONDARY, marginTop: 1 }} />}
                         <div>

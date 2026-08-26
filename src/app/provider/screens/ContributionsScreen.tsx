@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { ArrowLeft, Network, Sparkles } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import type { Contribution } from "@/domain/growth";
+import { CSP_GROWTH_ROUTES } from "@/app/provider/growthRoutes";
 import { listMyContributions } from "@/lib/growthApi";
 import {
   CSP_CARD_PADDING,
@@ -31,7 +32,7 @@ export default function ContributionsScreen() {
 
   return (
     <div className="pb-24" style={{ color: CSP_TEXT_PRIMARY }}>
-      <button type="button" onClick={() => navigate("/csp/dashboard/growth")} className="mb-5 flex items-center gap-2 text-sm" style={{ color: CSP_TEXT_SECONDARY }}>
+      <button type="button" onClick={() => navigate(CSP_GROWTH_ROUTES.home)} className="mb-5 flex items-center gap-2 text-sm" style={{ color: CSP_TEXT_SECONDARY }}>
         <ArrowLeft size={16} /> Growth
       </button>
 
