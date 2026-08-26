@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "pages:build": "bash scripts/build-pages.sh",
     "lint": "eslint .",
     "preview": "vite preview",
     "kinex:outbox:process": "bash -lc 'if [ -z \"$SUPABASE_PROJECT_URL\" ] || [ -z \"$SUPABASE_SERVICE_ROLE_KEY\" ]; then echo \"Missing SUPABASE_PROJECT_URL or SUPABASE_SERVICE_ROLE_KEY\"; exit 1; fi; curl -sS -X POST \"$SUPABASE_PROJECT_URL/functions/v1/process-kinex-outbox\" -H \"Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY\" -H \"Content-Type: application/json\" -d \"${KINEX_OUTBOX_PROCESS_BODY:-{\\\"batch_size\\\":10}}\"'"
