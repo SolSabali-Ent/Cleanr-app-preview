@@ -1,3 +1,4 @@
+# Cleanr public host deployment
 name: Deploy Cleanr to GitHub Pages
 
 on:
