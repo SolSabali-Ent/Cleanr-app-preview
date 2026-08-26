@@ -31,6 +31,9 @@ import CSPTermsScreen from "../app/provider/screens/CSPTermsScreen";
 import CandidateReadinessScreen from "../app/provider/screens/CandidateReadinessScreen";
 import ProviderVerificationScreen from "../app/provider/screens/ProviderVerificationScreen";
 import GrowthScreen from "../app/provider/screens/GrowthScreen";
+import CapabilitiesScreen from "../app/provider/screens/CapabilitiesScreen";
+import GrowthOpportunitiesScreen from "../app/provider/screens/GrowthOpportunitiesScreen";
+import ContributionsScreen from "../app/provider/screens/ContributionsScreen";
 import { AICheck } from "../screens/provider/AICheck";
 import { IncidentLog } from "../screens/provider/IncidentLog";
 import CSPLogin from "../app/provider/screens/CSPLogin";
@@ -65,9 +68,7 @@ export function AppRouter() {
         <Route path="/booking-confirmed" element={<BookingConfirmation />} />
         <Route path="/trust-safety" element={<TrustSafety />} />
 
-        <Route path="/book/*" element={<CustomerLayout />}>
-          <Route index element={<BookService />} />
-        </Route>
+        <Route path="/book/*" element={<CustomerLayout />}><Route index element={<BookService />} /></Route>
 
         <Route path="/app" element={<CustomerGate><CustomerLayout /></CustomerGate>}>
           <Route index element={<CustomerHome />} />
@@ -87,9 +88,12 @@ export function AppRouter() {
         <Route path="/onboarding" element={<Navigate to="/csp/dashboard" replace />} />
         <Route path="/csp/onboarding" element={<Navigate to="/csp/dashboard" replace />} />
 
-        {/* Offline-host inspection route. Same product URL, no invented CSP data. */}
+        {/* Offline-host inspection routes. Same product URLs, no invented CSP data. */}
         <Route path="/csp/dashboard/growth" element={<ProviderLayout />}>
           <Route index element={<GrowthScreen />} />
+          <Route path="capabilities" element={<CapabilitiesScreen />} />
+          <Route path="opportunities" element={<GrowthOpportunitiesScreen />} />
+          <Route path="contributions" element={<ContributionsScreen />} />
         </Route>
 
         <Route path="/csp/dashboard" element={<ProviderLayout />}>
@@ -99,20 +103,23 @@ export function AppRouter() {
             <Route path="verification" element={<ProviderVerificationScreen />} />
             <Route path="application-status" element={<ApplicationStatusScreen />} />
             <Route element={<CspDashboardGate />}>
-            <Route path="terms" element={<CSPTermsScreen />} />
-            <Route path="application" element={<ApplicationHubScreen />} />
-            <Route path="application/:step" element={<ApplicationStepScreen />} />
-            <Route index element={<ProviderHome />} />
-            <Route path="jobs" element={<JobQueue />} />
-            <Route path="jobs/:jobId" element={<JobDetails />} />
-            <Route path="jobs/:jobId/message" element={<JobMessagePage />} />
-            <Route path="jobs/:jobId/ai-check" element={<AICheck />} />
-            <Route path="jobs/:jobId/incident" element={<IncidentLog />} />
-            <Route path="calendar" element={<ProviderCalendar />} />
-            <Route path="earnings" element={<Earnings />} />
-            <Route path="growth" element={<GrowthScreen />} />
-            <Route path="availability" element={<Availability />} />
-            <Route path="profile" element={<ProviderProfile />} />
+              <Route path="terms" element={<CSPTermsScreen />} />
+              <Route path="application" element={<ApplicationHubScreen />} />
+              <Route path="application/:step" element={<ApplicationStepScreen />} />
+              <Route index element={<ProviderHome />} />
+              <Route path="jobs" element={<JobQueue />} />
+              <Route path="jobs/:jobId" element={<JobDetails />} />
+              <Route path="jobs/:jobId/message" element={<JobMessagePage />} />
+              <Route path="jobs/:jobId/ai-check" element={<AICheck />} />
+              <Route path="jobs/:jobId/incident" element={<IncidentLog />} />
+              <Route path="calendar" element={<ProviderCalendar />} />
+              <Route path="earnings" element={<Earnings />} />
+              <Route path="growth" element={<GrowthScreen />} />
+              <Route path="growth/capabilities" element={<CapabilitiesScreen />} />
+              <Route path="growth/opportunities" element={<GrowthOpportunitiesScreen />} />
+              <Route path="growth/contributions" element={<ContributionsScreen />} />
+              <Route path="availability" element={<Availability />} />
+              <Route path="profile" element={<ProviderProfile />} />
             </Route>
           </Route>
         </Route>
