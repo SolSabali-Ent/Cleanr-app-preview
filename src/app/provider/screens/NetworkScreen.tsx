@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Handshake, Home, Network, ShieldCheck, Sparkles, Users } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import type { NetworkConnectionSummary, NetworkRelationship } from "@/domain/network";
+import { myNetworkRole } from "@/domain/network";
 import type { ProviderHouseholdRelationshipSummary } from "@/domain/serviceRelationship";
 import type { TrustedServiceHandoffSummary } from "@/domain/trustedHandoff";
 import { isOfflinePreviewMode } from "@/lib/supabase";
@@ -23,6 +24,16 @@ function relationshipLabel(type: NetworkRelationship["type"]): string {
     case "coverage_partner": return "Coverage partner";
     case "business_collaborator": return "Business collaborator";
     default: return "Peer connection";
+  }
+}
+
+function provenanceLabel(relationship: NetworkRelationship): string {
+  switch (relationship.provenanceType) {
+    case "opportunity_match": return "Introduced through a matched opportunity";
+    case "booking": return "Introduced through service history";
+    case "referral": return "Introduced through a referral";
+    case "admin": return "Introduced by Cleanr";
+    default: return relationship.origin === "kinex" ? "Suggested by Kinex" : "Introduced by Cleanr";
   }
 }
 
@@ -171,24 +182,31 @@ export default function NetworkScreen() {
           </div>
         ) : (
           <div className="space-y-3">
-            {pending.map(({ relationship, direction }) => (
-              <div key={relationship.id} className="rounded-2xl border" style={{ backgroundColor: CSP_SURFACE, borderColor: "rgba(248,250,252,.08)", padding: CSP_CARD_PADDING }}>
-                <div className="flex items-start gap-3">
-                  <Users size={19} style={{ color: CSP_PRIMARY_BUTTON, marginTop: 2 }} />
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">{relationshipLabel(relationship.type)}</p>
-                    <p className="mt-1 text-xs" style={{ color: CSP_TEXT_SECONDARY }}>{direction === "inbound" ? "Connection offered to you" : "Waiting on the other person"}</p>
-                    {relationship.purpose ? <p className="mt-2 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>{relationship.purpose}</p> : null}
+            {pending.map((summary) => {
+              const { relationship, direction } = summary;
+              const role = myNetworkRole(summary);
+              return (
+                <div key={relationship.id} className="rounded-2xl border" style={{ backgroundColor: CSP_SURFACE, borderColor: "rgba(248,250,252,.08)", padding: CSP_CARD_PADDING }}>
+                  <div className="flex items-start gap-3">
+                    <Users size={19} style={{ color: CSP_PRIMARY_BUTTON, marginTop: 2 }} />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">{relationshipLabel(relationship.type)}</p>
+                      <p className="mt-1 text-xs" style={{ color: CSP_TEXT_SECONDARY }}>
+                        {role ? `Your role: ${role}` : direction === "inbound" ? "Connection offered to you" : "Waiting on the other person"}
+                      </p>
+                      <p className="mt-1 text-xs" style={{ color: CSP_TEXT_SECONDARY }}>{provenanceLabel(relationship)}</p>
+                      {relationship.purpose ? <p className="mt-2 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>{relationship.purpose}</p> : null}
+                    </div>
                   </div>
+                  {!isOfflinePreviewMode ? (
+                    <div className="mt-4 grid grid-cols-2 gap-2">
+                      <button type="button" disabled={busyId === relationship.id} onClick={() => void respond(relationship.id, "accept")} className="rounded-xl px-3 py-2 text-xs font-semibold text-white" style={{ backgroundColor: CSP_PRIMARY_BUTTON }}>Accept</button>
+                      <button type="button" disabled={busyId === relationship.id} onClick={() => void respond(relationship.id, "decline")} className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold">Pass</button>
+                    </div>
+                  ) : null}
                 </div>
-                {direction === "inbound" && !isOfflinePreviewMode ? (
-                  <div className="mt-4 grid grid-cols-2 gap-2">
-                    <button type="button" disabled={busyId === relationship.id} onClick={() => void respond(relationship.id, "accept")} className="rounded-xl px-3 py-2 text-xs font-semibold text-white" style={{ backgroundColor: CSP_PRIMARY_BUTTON }}>Accept</button>
-                    <button type="button" disabled={busyId === relationship.id} onClick={() => void respond(relationship.id, "decline")} className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold">Pass</button>
-                  </div>
-                ) : null}
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </section>
@@ -207,13 +225,19 @@ export default function NetworkScreen() {
           </div>
         ) : (
           <div className="space-y-3">
-            {active.map(({ relationship }) => (
-              <div key={relationship.id} className="rounded-2xl border" style={{ backgroundColor: CSP_SURFACE, borderColor: "rgba(248,250,252,.08)", padding: CSP_CARD_PADDING }}>
-                <p className="text-sm font-medium">{relationshipLabel(relationship.type)}</p>
-                {relationship.purpose ? <p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>{relationship.purpose}</p> : null}
-                {!isOfflinePreviewMode ? <button type="button" disabled={busyId === relationship.id} onClick={() => void respond(relationship.id, "end")} className="mt-3 text-xs" style={{ color: CSP_TEXT_SECONDARY }}>End relationship</button> : null}
-              </div>
-            ))}
+            {active.map((summary) => {
+              const { relationship } = summary;
+              const role = myNetworkRole(summary);
+              return (
+                <div key={relationship.id} className="rounded-2xl border" style={{ backgroundColor: CSP_SURFACE, borderColor: "rgba(248,250,252,.08)", padding: CSP_CARD_PADDING }}>
+                  <p className="text-sm font-medium">{relationshipLabel(relationship.type)}</p>
+                  {role ? <p className="mt-1 text-xs" style={{ color: CSP_TEXT_SECONDARY }}>Your role: {role}</p> : null}
+                  <p className="mt-1 text-xs" style={{ color: CSP_TEXT_SECONDARY }}>{provenanceLabel(relationship)}</p>
+                  {relationship.purpose ? <p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>{relationship.purpose}</p> : null}
+                  {!isOfflinePreviewMode ? <button type="button" disabled={busyId === relationship.id} onClick={() => void respond(relationship.id, "end")} className="mt-3 text-xs" style={{ color: CSP_TEXT_SECONDARY }}>End relationship</button> : null}
+                </div>
+              );
+            })}
           </div>
         )}
       </section>
