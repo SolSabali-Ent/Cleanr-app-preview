@@ -4,6 +4,7 @@ export const CSP_GROWTH_ROUTES = {
   capabilities: "/csp/growth/capabilities",
   opportunities: "/csp/growth/opportunities",
   fit: "/csp/growth/fit",
+  network: "/csp/growth/network",
   contributions: "/csp/growth/contributions",
 } as const;
 

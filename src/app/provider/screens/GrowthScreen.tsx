@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowRight, Compass, Lightbulb, Network, Sparkles } from "lucide-react";
+import { ArrowRight, Compass, Lightbulb, Network, Sparkles, Users } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import type { NorthStar, NorthStarCategory } from "@/domain/growth";
 import { CSP_GROWTH_ROUTES } from "@/app/provider/growthRoutes";
@@ -159,19 +159,9 @@ export default function GrowthScreen() {
             </>
           ) : (
             <div className="space-y-3">
-              <label className="block">
-                <span className="mb-1 block text-xs" style={{ color: CSP_TEXT_SECONDARY }}>Direction</span>
-                <select value={category} onChange={(event) => setCategory(event.target.value as NorthStarCategory)} className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-sm outline-none">
-                  {northStarOptions.map((option) => <option key={option.value} value={option.value} className="text-black">{option.label}</option>)}
-                </select>
-              </label>
-              <label className="block">
-                <span className="mb-1 block text-xs" style={{ color: CSP_TEXT_SECONDARY }}>In your words</span>
-                <textarea value={goal} onChange={(event) => setGoal(event.target.value)} rows={3} maxLength={500} placeholder="What are you trying to build or make possible?" className="w-full resize-none rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-sm outline-none" />
-              </label>
-              <button type="button" disabled={!canSave} onClick={() => void handleSaveNorthStar()} className="flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold text-white disabled:opacity-50" style={{ backgroundColor: CSP_PRIMARY_BUTTON }}>
-                {saving ? "Saving..." : northStar ? "Save changes" : "Set my North Star"}{!saving ? <ArrowRight size={16} /> : null}
-              </button>
+              <label className="block"><span className="mb-1 block text-xs" style={{ color: CSP_TEXT_SECONDARY }}>Direction</span><select value={category} onChange={(event) => setCategory(event.target.value as NorthStarCategory)} className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-sm outline-none">{northStarOptions.map((option) => <option key={option.value} value={option.value} className="text-black">{option.label}</option>)}</select></label>
+              <label className="block"><span className="mb-1 block text-xs" style={{ color: CSP_TEXT_SECONDARY }}>In your words</span><textarea value={goal} onChange={(event) => setGoal(event.target.value)} rows={3} maxLength={500} placeholder="What are you trying to build or make possible?" className="w-full resize-none rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-sm outline-none" /></label>
+              <button type="button" disabled={!canSave} onClick={() => void handleSaveNorthStar()} className="flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold text-white disabled:opacity-50" style={{ backgroundColor: CSP_PRIMARY_BUTTON }}>{saving ? "Saving..." : northStar ? "Save changes" : "Set my North Star"}{!saving ? <ArrowRight size={16} /> : null}</button>
               {northStar ? <button type="button" onClick={() => { setEditing(false); setCategory(northStar.category); setGoal(northStar.goal); }} className="w-full py-2 text-xs" style={{ color: CSP_TEXT_SECONDARY }}>Cancel</button> : null}
             </div>
           )}
@@ -181,30 +171,15 @@ export default function GrowthScreen() {
       <section style={{ marginBottom: CSP_SECTION_GAP }}>
         <h2 className="mb-3 text-sm font-medium" style={{ color: CSP_TEXT_SECONDARY }}>Your growth system</h2>
         <div className="space-y-3">
-          <button type="button" onClick={() => navigate(CSP_GROWTH_ROUTES.milestones)} className="w-full rounded-2xl border text-left" style={{ backgroundColor: CSP_SURFACE, borderColor: "rgba(248,250,252,.08)", padding: CSP_CARD_PADDING }}>
-            <div className="flex items-start gap-3"><Sparkles size={19} style={{ color: CSP_PRIMARY_BUTTON, marginTop: 2 }} /><div className="flex-1"><div className="flex items-center justify-between gap-3"><p className="text-sm font-medium">Milestones</p><span className="text-xs" style={{ color: CSP_TEXT_SECONDARY }}>{isOfflinePreviewMode ? "Open" : milestoneCount}</span></div><p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>Break your North Star into progress you can actually see.</p></div><ArrowRight size={16} style={{ color: CSP_TEXT_SECONDARY }} /></div>
-          </button>
-
-          <button type="button" onClick={() => navigate(CSP_GROWTH_ROUTES.capabilities)} className="w-full rounded-2xl border text-left" style={{ backgroundColor: CSP_SURFACE, borderColor: "rgba(248,250,252,.08)", padding: CSP_CARD_PADDING }}>
-            <div className="flex items-start gap-3"><Lightbulb size={19} style={{ color: CSP_PRIMARY_BUTTON, marginTop: 2 }} /><div className="flex-1"><div className="flex items-center justify-between gap-3"><p className="text-sm font-medium">Capabilities</p><span className="text-xs" style={{ color: CSP_TEXT_SECONDARY }}>{isOfflinePreviewMode ? "Open" : capabilityCount}</span></div><p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>Track what you can do beyond a cleaner-only identity, with clear provenance for self-declared and verified strengths.</p></div><ArrowRight size={16} style={{ color: CSP_TEXT_SECONDARY }} /></div>
-          </button>
-
-          <button type="button" onClick={() => navigate(CSP_GROWTH_ROUTES.opportunities)} className="w-full rounded-2xl border text-left" style={{ backgroundColor: CSP_SURFACE, borderColor: "rgba(248,250,252,.08)", padding: CSP_CARD_PADDING }}>
-            <div className="flex items-start gap-3"><Compass size={19} style={{ color: CSP_PRIMARY_BUTTON, marginTop: 2 }} /><div className="flex-1"><div className="flex items-center justify-between gap-3"><p className="text-sm font-medium">Opportunities</p><span className="text-xs" style={{ color: CSP_TEXT_SECONDARY }}>{isOfflinePreviewMode ? "Open" : matchedOpportunityCount}</span></div><p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>Jobs stay in Jobs. This is where North-Star-aligned mentorship, training, leadership, business, vendor, education, and external paths can surface.</p></div><ArrowRight size={16} style={{ color: CSP_TEXT_SECONDARY }} /></div>
-          </button>
-
-          <button type="button" onClick={() => navigate(CSP_GROWTH_ROUTES.contributions)} className="w-full rounded-2xl border text-left" style={{ backgroundColor: CSP_SURFACE, borderColor: "rgba(248,250,252,.08)", padding: CSP_CARD_PADDING }}>
-            <div className="flex items-start gap-3"><Network size={19} style={{ color: CSP_PRIMARY_BUTTON, marginTop: 2 }} /><div className="flex-1"><div className="flex items-center justify-between gap-3"><p className="text-sm font-medium">Contribution</p><span className="text-xs" style={{ color: CSP_TEXT_SECONDARY }}>{isOfflinePreviewMode ? "Open" : contributionCount}</span></div><p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>See durable evidence of value you helped create for another person or the collective. No points, no self-awarded badges.</p></div><ArrowRight size={16} style={{ color: CSP_TEXT_SECONDARY }} /></div>
-          </button>
+          <button type="button" onClick={() => navigate(CSP_GROWTH_ROUTES.milestones)} className="w-full rounded-2xl border text-left" style={{ backgroundColor: CSP_SURFACE, borderColor: "rgba(248,250,252,.08)", padding: CSP_CARD_PADDING }}><div className="flex items-start gap-3"><Sparkles size={19} style={{ color: CSP_PRIMARY_BUTTON, marginTop: 2 }} /><div className="flex-1"><div className="flex items-center justify-between gap-3"><p className="text-sm font-medium">Milestones</p><span className="text-xs" style={{ color: CSP_TEXT_SECONDARY }}>{isOfflinePreviewMode ? "Open" : milestoneCount}</span></div><p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>Break your North Star into progress you can actually see.</p></div><ArrowRight size={16} style={{ color: CSP_TEXT_SECONDARY }} /></div></button>
+          <button type="button" onClick={() => navigate(CSP_GROWTH_ROUTES.capabilities)} className="w-full rounded-2xl border text-left" style={{ backgroundColor: CSP_SURFACE, borderColor: "rgba(248,250,252,.08)", padding: CSP_CARD_PADDING }}><div className="flex items-start gap-3"><Lightbulb size={19} style={{ color: CSP_PRIMARY_BUTTON, marginTop: 2 }} /><div className="flex-1"><div className="flex items-center justify-between gap-3"><p className="text-sm font-medium">Capabilities</p><span className="text-xs" style={{ color: CSP_TEXT_SECONDARY }}>{isOfflinePreviewMode ? "Open" : capabilityCount}</span></div><p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>Track what you can do beyond a cleaner-only identity, with clear provenance for self-declared and verified strengths.</p></div><ArrowRight size={16} style={{ color: CSP_TEXT_SECONDARY }} /></div></button>
+          <button type="button" onClick={() => navigate(CSP_GROWTH_ROUTES.opportunities)} className="w-full rounded-2xl border text-left" style={{ backgroundColor: CSP_SURFACE, borderColor: "rgba(248,250,252,.08)", padding: CSP_CARD_PADDING }}><div className="flex items-start gap-3"><Compass size={19} style={{ color: CSP_PRIMARY_BUTTON, marginTop: 2 }} /><div className="flex-1"><div className="flex items-center justify-between gap-3"><p className="text-sm font-medium">Opportunities</p><span className="text-xs" style={{ color: CSP_TEXT_SECONDARY }}>{isOfflinePreviewMode ? "Open" : matchedOpportunityCount}</span></div><p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>Jobs stay in Jobs. This is where North-Star-aligned mentorship, training, leadership, business, vendor, education, and external paths can surface.</p></div><ArrowRight size={16} style={{ color: CSP_TEXT_SECONDARY }} /></div></button>
+          <button type="button" onClick={() => navigate(CSP_GROWTH_ROUTES.network)} className="w-full rounded-2xl border text-left" style={{ backgroundColor: CSP_SURFACE, borderColor: "rgba(248,250,252,.08)", padding: CSP_CARD_PADDING }}><div className="flex items-start gap-3"><Users size={19} style={{ color: CSP_PRIMARY_BUTTON, marginTop: 2 }} /><div className="flex-1"><div className="flex items-center justify-between gap-3"><p className="text-sm font-medium">Your Network</p><span className="text-xs" style={{ color: CSP_TEXT_SECONDARY }}>Open</span></div><p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>Mentors, peers, coverage partners, and collaborators—purposeful relationships, not a social feed.</p></div><ArrowRight size={16} style={{ color: CSP_TEXT_SECONDARY }} /></div></button>
+          <button type="button" onClick={() => navigate(CSP_GROWTH_ROUTES.contributions)} className="w-full rounded-2xl border text-left" style={{ backgroundColor: CSP_SURFACE, borderColor: "rgba(248,250,252,.08)", padding: CSP_CARD_PADDING }}><div className="flex items-start gap-3"><Network size={19} style={{ color: CSP_PRIMARY_BUTTON, marginTop: 2 }} /><div className="flex-1"><div className="flex items-center justify-between gap-3"><p className="text-sm font-medium">Contribution</p><span className="text-xs" style={{ color: CSP_TEXT_SECONDARY }}>{isOfflinePreviewMode ? "Open" : contributionCount}</span></div><p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>See durable evidence of value you helped create for another person or the collective. No points, no self-awarded badges.</p></div><ArrowRight size={16} style={{ color: CSP_TEXT_SECONDARY }} /></div></button>
         </div>
       </section>
 
-      <section>
-        <div className="rounded-2xl border" style={{ backgroundColor: "rgba(141,204,100,.08)", borderColor: "rgba(141,204,100,.22)", padding: CSP_CARD_PADDING }}>
-          <p className="text-sm font-medium">Cleanr grows when you gain more choices.</p>
-          <p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>A profitable cleaning practice may be your destination. It may also be the economic engine that helps you reach something else. Cleanr is designed to support either path.</p>
-        </div>
-      </section>
+      <section><div className="rounded-2xl border" style={{ backgroundColor: "rgba(141,204,100,.08)", borderColor: "rgba(141,204,100,.22)", padding: CSP_CARD_PADDING }}><p className="text-sm font-medium">Cleanr grows when you gain more choices.</p><p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>A profitable cleaning practice may be your destination. It may also be the economic engine that helps you reach something else. Cleanr is designed to support either path.</p></div></section>
     </div>
   );
 }
