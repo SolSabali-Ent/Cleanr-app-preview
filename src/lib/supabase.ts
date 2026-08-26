@@ -1,23 +1,34 @@
 import { createClient } from '@supabase/supabase-js'
 
 const publicHostMode = import.meta.env.VITE_PUBLIC_HOST_MODE === '1'
+const configuredSupabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined
+const configuredSupabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined
+
+/**
+ * The public preview must remain bootable while the production backend is unavailable.
+ * - GitHub Pages uses VITE_PUBLIC_HOST_MODE=1.
+ * - Local Vite dev also falls back offline when Supabase env vars are absent.
+ * - If local dev has real env vars, it uses the real backend.
+ */
+export const isOfflinePreviewMode = Boolean(
+  publicHostMode || (import.meta.env.DEV && (!configuredSupabaseUrl || !configuredSupabaseAnonKey))
+)
 
 const supabaseUrl =
-  import.meta.env.VITE_SUPABASE_URL ||
-  (publicHostMode ? 'https://offline.cleanr.invalid' : undefined)
+  configuredSupabaseUrl ||
+  (isOfflinePreviewMode ? 'https://offline.cleanr.invalid' : undefined)
 
 const supabaseAnonKey =
-  import.meta.env.VITE_SUPABASE_ANON_KEY ||
-  (publicHostMode ? 'cleanr-public-host-offline' : undefined)
+  configuredSupabaseAnonKey ||
+  (isOfflinePreviewMode ? 'cleanr-preview-offline' : undefined)
 
 if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase environment variables')
 }
 
 /**
- * Public-host mode is intentionally backend-free while the production
- * Supabase project is unavailable. Intercept requests before they ever hit
- * the network so the real Cleanr UI can render without DNS/REST errors.
+ * Offline preview transport. It intercepts requests before they hit the network
+ * so the real Cleanr UI can render with neutral empty product truth.
  */
 async function offlineSupabaseFetch(
   input: RequestInfo | URL,
@@ -59,7 +70,7 @@ async function offlineSupabaseFetch(
 }
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  ...(publicHostMode
+  ...(isOfflinePreviewMode
     ? {
         global: { fetch: offlineSupabaseFetch },
         auth: {
