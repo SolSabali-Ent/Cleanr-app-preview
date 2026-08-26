@@ -67,6 +67,8 @@ export type GrowthOpportunityType =
   | "external"
   | "investment";
 
+export type GrowthOpportunityVisibility = "network" | "matched_only";
+
 export interface GrowthOpportunity {
   id: string;
   type: GrowthOpportunityType;
@@ -75,6 +77,7 @@ export interface GrowthOpportunity {
   geographicScope?: string | null;
   startsAt?: string | null;
   closesAt?: string | null;
+  visibility?: GrowthOpportunityVisibility;
   status: "open" | "matched" | "closed";
 }
 
@@ -96,11 +99,13 @@ export interface OpportunityFitPreferences {
 /**
  * A match is durable Cleanr product truth, but the decision to create a match belongs
  * to Kinex/admin/system orchestration. Cleanr stores the result and the person's response.
+ * "offered" is also orchestration-owned: a person can express interest but cannot self-offer.
  */
 export type OpportunityMatchStatus =
   | "suggested"
   | "viewed"
   | "interested"
+  | "offered"
   | "accepted"
   | "declined"
   | "completed";
@@ -119,6 +124,7 @@ export interface OpportunityMatch {
   constraintFit?: string | null;
   matchSource: OpportunityMatchSource;
   status: OpportunityMatchStatus;
+  offeredAt?: string | null;
   matchedAt: string;
   createdAt: string;
   updatedAt: string;

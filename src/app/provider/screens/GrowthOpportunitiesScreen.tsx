@@ -22,6 +22,12 @@ function opportunityTypeLabel(type: GrowthOpportunity["type"]): string {
   return type.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
+function matchStatusLabel(status: OpportunityMatch["status"]): string {
+  if (status === "offered") return "Offer ready";
+  if (status === "interested") return "Interest shared";
+  return status.replaceAll("_", " ");
+}
+
 export default function GrowthOpportunitiesScreen() {
   const navigate = useNavigate();
   const [matches, setMatches] = useState<OpportunityMatch[]>([]);
@@ -99,7 +105,7 @@ export default function GrowthOpportunitiesScreen() {
               <div key={match.id} className="rounded-2xl border" style={{ backgroundColor: CSP_SURFACE, borderColor: "rgba(248,250,252,.08)", padding: CSP_CARD_PADDING }}>
                 <div className="flex items-center justify-between gap-3">
                   <span className="text-xs" style={{ color: CSP_PRIMARY_BUTTON }}>{opportunityTypeLabel(match.opportunity.type)}</span>
-                  <span className="text-xs" style={{ color: CSP_TEXT_SECONDARY }}>{match.status}</span>
+                  <span className="text-xs" style={{ color: CSP_TEXT_SECONDARY }}>{matchStatusLabel(match.status)}</span>
                 </div>
                 <h3 className="mt-2 font-semibold">{match.opportunity.title}</h3>
                 {match.northStarAlignment ? <p className="mt-2 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}><strong style={{ color: CSP_TEXT_PRIMARY }}>North Star:</strong> {match.northStarAlignment}</p> : null}
@@ -107,12 +113,23 @@ export default function GrowthOpportunitiesScreen() {
                 {match.interestAlignment ? <p className="mt-2 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}><strong style={{ color: CSP_TEXT_PRIMARY }}>Interests:</strong> {match.interestAlignment}</p> : null}
                 {match.constraintFit ? <p className="mt-2 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}><strong style={{ color: CSP_TEXT_PRIMARY }}>Fit:</strong> {match.constraintFit}</p> : null}
                 {match.matchReason ? <p className="mt-2 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>Why this surfaced: {match.matchReason}</p> : null}
-                {!['accepted','declined','completed'].includes(match.status) && !isOfflinePreviewMode ? (
-                  <div className="mt-4 grid grid-cols-3 gap-2">
-                    <button type="button" disabled={busyMatchId === match.id} onClick={() => void respond(match.id, "interested")} className="rounded-xl border border-white/10 bg-white/5 px-2 py-2 text-xs font-semibold">Interested</button>
-                    <button type="button" disabled={busyMatchId === match.id} onClick={() => void respond(match.id, "accepted")} className="rounded-xl px-2 py-2 text-xs font-semibold text-white" style={{ backgroundColor: CSP_PRIMARY_BUTTON }}>Accept</button>
+
+                {match.status === "offered" && !isOfflinePreviewMode ? (
+                  <div className="mt-4 grid grid-cols-2 gap-2">
+                    <button type="button" disabled={busyMatchId === match.id} onClick={() => void respond(match.id, "accepted")} className="rounded-xl px-2 py-2 text-xs font-semibold text-white" style={{ backgroundColor: CSP_PRIMARY_BUTTON }}>Accept offer</button>
                     <button type="button" disabled={busyMatchId === match.id} onClick={() => void respond(match.id, "declined")} className="rounded-xl border border-white/10 bg-white/5 px-2 py-2 text-xs font-semibold">Pass</button>
                   </div>
+                ) : !["interested","accepted","declined","completed"].includes(match.status) && !isOfflinePreviewMode ? (
+                  <div className="mt-4 grid grid-cols-2 gap-2">
+                    <button type="button" disabled={busyMatchId === match.id} onClick={() => void respond(match.id, "interested")} className="rounded-xl px-2 py-2 text-xs font-semibold text-white" style={{ backgroundColor: CSP_PRIMARY_BUTTON }}>I'm interested</button>
+                    <button type="button" disabled={busyMatchId === match.id} onClick={() => void respond(match.id, "declined")} className="rounded-xl border border-white/10 bg-white/5 px-2 py-2 text-xs font-semibold">Pass</button>
+                  </div>
+                ) : null}
+
+                {match.status === "interested" ? (
+                  <p className="mt-3 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>
+                    Interest shared. Kinex or Cleanr operations can decide whether to offer the opportunity; you are not committed yet.
+                  </p>
                 ) : null}
               </div>
             ))}

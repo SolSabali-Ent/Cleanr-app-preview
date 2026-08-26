@@ -48,6 +48,7 @@ type OpportunityRow = {
   title: string;
   description: string | null;
   status: "draft" | "open" | "closed";
+  visibility: NonNullable<GrowthOpportunity["visibility"]>;
   geographic_scope: string | null;
   starts_at: string | null;
   closes_at: string | null;
@@ -76,6 +77,7 @@ type OpportunityMatchRow = {
   constraint_fit: string | null;
   match_source: OpportunityMatch["matchSource"];
   status: OpportunityMatch["status"];
+  offered_at: string | null;
   matched_at: string;
   created_at: string;
   updated_at: string;
@@ -139,6 +141,7 @@ function mapOpportunity(row: OpportunityRow): GrowthOpportunity {
     geographicScope: row.geographic_scope,
     startsAt: row.starts_at,
     closesAt: row.closes_at,
+    visibility: row.visibility,
     status: row.status === "closed" ? "closed" : "open",
   };
 }
@@ -274,8 +277,9 @@ export async function listOpenGrowthOpportunities(): Promise<GrowthOpportunity[]
   if (isOfflinePreviewMode) return [];
   const { data, error } = await supabase
     .from("growth_opportunities")
-    .select("id, opportunity_type, title, description, status, geographic_scope, starts_at, closes_at")
+    .select("id, opportunity_type, title, description, status, visibility, geographic_scope, starts_at, closes_at")
     .eq("status", "open")
+    .eq("visibility", "network")
     .order("created_at", { ascending: false })
     .limit(24);
   if (error) throw error;
@@ -286,7 +290,7 @@ export async function listMyOpportunityMatches(): Promise<OpportunityMatch[]> {
   if (isOfflinePreviewMode) return [];
   const { data, error } = await supabase
     .from("opportunity_matches")
-    .select("id, opportunity_id, person_id, match_reason, north_star_alignment, capability_alignment, interest_alignment, constraint_fit, match_source, status, matched_at, created_at, updated_at, growth_opportunities(id, opportunity_type, title, description, status, geographic_scope, starts_at, closes_at)")
+    .select("id, opportunity_id, person_id, match_reason, north_star_alignment, capability_alignment, interest_alignment, constraint_fit, match_source, status, offered_at, matched_at, created_at, updated_at, growth_opportunities(id, opportunity_type, title, description, status, visibility, geographic_scope, starts_at, closes_at)")
     .order("matched_at", { ascending: false });
   if (error) throw error;
 
@@ -306,6 +310,7 @@ export async function listMyOpportunityMatches(): Promise<OpportunityMatch[]> {
       constraintFit: row.constraint_fit,
       matchSource: row.match_source,
       status: row.status,
+      offeredAt: row.offered_at,
       matchedAt: row.matched_at,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
