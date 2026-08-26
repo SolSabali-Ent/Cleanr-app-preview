@@ -26,6 +26,9 @@ routes=(
   csp/signup
   csp/dashboard
   csp/dashboard/growth
+  csp/dashboard/growth/capabilities
+  csp/dashboard/growth/opportunities
+  csp/dashboard/growth/contributions
   trust-safety
   booking-confirmed
 )
