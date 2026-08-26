@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { getBooking, acceptBookingAsProvider, startBookingAsProvider, completeBookingAsProvider } from "../../../lib/bookingApi";
 import type { Booking } from "../../../domain/booking";
+import type { HouseholdContext } from "../../../domain/householdContext";
+import { getHouseholdContextForCustomer } from "../../../lib/householdContextApi";
 import { isProviderAvailable } from "../../../api/providerAvailability";
 import { supabase } from "../../../lib/supabase";
 import { checklistTemplates } from "../data/checklistTemplates";
@@ -31,6 +33,7 @@ export default function JobDetailsScreen() {
   const navigate = useNavigate();
   const [booking, setBooking] = useState<Booking | null>(null);
   const [providerId, setProviderId] = useState<string | null>(null);
+  const [householdContext, setHouseholdContext] = useState<HouseholdContext | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionError, setActionError] = useState<string | null>(null);
   const [availabilityHint, setAvailabilityHint] = useState<string | null>(null);
@@ -63,6 +66,30 @@ export default function JobDetailsScreen() {
       mounted = false;
     };
   }, []);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadHouseholdMemory() {
+      setHouseholdContext(null);
+      if (!booking?.customer_id || !booking.provider_id || !providerId) return;
+      if (booking.provider_id !== providerId) return;
+
+      try {
+        const context = await getHouseholdContextForCustomer(booking.customer_id);
+        if (mounted) setHouseholdContext(context);
+      } catch {
+        // Household memory is optional and migration-gated. A missing/inaccessible context
+        // must never interrupt the operational job flow.
+        if (mounted) setHouseholdContext(null);
+      }
+    }
+
+    void loadHouseholdMemory();
+    return () => {
+      mounted = false;
+    };
+  }, [booking?.customer_id, booking?.provider_id, providerId]);
 
   useEffect(() => {
     let mounted = true;
@@ -210,6 +237,25 @@ export default function JobDetailsScreen() {
           </p>
         </section>
 
+        {householdContext?.memoryEnabled ? (
+          <section className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 mb-3 shadow-md">
+            <div className="flex items-start justify-between gap-3 mb-2">
+              <div>
+                <p className="text-xs font-semibold text-emerald-800">Household memory</p>
+                <p className="text-[11px] text-emerald-700 mt-1">Reusable preferences this household chose to remember with Cleanr.</p>
+              </div>
+              <span className="rounded-full bg-emerald-100 px-2 py-1 text-[10px] font-semibold text-emerald-800">Consented</span>
+            </div>
+            <dl className="space-y-2 text-sm text-slate-900">
+              {householdContext.servicePreferences ? <div><dt className="text-xs text-slate-500">Service preferences</dt><dd className="whitespace-pre-wrap">{householdContext.servicePreferences}</dd></div> : null}
+              {householdContext.petContext ? <div><dt className="text-xs text-slate-500">Pets</dt><dd className="whitespace-pre-wrap">{householdContext.petContext}</dd></div> : null}
+              {householdContext.surfacesToAvoid ? <div><dt className="text-xs text-slate-500">Surfaces / items to avoid</dt><dd className="whitespace-pre-wrap">{householdContext.surfacesToAvoid}</dd></div> : null}
+              {householdContext.communicationPreferences ? <div><dt className="text-xs text-slate-500">Communication</dt><dd className="whitespace-pre-wrap">{householdContext.communicationPreferences}</dd></div> : null}
+            </dl>
+            <p className="mt-3 text-[10px] leading-4 text-emerald-700">Access codes and one-visit entry instructions are never stored here. Check this visit&apos;s details below for anything time-specific.</p>
+          </section>
+        ) : null}
+
         {(booking.access_notes ||
           booking.gate_code ||
           booking.parking_notes ||
@@ -217,50 +263,18 @@ export default function JobDetailsScreen() {
           booking.pet_notes ||
           booking.surfaces_to_avoid) && (
           <section className="bg-white border border-slate-200 rounded-2xl p-4 mb-3 shadow-md">
-            <p className="text-xs font-semibold text-slate-500 mb-2">Customer visit details</p>
+            <p className="text-xs font-semibold text-slate-500 mb-1">This visit</p>
+            <p className="text-[11px] text-slate-500 mb-2">Current booking details from the customer. These can differ from remembered household preferences.</p>
             <dl className="space-y-2 text-sm text-slate-900">
-              {booking.access_notes ? (
-                <div>
-                  <dt className="text-xs text-slate-500">Access notes</dt>
-                  <dd className="whitespace-pre-wrap">{booking.access_notes}</dd>
-                </div>
-              ) : null}
-              {booking.gate_code ? (
-                <div>
-                  <dt className="text-xs text-slate-500">Gate / door code</dt>
-                  <dd>{booking.gate_code}</dd>
-                </div>
-              ) : null}
-              {booking.parking_notes ? (
-                <div>
-                  <dt className="text-xs text-slate-500">Parking</dt>
-                  <dd className="whitespace-pre-wrap">{booking.parking_notes}</dd>
-                </div>
-              ) : null}
-              {booking.entry_instructions ? (
-                <div>
-                  <dt className="text-xs text-slate-500">Entry</dt>
-                  <dd className="whitespace-pre-wrap">{booking.entry_instructions}</dd>
-                </div>
-              ) : null}
-              {booking.pet_notes ? (
-                <div>
-                  <dt className="text-xs text-slate-500">Pets</dt>
-                  <dd className="whitespace-pre-wrap">{booking.pet_notes}</dd>
-                </div>
-              ) : null}
-              {booking.surfaces_to_avoid ? (
-                <div>
-                  <dt className="text-xs text-slate-500">Surfaces to avoid</dt>
-                  <dd className="whitespace-pre-wrap">{booking.surfaces_to_avoid}</dd>
-                </div>
-              ) : null}
+              {booking.access_notes ? <div><dt className="text-xs text-slate-500">Access notes</dt><dd className="whitespace-pre-wrap">{booking.access_notes}</dd></div> : null}
+              {booking.gate_code ? <div><dt className="text-xs text-slate-500">Gate / door code</dt><dd>{booking.gate_code}</dd></div> : null}
+              {booking.parking_notes ? <div><dt className="text-xs text-slate-500">Parking</dt><dd className="whitespace-pre-wrap">{booking.parking_notes}</dd></div> : null}
+              {booking.entry_instructions ? <div><dt className="text-xs text-slate-500">Entry</dt><dd className="whitespace-pre-wrap">{booking.entry_instructions}</dd></div> : null}
+              {booking.pet_notes ? <div><dt className="text-xs text-slate-500">Pets</dt><dd className="whitespace-pre-wrap">{booking.pet_notes}</dd></div> : null}
+              {booking.surfaces_to_avoid ? <div><dt className="text-xs text-slate-500">Surfaces to avoid</dt><dd className="whitespace-pre-wrap">{booking.surfaces_to_avoid}</dd></div> : null}
             </dl>
             {booking.customer_access_updated_at ? (
-              <p className="text-[10px] text-slate-400 mt-2">
-                Customer last updated{" "}
-                {new Date(booking.customer_access_updated_at).toLocaleString()}
-              </p>
+              <p className="text-[10px] text-slate-400 mt-2">Customer last updated {new Date(booking.customer_access_updated_at).toLocaleString()}</p>
             ) : null}
           </section>
         )}
@@ -270,17 +284,8 @@ export default function JobDetailsScreen() {
           <ul className="space-y-2">
             {checklist.map((item) => (
               <li key={item} className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={checkedItems.includes(item)}
-                  onChange={() => handleCheck(item)}
-                  className="w-4 h-4"
-                />
-                <label
-                  className={`text-sm ${checkedItems.includes(item) ? "line-through text-slate-400" : "text-slate-900"}`}
-                >
-                  {item}
-                </label>
+                <input type="checkbox" checked={checkedItems.includes(item)} onChange={() => handleCheck(item)} className="w-4 h-4" />
+                <label className={`text-sm ${checkedItems.includes(item) ? "line-through text-slate-400" : "text-slate-900"}`}>{item}</label>
               </li>
             ))}
           </ul>
@@ -296,72 +301,23 @@ export default function JobDetailsScreen() {
           <input type="file" multiple className="w-full text-xs" />
         </section>
 
-        {actionError && (
-          <p className="text-sm text-red-400 mb-3">{actionError}</p>
-        )}
-        {availabilityHint && booking.status === "created" && (
-          <p className="text-sm text-amber-300 mb-3">{availabilityHint}</p>
-        )}
+        {actionError && <p className="text-sm text-red-400 mb-3">{actionError}</p>}
+        {availabilityHint && booking.status === "created" && <p className="text-sm text-amber-300 mb-3">{availabilityHint}</p>}
 
         <div className="space-y-3 mt-4">
-          {booking.status === "created" && (
-            <button
-              onClick={handleAccept}
-              className="w-full bg-[#0A84FF] text-white py-3 rounded-xl text-sm font-semibold shadow-md shadow-[#0A84FF]/40"
-            >
-              Accept Job
-            </button>
-          )}
-          {booking.status === "accepted" && (
-            <button
-              onClick={handleStart}
-              className="w-full bg-[#0A84FF] text-white py-3 rounded-xl text-sm font-semibold shadow-md shadow-[#0A84FF]/40"
-            >
-              Start Job
-            </button>
-          )}
+          {booking.status === "created" && <button onClick={handleAccept} className="w-full bg-[#0A84FF] text-white py-3 rounded-xl text-sm font-semibold shadow-md shadow-[#0A84FF]/40">Accept Job</button>}
+          {booking.status === "accepted" && <button onClick={handleStart} className="w-full bg-[#0A84FF] text-white py-3 rounded-xl text-sm font-semibold shadow-md shadow-[#0A84FF]/40">Start Job</button>}
 
           {isProviderCustomerMessagingOpen(booking.status) ? (
-            <button
-              type="button"
-              onClick={() => {
-                refetchUnread();
-                navigate(`/csp/dashboard/jobs/${jobId}/message`);
-              }}
-              className="w-full bg-white border border-slate-200 py-3 rounded-xl text-sm font-semibold text-slate-900 shadow-md relative"
-            >
+            <button type="button" onClick={() => { refetchUnread(); navigate(`/csp/dashboard/jobs/${jobId}/message`); }} className="w-full bg-white border border-slate-200 py-3 rounded-xl text-sm font-semibold text-slate-900 shadow-md relative">
               Message customer
-              {booking && unreadBookingIds.has(booking.id) ? (
-                <span
-                  className="absolute top-1/2 right-4 -translate-y-1/2 w-2 h-2 rounded-full bg-[#0A84FF]"
-                  aria-hidden
-                />
-              ) : null}
+              {booking && unreadBookingIds.has(booking.id) ? <span className="absolute top-1/2 right-4 -translate-y-1/2 w-2 h-2 rounded-full bg-[#0A84FF]" aria-hidden /> : null}
             </button>
           ) : null}
 
-          <button
-            onClick={() => navigate(`/csp/dashboard/jobs/${jobId}/incident`)}
-            className="w-full bg-white border border-slate-200 py-3 rounded-xl text-sm font-semibold text-slate-900 shadow-md"
-          >
-            Report Incident
-          </button>
-
-          <button
-            onClick={() => navigate(`/csp/dashboard/jobs/${jobId}/ai-check`)}
-            className="w-full bg-white border border-slate-200 py-3 rounded-xl text-sm font-semibold text-slate-900 shadow-md"
-          >
-            Run AI Check
-          </button>
-
-          {booking.status === "in_progress" && !isComplete && (
-            <button
-              onClick={handleComplete}
-              className="w-full bg-green-600 text-white py-3 rounded-xl text-sm font-semibold shadow-md"
-            >
-              Mark Job Complete
-            </button>
-          )}
+          <button onClick={() => navigate(`/csp/dashboard/jobs/${jobId}/incident`)} className="w-full bg-white border border-slate-200 py-3 rounded-xl text-sm font-semibold text-slate-900 shadow-md">Report Incident</button>
+          <button onClick={() => navigate(`/csp/dashboard/jobs/${jobId}/ai-check`)} className="w-full bg-white border border-slate-200 py-3 rounded-xl text-sm font-semibold text-slate-900 shadow-md">Run AI Check</button>
+          {booking.status === "in_progress" && !isComplete && <button onClick={handleComplete} className="w-full bg-green-600 text-white py-3 rounded-xl text-sm font-semibold shadow-md">Mark Job Complete</button>}
         </div>
       </div>
     </div>
