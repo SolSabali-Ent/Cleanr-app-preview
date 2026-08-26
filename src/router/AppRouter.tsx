@@ -34,6 +34,7 @@ import GrowthScreen from "../app/provider/screens/GrowthScreen";
 import CapabilitiesScreen from "../app/provider/screens/CapabilitiesScreen";
 import GrowthOpportunitiesScreen from "../app/provider/screens/GrowthOpportunitiesScreen";
 import ContributionsScreen from "../app/provider/screens/ContributionsScreen";
+import MilestonesScreen from "../app/provider/screens/MilestonesScreen";
 import { AICheck } from "../screens/provider/AICheck";
 import { IncidentLog } from "../screens/provider/IncidentLog";
 import CSPLogin from "../app/provider/screens/CSPLogin";
@@ -67,9 +68,7 @@ export function AppRouter() {
         <Route path="/service" element={<Navigate to="/book" replace />} />
         <Route path="/booking-confirmed" element={<BookingConfirmation />} />
         <Route path="/trust-safety" element={<TrustSafety />} />
-
         <Route path="/book/*" element={<CustomerLayout />}><Route index element={<BookService />} /></Route>
-
         <Route path="/app" element={<CustomerGate><CustomerLayout /></CustomerGate>}>
           <Route index element={<CustomerHome />} />
           <Route path="bookings" element={<Schedule />} />
@@ -82,20 +81,17 @@ export function AppRouter() {
           <Route path="profile" element={<CustomerProfile />} />
           <Route path="payments" element={<Payments />} />
         </Route>
-
         <Route path="/csp/login" element={<CSPLogin />} />
         <Route path="/csp/signup" element={<CSPSignup />} />
         <Route path="/onboarding" element={<Navigate to="/csp/dashboard" replace />} />
         <Route path="/csp/onboarding" element={<Navigate to="/csp/dashboard" replace />} />
-
-        {/* Offline-host inspection routes. Same product URLs, no invented CSP data. */}
         <Route path="/csp/dashboard/growth" element={<ProviderLayout />}>
           <Route index element={<GrowthScreen />} />
+          <Route path="milestones" element={<MilestonesScreen />} />
           <Route path="capabilities" element={<CapabilitiesScreen />} />
           <Route path="opportunities" element={<GrowthOpportunitiesScreen />} />
           <Route path="contributions" element={<ContributionsScreen />} />
         </Route>
-
         <Route path="/csp/dashboard" element={<ProviderLayout />}>
           <Route element={<CspDashboardResolvedShell />}>
             <Route path="candidate-readiness" element={<CandidateReadinessScreen />} />
@@ -115,6 +111,7 @@ export function AppRouter() {
               <Route path="calendar" element={<ProviderCalendar />} />
               <Route path="earnings" element={<Earnings />} />
               <Route path="growth" element={<GrowthScreen />} />
+              <Route path="growth/milestones" element={<MilestonesScreen />} />
               <Route path="growth/capabilities" element={<CapabilitiesScreen />} />
               <Route path="growth/opportunities" element={<GrowthOpportunitiesScreen />} />
               <Route path="growth/contributions" element={<ContributionsScreen />} />
@@ -123,7 +120,6 @@ export function AppRouter() {
             </Route>
           </Route>
         </Route>
-
         <Route path="/admin" element={<AdminGate><AdminLayout /></AdminGate>}>
           <Route index element={<Navigate to="/admin/ops" replace />} />
           <Route path="geo" element={<GeoHarness />} />
@@ -131,7 +127,6 @@ export function AppRouter() {
           <Route path="booking/:bookingId/messages" element={<AdminBookingMessagesScreen />} />
           <Route path="providers" element={<ProviderApplications />} />
         </Route>
-
         <Route path="/provider" element={<Navigate to="/csp/login" replace />} />
         <Route path="*" element={<NotFound />} />
         </Routes>
