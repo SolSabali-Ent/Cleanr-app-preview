@@ -35,14 +35,11 @@ export async function getMyHouseholdContext(): Promise<HouseholdContext | null> 
   return data ? mapHouseholdContext(data as HouseholdContextRow) : null;
 }
 
-export async function getHouseholdContextForCustomer(customerId: string): Promise<HouseholdContext | null> {
+export async function getHouseholdContextForBooking(bookingId: string): Promise<HouseholdContext | null> {
   if (isOfflinePreviewMode) return null;
-  const { data, error } = await supabase
-    .from("household_context")
-    .select("customer_id, memory_enabled, service_preferences, pet_context, surfaces_to_avoid, communication_preferences, created_at, updated_at")
-    .eq("customer_id", customerId)
-    .eq("memory_enabled", true)
-    .maybeSingle();
+  const { data, error } = await supabase.rpc("get_household_context_for_booking", {
+    p_booking_id: bookingId,
+  });
   if (error) throw error;
   return data ? mapHouseholdContext(data as HouseholdContextRow) : null;
 }

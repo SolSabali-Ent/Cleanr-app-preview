@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { getBooking, acceptBookingAsProvider, startBookingAsProvider, completeBookingAsProvider } from "../../../lib/bookingApi";
 import type { Booking } from "../../../domain/booking";
 import type { HouseholdContext } from "../../../domain/householdContext";
-import { getHouseholdContextForCustomer } from "../../../lib/householdContextApi";
+import { getHouseholdContextForBooking } from "../../../lib/householdContextApi";
 import { isProviderAvailable } from "../../../api/providerAvailability";
 import { supabase } from "../../../lib/supabase";
 import { checklistTemplates } from "../data/checklistTemplates";
@@ -72,11 +72,11 @@ export default function JobDetailsScreen() {
 
     async function loadHouseholdMemory() {
       setHouseholdContext(null);
-      if (!booking?.customer_id || !booking.provider_id || !providerId) return;
+      if (!booking?.id || !booking.provider_id || !providerId) return;
       if (booking.provider_id !== providerId) return;
 
       try {
-        const context = await getHouseholdContextForCustomer(booking.customer_id);
+        const context = await getHouseholdContextForBooking(booking.id);
         if (mounted) setHouseholdContext(context);
       } catch {
         // Household memory is optional and migration-gated. A missing/inaccessible context
@@ -89,7 +89,7 @@ export default function JobDetailsScreen() {
     return () => {
       mounted = false;
     };
-  }, [booking?.customer_id, booking?.provider_id, providerId]);
+  }, [booking?.id, booking?.provider_id, providerId]);
 
   useEffect(() => {
     let mounted = true;
