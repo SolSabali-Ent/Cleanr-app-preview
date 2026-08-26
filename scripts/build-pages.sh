@@ -25,6 +25,7 @@ routes=(
   csp/login
   csp/signup
   csp/dashboard
+  csp/dashboard/growth
   trust-safety
   booking-confirmed
 )
