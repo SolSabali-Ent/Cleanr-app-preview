@@ -112,6 +112,16 @@ export function CustomerBookingDetails() {
   }
 
   useEffect(() => {
+    let mounted = true;
+    void supabase.auth.getUser().then(({ data }) => {
+      if (mounted) setCustomerUserId(data.user?.id ?? null);
+    });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
     if (!bookingId || !isValidBookingId) {
       setLoading(false);
       return;
@@ -127,39 +137,36 @@ export function CustomerBookingDetails() {
   }, [bookingId, isValidBookingId]);
 
   useEffect(() => {
-    if (!booking?.id || booking.status !== "confirmed" || !booking.provider_id) {
+    if (!booking?.id || booking.status !== "confirmed" || !booking.provider_id || !customerUserId) {
       setReviewAlreadyExists(false);
       return;
     }
+    if (booking.customer_id !== customerUserId) {
+      setReviewAlreadyExists(false);
+      return;
+    }
+
     let mounted = true;
-    supabase.auth
-      .getUser()
-      .then(async ({ data: authData }) => {
+    void supabase
+      .from("reviews")
+      .select("id")
+      .eq("booking_id", booking.id)
+      .limit(1)
+      .maybeSingle()
+      .then(({ data, error: reviewLookupError }) => {
         if (!mounted) return;
-        const userId = authData.user?.id ?? null;
-        setCustomerUserId(userId);
-        if (!userId || booking.customer_id !== userId) {
-          setReviewAlreadyExists(false);
-          return;
-        }
-        const { data, error: reviewError } = await supabase
-          .from("reviews")
-          .select("id")
-          .eq("booking_id", booking.id)
-          .limit(1)
-          .maybeSingle();
-        if (!mounted) return;
-        if (reviewError) {
-          console.warn("[customer-booking-details] review lookup failed", reviewError);
+        if (reviewLookupError) {
+          console.warn("[customer-booking-details] review lookup failed", reviewLookupError);
           setReviewAlreadyExists(false);
           return;
         }
         setReviewAlreadyExists(Boolean(data?.id));
       });
+
     return () => {
       mounted = false;
     };
-  }, [booking?.id, booking?.status]);
+  }, [booking?.id, booking?.status, booking?.provider_id, booking?.customer_id, customerUserId]);
 
   useEffect(() => {
     if (!bookingId || !isValidBookingId) return;
@@ -224,7 +231,8 @@ export function CustomerBookingDetails() {
   const statusMessage = toCustomerBookingStatusLabel(booking.status);
   const canConfirmCompletion =
     booking.status === "completed_by_provider" &&
-    Boolean(customerUserId ?? booking.customer_id);
+    Boolean(customerUserId) &&
+    booking.customer_id === customerUserId;
   const canLeaveReview =
     booking.status === "confirmed" &&
     Boolean(booking.provider_id) &&
@@ -336,8 +344,10 @@ export function CustomerBookingDetails() {
               setConfirmationSubmitting(true);
               setConfirmationError(null);
               try {
-                const confirmed = await confirmMyCompletedService(booking.id);
-                setBooking((current) => current ? { ...current, ...confirmed, provider: current.provider } : confirmed);
+                await confirmMyCompletedService(booking.id);
+                const refreshed = await fetchBooking(booking.id);
+                if (!refreshed) throw new Error("confirmed_booking_refresh_failed");
+                setBooking(refreshed);
               } catch {
                 setConfirmationError("We couldn't confirm this service yet. Please try again.");
               } finally {
