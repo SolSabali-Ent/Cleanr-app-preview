@@ -2,7 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import { ArrowRight, Compass, Lightbulb, Network, Sparkles, Users } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import type { NorthStar, NorthStarCategory } from "@/domain/growth";
+import { buildServicePracticeSnapshot, type ServicePracticeSnapshot } from "@/domain/servicePractice";
 import { CSP_GROWTH_ROUTES } from "@/app/provider/growthRoutes";
+import { listProviderEarningsBookings } from "@/lib/bookingApi";
 import { isOfflinePreviewMode } from "@/lib/supabase";
 import {
   getMyNorthStar,
@@ -34,6 +36,15 @@ const northStarOptions: Array<{ value: NorthStarCategory; label: string }> = [
   { value: "other", label: "Something else" },
 ];
 
+const emptyServicePractice: ServicePracticeSnapshot = {
+  confirmedServicesCount: 0,
+  confirmedHouseholdsCount: 0,
+  repeatHouseholdsCount: 0,
+  repeatServicesCount: 0,
+  scheduledServicesCount: 0,
+  returningHouseholdsScheduledCount: 0,
+};
+
 function categoryLabel(category: NorthStarCategory): string {
   return northStarOptions.find((option) => option.value === category)?.label ?? "Personal North Star";
 }
@@ -51,6 +62,7 @@ export default function GrowthScreen() {
   const [capabilityCount, setCapabilityCount] = useState(0);
   const [matchedOpportunityCount, setMatchedOpportunityCount] = useState(0);
   const [contributionCount, setContributionCount] = useState(0);
+  const [servicePractice, setServicePractice] = useState<ServicePracticeSnapshot>(emptyServicePractice);
 
   useEffect(() => {
     if (isOfflinePreviewMode) {
@@ -67,15 +79,25 @@ export default function GrowthScreen() {
         if (!active) return;
         setNorthStar(current);
 
-        const [capabilities, matches, contributions] = await Promise.all([
+        const [capabilities, matches, contributions, serviceRows] = await Promise.all([
           listMyCapabilities(),
           listMyOpportunityMatches(),
           listMyContributions(),
+          listProviderEarningsBookings(),
         ]);
         if (!active) return;
         setCapabilityCount(capabilities.length);
         setMatchedOpportunityCount(matches.length);
         setContributionCount(contributions.length);
+        setServicePractice(
+          buildServicePracticeSnapshot(
+            serviceRows.map((row) => ({
+              status: row.status,
+              customerId: row.customer_id,
+              scheduledStart: row.scheduled_start,
+            }))
+          )
+        );
 
         if (current) {
           const milestones = await listMyNorthStarMilestones(current.id);
@@ -165,6 +187,32 @@ export default function GrowthScreen() {
               {northStar ? <button type="button" onClick={() => { setEditing(false); setCategory(northStar.category); setGoal(northStar.goal); }} className="w-full py-2 text-xs" style={{ color: CSP_TEXT_SECONDARY }}>Cancel</button> : null}
             </div>
           )}
+        </div>
+      </section>
+
+      <section style={{ marginBottom: CSP_SECTION_GAP }}>
+        <div className="rounded-2xl border" style={{ backgroundColor: "rgba(141,204,100,.08)", borderColor: "rgba(141,204,100,.22)", padding: CSP_CARD_PADDING }}>
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-sm font-medium">Capacity stays yours to declare.</p>
+              {isOfflinePreviewMode ? (
+                <p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>
+                  Repeat service can create stability, but Cleanr does not treat income, repeat households, or a busy calendar as permission to decide what you should do next.
+                </p>
+              ) : (
+                <p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>
+                  Your current service history includes {servicePractice.repeatHouseholdsCount} repeat household{servicePractice.repeatHouseholdsCount === 1 ? "" : "s"} and {servicePractice.returningHouseholdsScheduledCount} returning household{servicePractice.returningHouseholdsScheduledCount === 1 ? "" : "s"} already scheduled. Those are signs of continuity, not instructions about your future.
+                </p>
+              )}
+            </div>
+            <Compass size={19} style={{ color: CSP_PRIMARY_BUTTON, marginTop: 2 }} />
+          </div>
+          <p className="mt-3 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>
+            If you want Cleanr to consider paths beyond Jobs, you choose whether matching is on, what kinds of opportunities interest you, and what time or location constraints actually fit your life. Kinex can use that explicit durable truth for decisioning; Cleanr does not infer your North Star from earnings.
+          </p>
+          <button type="button" onClick={() => navigate(CSP_GROWTH_ROUTES.fit)} className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold">
+            Set what fits my life <ArrowRight size={16} />
+          </button>
         </div>
       </section>
 
