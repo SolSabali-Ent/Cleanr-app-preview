@@ -28,10 +28,13 @@ export function JobDetails() {
     return () => { active = false; };
   }, [jobId]);
 
+  // Trusted coverage is a pre-service continuity mechanism. Once a visit is in progress,
+  // the residential service engine owns fulfillment and the assigned provider cannot be swapped
+  // through the relationship layer.
   const canRequestTrustedCoverage =
     Boolean(jobId) &&
     Boolean(booking?.provider_id) &&
-    (booking?.status === "accepted" || booking?.status === "in_progress");
+    booking?.status === "accepted";
 
   const canLeaveContinuity =
     Boolean(jobId) &&
