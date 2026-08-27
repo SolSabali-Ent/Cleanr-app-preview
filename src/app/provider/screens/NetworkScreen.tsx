@@ -97,7 +97,7 @@ export default function NetworkScreen() {
         </div>
         <h1 className="text-2xl font-semibold">Your Network</h1>
         <p className="mt-2 text-sm leading-6" style={{ color: CSP_TEXT_SECONDARY }}>
-          Cleanr can connect you with households, mentors, peers, trusted coverage, and collaborators. This is not a follower graph or social feed—each relationship exists for a clear purpose.
+          Cleanr can preserve the relationships already created through service and, when you want it, make useful introductions to peers, coverage partners, collaborators, or people with relevant experience. This is not a follower graph or social feed.
         </p>
       </header>
 
@@ -108,7 +108,7 @@ export default function NetworkScreen() {
             <div>
               <p className="text-sm font-medium">Relationships are earned, mutual, and portable.</p>
               <p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>
-                Cleanr supports continuity and trust without pretending to own the relationship. New peer connections become active only with consent, and household continuity comes from real service together.
+                Cleanr supports continuity and trust without pretending to own the relationship. New person-to-person connections become active only with consent, and household continuity comes from real service together.
               </p>
             </div>
           </div>
@@ -173,9 +173,9 @@ export default function NetworkScreen() {
             <div className="flex items-start gap-3">
               <Sparkles size={19} style={{ color: CSP_PRIMARY_BUTTON, marginTop: 2 }} />
               <div>
-                <p className="text-sm font-medium">No suggested connections yet.</p>
+                <p className="text-sm font-medium">No suggested connections right now.</p>
                 <p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>
-                  As the network grows, Kinex can help surface people whose experience or goals may complement yours. Cleanr will store the durable relationship only after consent.
+                  If you opt into introductions, Kinex can surface someone when a real reason exists for the connection. Cleanr stores the durable relationship only after consent.
                 </p>
               </div>
             </div>
@@ -212,14 +212,14 @@ export default function NetworkScreen() {
       </section>
 
       <section>
-        <h2 className="mb-3 text-sm font-medium" style={{ color: CSP_TEXT_SECONDARY }}>Active peer relationships</h2>
+        <h2 className="mb-3 text-sm font-medium" style={{ color: CSP_TEXT_SECONDARY }}>Active relationships</h2>
         {active.length === 0 ? (
           <div className="rounded-2xl border" style={{ backgroundColor: CSP_SURFACE, borderColor: "rgba(248,250,252,.08)", padding: CSP_CARD_PADDING }}>
             <div className="flex items-start gap-3">
               <Handshake size={19} style={{ color: CSP_PRIMARY_BUTTON, marginTop: 2 }} />
               <div>
-                <p className="text-sm font-medium">Your trusted peer network will appear here.</p>
-                <p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>The goal is useful relationships, not a high connection count.</p>
+                <p className="text-sm font-medium">Useful network relationships will appear here.</p>
+                <p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>The goal is not a high connection count. It is having the right relationships when they create real possibility.</p>
               </div>
             </div>
           </div>

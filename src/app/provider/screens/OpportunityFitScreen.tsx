@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Check, SlidersHorizontal } from "lucide-react";
+import { ArrowLeft, Check, SlidersHorizontal, Users } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import type {
   GrowthOpportunityType,
@@ -22,10 +22,9 @@ import {
   CSP_TEXT_SECONDARY,
 } from "@/theme/cspTheme";
 
-const typeOptions: Array<{ value: Exclude<GrowthOpportunityType, "service">; label: string }> = [
+const typeOptions: Array<{ value: Exclude<GrowthOpportunityType, "service" | "mentorship">; label: string }> = [
   { value: "backup_coverage", label: "Backup coverage" },
   { value: "referral", label: "Referrals" },
-  { value: "mentorship", label: "Mentorship" },
   { value: "training", label: "Training" },
   { value: "leadership", label: "Leadership" },
   { value: "business", label: "Business building" },
@@ -38,6 +37,7 @@ const typeOptions: Array<{ value: Exclude<GrowthOpportunityType, "service">; lab
 export default function OpportunityFitScreen() {
   const navigate = useNavigate();
   const [matchingEnabled, setMatchingEnabled] = useState(false);
+  const [introductionsEnabled, setIntroductionsEnabled] = useState(false);
   const [types, setTypes] = useState<OpportunityFitPreferences["opportunityTypes"]>([]);
   const [timePreference, setTimePreference] = useState<OpportunityTimePreference | "">("");
   const [locationPreference, setLocationPreference] = useState<OpportunityLocationPreference | "">("");
@@ -54,7 +54,8 @@ export default function OpportunityFitScreen() {
         const current = await getMyOpportunityFitPreferences();
         if (!current) return;
         setMatchingEnabled(current.matchingEnabled);
-        setTypes(current.opportunityTypes);
+        setIntroductionsEnabled(current.introductionsEnabled);
+        setTypes(current.opportunityTypes.filter((type) => type !== "mentorship"));
         setTimePreference(current.timePreference ?? "");
         setLocationPreference(current.locationPreference ?? "");
         setTravelRadiusMiles(current.travelRadiusMiles == null ? "" : String(current.travelRadiusMiles));
@@ -67,7 +68,7 @@ export default function OpportunityFitScreen() {
 
   const canSave = useMemo(() => !isOfflinePreviewMode && !saving, [saving]);
 
-  function toggleType(value: Exclude<GrowthOpportunityType, "service">) {
+  function toggleType(value: Exclude<GrowthOpportunityType, "service" | "mentorship">) {
     setTypes((current) => current.includes(value) ? current.filter((item) => item !== value) : [...current, value]);
     setSaved(false);
   }
@@ -80,6 +81,7 @@ export default function OpportunityFitScreen() {
       setError(null);
       await setMyOpportunityFitPreferences({
         matchingEnabled,
+        introductionsEnabled,
         opportunityTypes: types,
         timePreference: timePreference || null,
         locationPreference: locationPreference || null,
@@ -107,7 +109,7 @@ export default function OpportunityFitScreen() {
         </div>
         <h1 className="text-2xl font-semibold">What fits your life?</h1>
         <p className="mt-2 text-sm leading-6" style={{ color: CSP_TEXT_SECONDARY }}>
-          Tell Cleanr what kinds of growth opportunities you want considered. This is voluntary and does not affect your cleaning marketplace access.
+          Tell Cleanr what kinds of opportunities you want considered. This is voluntary and never affects cleaning marketplace access, ranking, payouts, or service opportunities.
         </p>
       </header>
 
@@ -117,15 +119,31 @@ export default function OpportunityFitScreen() {
         <div className="rounded-2xl border" style={{ backgroundColor: CSP_SURFACE, borderColor: "rgba(248,250,252,.08)", padding: CSP_CARD_PADDING }}>
           <label className="flex items-start justify-between gap-4">
             <div>
-              <p className="text-sm font-medium">Use these preferences for matching</p>
-              <p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>Turn this on when you want Kinex to use these Cleanr-owned preferences when deciding what may be relevant.</p>
+              <p className="text-sm font-medium">Use these preferences for opportunities</p>
+              <p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>Turn this on when you want Kinex to use these Cleanr-owned preferences when deciding what opportunities may be relevant.</p>
             </div>
             <input type="checkbox" checked={matchingEnabled} disabled={isOfflinePreviewMode} onChange={(event) => { setMatchingEnabled(event.target.checked); setSaved(false); }} className="mt-1 h-5 w-5" />
           </label>
         </div>
 
         <div className="rounded-2xl border" style={{ backgroundColor: CSP_SURFACE, borderColor: "rgba(248,250,252,.08)", padding: CSP_CARD_PADDING }}>
+          <div className="flex items-start gap-3">
+            <Users size={18} style={{ color: CSP_PRIMARY_BUTTON, marginTop: 2 }} />
+            <label className="flex flex-1 items-start justify-between gap-4">
+              <div>
+                <p className="text-sm font-medium">Consider useful introductions</p>
+                <p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>
+                  Separately choose whether Cleanr may consider introducing you to someone in the network when their experience, capability, or opportunity could be useful. You can still receive non-people opportunities with this off.
+                </p>
+              </div>
+              <input type="checkbox" checked={introductionsEnabled} disabled={isOfflinePreviewMode} onChange={(event) => { setIntroductionsEnabled(event.target.checked); setSaved(false); }} className="mt-1 h-5 w-5" />
+            </label>
+          </div>
+        </div>
+
+        <div className="rounded-2xl border" style={{ backgroundColor: CSP_SURFACE, borderColor: "rgba(248,250,252,.08)", padding: CSP_CARD_PADDING }}>
           <p className="text-sm font-medium">I&apos;m interested in</p>
+          <p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>Choose as many or as few as you want. Cleanr does not prescribe a path.</p>
           <div className="mt-3 grid grid-cols-2 gap-2">
             {typeOptions.map((option) => {
               const active = types.includes(option.value);

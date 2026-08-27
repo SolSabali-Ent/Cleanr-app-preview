@@ -57,6 +57,7 @@ type OpportunityRow = {
 type OpportunityPreferenceRow = {
   person_id: string;
   matching_enabled: boolean;
+  introductions_enabled: boolean;
   opportunity_types: OpportunityFitPreferences["opportunityTypes"];
   time_preference: OpportunityTimePreference | null;
   location_preference: OpportunityLocationPreference | null;
@@ -156,6 +157,7 @@ function mapOpportunityPreferences(row: OpportunityPreferenceRow): OpportunityFi
   return {
     personId: row.person_id,
     matchingEnabled: row.matching_enabled,
+    introductionsEnabled: row.introductions_enabled,
     opportunityTypes: row.opportunity_types ?? [],
     timePreference: row.time_preference,
     locationPreference: row.location_preference,
@@ -246,7 +248,7 @@ export async function getMyOpportunityFitPreferences(): Promise<OpportunityFitPr
   if (isOfflinePreviewMode) return null;
   const { data, error } = await supabase
     .from("person_opportunity_preferences")
-    .select("person_id, matching_enabled, opportunity_types, time_preference, location_preference, travel_radius_miles, fit_notes, created_at, updated_at")
+    .select("person_id, matching_enabled, introductions_enabled, opportunity_types, time_preference, location_preference, travel_radius_miles, fit_notes, created_at, updated_at")
     .maybeSingle();
   if (error) throw error;
   return data ? mapOpportunityPreferences(data as OpportunityPreferenceRow) : null;
@@ -254,6 +256,7 @@ export async function getMyOpportunityFitPreferences(): Promise<OpportunityFitPr
 
 export async function setMyOpportunityFitPreferences(input: {
   matchingEnabled: boolean;
+  introductionsEnabled: boolean;
   opportunityTypes: OpportunityFitPreferences["opportunityTypes"];
   timePreference?: OpportunityTimePreference | null;
   locationPreference?: OpportunityLocationPreference | null;
@@ -263,6 +266,7 @@ export async function setMyOpportunityFitPreferences(input: {
   if (isOfflinePreviewMode) throw new Error("Opportunity fit preferences are unavailable in offline preview mode.");
   const { data, error } = await supabase.rpc("set_my_opportunity_preferences", {
     p_matching_enabled: input.matchingEnabled,
+    p_introductions_enabled: input.introductionsEnabled,
     p_opportunity_types: input.opportunityTypes,
     p_time_preference: input.timePreference ?? null,
     p_location_preference: input.locationPreference ?? null,

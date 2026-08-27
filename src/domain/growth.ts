@@ -87,6 +87,7 @@ export type OpportunityLocationPreference = "local" | "remote" | "either";
 export interface OpportunityFitPreferences {
   personId: string;
   matchingEnabled: boolean;
+  introductionsEnabled: boolean;
   opportunityTypes: Exclude<GrowthOpportunityType, "service">[];
   timePreference?: OpportunityTimePreference | null;
   locationPreference?: OpportunityLocationPreference | null;
