@@ -104,6 +104,22 @@ export async function listMyHouseholdContinuity(): Promise<ProviderHouseholdRela
     });
 }
 
+/**
+ * Booking-safe continuity lookup for the provider's current household relationship.
+ *
+ * This derives only from the same provider-owned booking history used by the Network screen.
+ * It gives an operational service screen relationship context without creating a parallel
+ * relationship score or exposing any new household data.
+ */
+export async function getMyHouseholdContinuityForCustomer(
+  customerId: string
+): Promise<ProviderHouseholdRelationshipSummary | null> {
+  const normalizedCustomerId = customerId.trim();
+  if (!normalizedCustomerId) return null;
+  const households = await listMyHouseholdContinuity();
+  return households.find((household) => household.customerId === normalizedCustomerId) ?? null;
+}
+
 export async function getMyServiceRelationshipWithProvider(providerId: string): Promise<ServiceRelationship | null> {
   if (isOfflinePreviewMode) return null;
 
