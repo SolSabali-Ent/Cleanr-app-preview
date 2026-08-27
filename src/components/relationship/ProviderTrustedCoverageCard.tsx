@@ -32,8 +32,14 @@ function otherParticipantId(summary: NetworkConnectionSummary, personId: string)
 }
 
 function handoffCopy(handoff: TrustedServiceHandoff): string {
+  if (handoff.status === "completed") {
+    return "The trusted backup became the formal provider for this booking and the household confirmed the completed service.";
+  }
+  if (handoff.status === "active" && handoff.fulfillmentAppliedAt) {
+    return "Cleanr has formally reconciled this booking to your trusted backup. The residential service engine owns fulfillment from here.";
+  }
   if (handoff.status === "active") {
-    return "Your trusted backup and the household both agreed. Cleanr has recorded the trust transfer for this visit.";
+    return "Your trusted backup and the household both agreed. The trust transfer is active; formal booking assignment is still waiting on Cleanr operations.";
   }
   if (handoff.backupAcceptedAt && !handoff.customerConfirmedAt) {
     return "Your backup agreed to cover. The household still needs to approve the handoff.";
@@ -178,7 +184,7 @@ export function ProviderTrustedCoverageCard({ bookingId }: { bookingId: string }
             <span className="text-[11px] capitalize text-emerald-800">{handoff.status.replaceAll("_", " ")}</span>
           </div>
           <p className="mt-1 text-xs leading-5 text-emerald-800">{handoffCopy(handoff)}</p>
-          {handoff.status !== "active" ? (
+          {handoff.status !== "active" && handoff.status !== "completed" ? (
             <button type="button" disabled={busy} onClick={() => void cancelCoverage()} className="mt-3 w-full rounded-xl border border-emerald-300 bg-white px-3 py-2 text-xs font-semibold text-emerald-900 disabled:opacity-50">
               Cancel coverage request
             </button>
@@ -217,7 +223,7 @@ export function ProviderTrustedCoverageCard({ bookingId }: { bookingId: string }
       )}
 
       <p className="mt-3 text-[11px] leading-4 text-slate-500">
-        This records a trust transfer only. It does not reassign the booking, bypass household consent, or let either CSP declare fulfillment complete.
+        Requesting coverage never reassigns a booking by itself. Only after backup + household consent can a privileged Cleanr/Kinex operations path reconcile assignment to the trusted backup; fulfillment then stays inside the normal residential service engine.
       </p>
     </section>
   );
