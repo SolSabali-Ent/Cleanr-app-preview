@@ -112,6 +112,23 @@ export type OpportunityMatchStatus =
   | "completed";
 
 export type OpportunityMatchSource = "kinex" | "admin" | "system";
+export type OpportunityOutcomeSource = "kinex" | "admin" | "system";
+
+/**
+ * An outcome is verified evidence that the accepted opportunity actually happened.
+ * It is not a Contribution. Personal progress can be real without implying that value
+ * was created for another person or the collective.
+ */
+export interface OpportunityOutcome {
+  id: string;
+  matchId: string;
+  opportunityId: string;
+  personId: string;
+  summary?: string | null;
+  sourceSystem: OpportunityOutcomeSource;
+  occurredAt: string;
+  createdAt: string;
+}
 
 export interface OpportunityMatch {
   id: string;
@@ -129,6 +146,7 @@ export interface OpportunityMatch {
   matchedAt: string;
   createdAt: string;
   updatedAt: string;
+  outcome?: OpportunityOutcome | null;
 }
 
 export type ContributionType =
