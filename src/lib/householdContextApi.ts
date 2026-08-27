@@ -25,12 +25,20 @@ function mapHouseholdContext(row: HouseholdContextRow): HouseholdContext {
   };
 }
 
+function relationMissing(error: { code?: string; message?: string } | null): boolean {
+  const message = (error?.message ?? "").toLowerCase();
+  return error?.code === "42P01"
+    || error?.code === "PGRST205"
+    || (message.includes("household_context") && message.includes("does not exist"));
+}
+
 export async function getMyHouseholdContext(): Promise<HouseholdContext | null> {
   if (isOfflinePreviewMode) return null;
   const { data, error } = await supabase
     .from("household_context")
     .select("customer_id, memory_enabled, service_preferences, pet_context, surfaces_to_avoid, communication_preferences, created_at, updated_at")
     .maybeSingle();
+  if (relationMissing(error)) return null;
   if (error) throw error;
   return data ? mapHouseholdContext(data as HouseholdContextRow) : null;
 }
@@ -40,6 +48,7 @@ export async function getHouseholdContextForBooking(bookingId: string): Promise<
   const { data, error } = await supabase.rpc("get_household_context_for_booking", {
     p_booking_id: bookingId,
   });
+  if (relationMissing(error)) return null;
   if (error) throw error;
   return data ? mapHouseholdContext(data as HouseholdContextRow) : null;
 }
