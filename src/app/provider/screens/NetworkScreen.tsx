@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Handshake, Home, Network, ShieldCheck, Sparkles, Users } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import type { NetworkConnectionSummary, NetworkRelationship } from "@/domain/network";
-import { myNetworkRole } from "@/domain/network";
+import { myNetworkConsent, myNetworkRole } from "@/domain/network";
 import type { ProviderHouseholdRelationshipSummary } from "@/domain/serviceRelationship";
 import type { TrustedServiceHandoffSummary } from "@/domain/trustedHandoff";
 import { isOfflinePreviewMode } from "@/lib/supabase";
@@ -20,7 +20,7 @@ import {
 
 function relationshipLabel(type: NetworkRelationship["type"]): string {
   switch (type) {
-    case "mentor": return "Mentorship";
+    case "mentor": return "Experience connection";
     case "coverage_partner": return "Coverage partner";
     case "business_collaborator": return "Business collaborator";
     default: return "Peer connection";
@@ -175,7 +175,7 @@ export default function NetworkScreen() {
               <div>
                 <p className="text-sm font-medium">No suggested connections right now.</p>
                 <p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>
-                  If you opt into introductions, Kinex can surface someone when a real reason exists for the connection. Cleanr stores the durable relationship only after consent.
+                  If you opt into introductions, Kinex can surface someone when a real reason exists for the connection. Cleanr records the introduction and activates the relationship only after both people consent.
                 </p>
               </div>
             </div>
@@ -185,6 +185,7 @@ export default function NetworkScreen() {
             {pending.map((summary) => {
               const { relationship, direction } = summary;
               const role = myNetworkRole(summary);
+              const consent = myNetworkConsent(summary);
               return (
                 <div key={relationship.id} className="rounded-2xl border" style={{ backgroundColor: CSP_SURFACE, borderColor: "rgba(248,250,252,.08)", padding: CSP_CARD_PADDING }}>
                   <div className="flex items-start gap-3">
@@ -192,13 +193,17 @@ export default function NetworkScreen() {
                     <div className="flex-1">
                       <p className="text-sm font-medium">{relationshipLabel(relationship.type)}</p>
                       <p className="mt-1 text-xs" style={{ color: CSP_TEXT_SECONDARY }}>
-                        {role ? `Your role: ${role}` : direction === "inbound" ? "Connection offered to you" : "Waiting on the other person"}
+                        {role ? `Your role: ${role}` : consent.accepted ? "You accepted · waiting on the other person" : direction === "inbound" ? "Connection offered to you" : "Introduction ready for your decision"}
                       </p>
                       <p className="mt-1 text-xs" style={{ color: CSP_TEXT_SECONDARY }}>{provenanceLabel(relationship)}</p>
                       {relationship.purpose ? <p className="mt-2 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>{relationship.purpose}</p> : null}
                     </div>
                   </div>
-                  {!isOfflinePreviewMode ? (
+                  {!isOfflinePreviewMode ? consent.accepted ? (
+                    <div className="mt-4">
+                      <button type="button" disabled={busyId === relationship.id} onClick={() => void respond(relationship.id, "decline")} className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold">Withdraw</button>
+                    </div>
+                  ) : (
                     <div className="mt-4 grid grid-cols-2 gap-2">
                       <button type="button" disabled={busyId === relationship.id} onClick={() => void respond(relationship.id, "accept")} className="rounded-xl px-3 py-2 text-xs font-semibold text-white" style={{ backgroundColor: CSP_PRIMARY_BUTTON }}>Accept</button>
                       <button type="button" disabled={busyId === relationship.id} onClick={() => void respond(relationship.id, "decline")} className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold">Pass</button>
