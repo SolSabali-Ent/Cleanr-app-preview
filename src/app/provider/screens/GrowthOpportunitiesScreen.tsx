@@ -288,9 +288,17 @@ export default function GrowthOpportunitiesScreen() {
                   </p>
                 ) : null}
                 {match.status === "completed" ? (
-                  <p className="mt-3 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>
-                    Completed outcome recorded. If that outcome created value for another person or the collective, Cleanr may separately record the evidenced contribution.
-                  </p>
+                  <div className="mt-3 rounded-xl border border-white/10 bg-white/5 p-3">
+                    <p className="text-xs font-semibold" style={{ color: CSP_TEXT_PRIMARY }}>Verified outcome</p>
+                    {match.outcome?.summary ? (
+                      <p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>{match.outcome.summary}</p>
+                    ) : (
+                      <p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>The real-world completion was verified and recorded.</p>
+                    )}
+                    <p className="mt-2 text-[11px] leading-4" style={{ color: CSP_TEXT_SECONDARY }}>
+                      This outcome is your durable completion history. It is not automatically a contribution, a capability, or North Star progress. Collective value is recorded separately only when there is evidence that someone else or the network benefited.
+                    </p>
+                  </div>
                 ) : null}
               </div>
             ))}
