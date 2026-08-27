@@ -24,6 +24,7 @@ type NetworkRelationshipRow = {
   source_accepted_at: string | null;
   target_accepted_at: string | null;
   started_at: string | null;
+  declined_at: string | null;
   ended_at: string | null;
   created_at: string;
   updated_at: string;
@@ -46,13 +47,14 @@ function mapRelationship(row: NetworkRelationshipRow): NetworkRelationship {
     sourceAcceptedAt: row.source_accepted_at,
     targetAcceptedAt: row.target_accepted_at,
     startedAt: row.started_at,
+    declinedAt: row.declined_at,
     endedAt: row.ended_at,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
 }
 
-const NETWORK_SELECT = "id, source_person_id, target_person_id, relationship_type, status, origin, purpose, provenance_type, provenance_id, source_role, target_role, introduced_at, source_accepted_at, target_accepted_at, started_at, ended_at, created_at, updated_at";
+const NETWORK_SELECT = "id, source_person_id, target_person_id, relationship_type, status, origin, purpose, provenance_type, provenance_id, source_role, target_role, introduced_at, source_accepted_at, target_accepted_at, started_at, declined_at, ended_at, created_at, updated_at";
 
 export async function listMyNetworkRelationships(): Promise<NetworkConnectionSummary[]> {
   if (isOfflinePreviewMode) return [];

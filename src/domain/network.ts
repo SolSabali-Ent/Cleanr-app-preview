@@ -45,6 +45,7 @@ export interface NetworkRelationship {
   sourceAcceptedAt?: string | null;
   targetAcceptedAt?: string | null;
   startedAt?: string | null;
+  declinedAt?: string | null;
   endedAt?: string | null;
   createdAt: string;
   updatedAt: string;
