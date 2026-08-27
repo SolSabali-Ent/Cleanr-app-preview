@@ -1,9 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { getBooking, acceptBookingAsProvider, startBookingAsProvider, completeBookingAsProvider } from "../../../lib/bookingApi";
 import type { Booking } from "../../../domain/booking";
 import type { HouseholdContext } from "../../../domain/householdContext";
 import type { ProviderHouseholdRelationshipSummary } from "../../../domain/serviceRelationship";
+import { buildCleanrMethodVisitPractices } from "../../../domain/cleanrMethod";
+import { householdContextHasUsefulMemory } from "../../../domain/householdContext";
 import { getHouseholdContextForBooking } from "../../../lib/householdContextApi";
 import { getMyHouseholdContinuityForCustomer } from "../../../lib/serviceRelationshipApi";
 import { isProviderAvailable } from "../../../api/providerAvailability";
@@ -89,8 +91,6 @@ export default function JobDetailsScreen() {
         const context = await getHouseholdContextForBooking(booking.id);
         if (mounted) setHouseholdContext(context);
       } catch {
-        // Household memory is optional and migration-gated. A missing/inaccessible context
-        // must never interrupt the operational job flow.
         if (mounted) setHouseholdContext(null);
       }
     }
@@ -113,8 +113,6 @@ export default function JobDetailsScreen() {
         const continuity = await getMyHouseholdContinuityForCustomer(booking.customer_id);
         if (mounted) setHouseholdContinuity(continuity);
       } catch {
-        // Relationship context is additive. Booking execution must remain available even if
-        // continuity cannot be resolved yet.
         if (mounted) setHouseholdContinuity(null);
       }
     }
@@ -141,9 +139,7 @@ export default function JobDetailsScreen() {
       try {
         const available = await isProviderAvailable(providerId, startISO, endISO);
         if (!mounted) return;
-        setAvailabilityHint(
-          available ? null : "This job overlaps your blocked time or existing schedule."
-        );
+        setAvailabilityHint(available ? null : "This job overlaps your blocked time or existing schedule.");
       } catch {
         if (!mounted) return;
         setAvailabilityHint(null);
@@ -166,10 +162,26 @@ export default function JobDetailsScreen() {
   const jobStatus = booking ? (statusMap[booking.status] || "en_route") : "en_route";
   const { isComplete } = useJobFlow(jobStatus);
 
-  const handleCheck = (item: string) => {
-    setCheckedItems((prev) =>
-      prev.includes(item) ? prev.filter((i) => i !== item) : [...prev, item]
+  const methodPractices = useMemo(() => {
+    if (!booking) return [];
+    const hasVisitSpecificUpdates = Boolean(
+      booking.access_notes ||
+      booking.gate_code ||
+      booking.parking_notes ||
+      booking.entry_instructions ||
+      booking.pet_notes ||
+      booking.surfaces_to_avoid
     );
+    return buildCleanrMethodVisitPractices({
+      completedServicesCount: householdContinuity?.completedServicesCount ?? 0,
+      memoryEnabled: Boolean(householdContext?.memoryEnabled),
+      hasRememberedPreferences: householdContextHasUsefulMemory(householdContext),
+      hasVisitSpecificUpdates,
+    });
+  }, [booking, householdContinuity?.completedServicesCount, householdContext]);
+
+  const handleCheck = (item: string) => {
+    setCheckedItems((prev) => prev.includes(item) ? prev.filter((i) => i !== item) : [...prev, item]);
   };
 
   const handleAccept = async () => {
@@ -211,46 +223,28 @@ export default function JobDetailsScreen() {
   };
 
   if (loading) {
-    return (
-      <div className="text-white p-4 flex items-center justify-center min-h-[40vh]">
-        <p className="text-sm text-slate-400">Loading job…</p>
-      </div>
-    );
+    return <div className="text-white p-4 flex items-center justify-center min-h-[40vh]"><p className="text-sm text-slate-400">Loading job…</p></div>;
   }
 
   if (!booking) {
     return (
       <div className="text-white p-4">
         <p className="text-sm text-slate-400">Job not found.</p>
-        <button onClick={() => navigate(-1)} className="text-xs text-slate-500 underline mt-2">
-          ← Back
-        </button>
+        <button onClick={() => navigate(-1)} className="text-xs text-slate-500 underline mt-2">← Back</button>
       </div>
     );
   }
 
   return (
     <div className="text-white pb-24 relative min-h-[60vh]">
-      <img
-        src="/cleanr_final-04.png"
-        alt=""
-        className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none"
-        style={{ zIndex: 1, width: "360px", opacity: 0.08 }}
-      />
+      <img src="/cleanr_final-04.png" alt="" className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none" style={{ zIndex: 1, width: "360px", opacity: 0.08 }} />
       <div className="relative z-10">
-        <button
-          onClick={() => navigate(-1)}
-          className="inline-flex items-center text-xs text-slate-400 mb-3"
-        >
-          ← Back
-        </button>
+        <button onClick={() => navigate(-1)} className="inline-flex items-center text-xs text-slate-400 mb-3">← Back</button>
 
         <h1 className="text-xl font-semibold mb-2">Job Details</h1>
         <p className="text-xs text-slate-400 mb-4">Booking ID: {booking.id}</p>
 
-        <div className="mb-4">
-          <JobStatusStepper currentStatus={jobStatus} />
-        </div>
+        <div className="mb-4"><JobStatusStepper currentStatus={jobStatus} /></div>
 
         <section className="bg-white border border-slate-200 rounded-2xl p-4 mb-3 shadow-md">
           <p className="text-xs font-semibold text-slate-500 mb-1">Address</p>
@@ -259,16 +253,12 @@ export default function JobDetailsScreen() {
 
         <section className="bg-white border border-slate-200 rounded-2xl p-4 mb-3 shadow-md">
           <p className="text-xs font-semibold text-slate-500 mb-1">When</p>
-          <p className="text-sm text-slate-900">
-            {formatDate(booking.scheduled_start)} at {formatTime(booking.scheduled_start)}
-          </p>
+          <p className="text-sm text-slate-900">{formatDate(booking.scheduled_start)} at {formatTime(booking.scheduled_start)}</p>
         </section>
 
         <section className="bg-white border border-slate-200 rounded-2xl p-4 mb-3 shadow-md">
           <p className="text-xs font-semibold text-slate-500 mb-1">Payout</p>
-          <p className="text-sm font-semibold text-slate-900">
-            ${((booking.price_cents ?? 0) / 100).toFixed(0)}
-          </p>
+          <p className="text-sm font-semibold text-slate-900">${((booking.price_cents ?? 0) / 100).toFixed(0)}</p>
         </section>
 
         {householdContinuity ? (
@@ -280,13 +270,9 @@ export default function JobDetailsScreen() {
                 You have completed {householdContinuity.completedServicesCount} prior service{householdContinuity.completedServicesCount === 1 ? "" : "s"} with this household{householdContinuity.lastServedAt ? ` · last visit ${formatDate(householdContinuity.lastServedAt)}` : ""}.
               </p>
             ) : (
-              <p className="mt-1 text-xs leading-5 text-slate-600">
-                This is the beginning of the relationship. Learn the household, communicate clearly, and leave useful continuity for the next visit.
-              </p>
+              <p className="mt-1 text-xs leading-5 text-slate-600">This is the beginning of the relationship. Learn the household, communicate clearly, and leave useful continuity for the next visit.</p>
             )}
-            <p className="mt-2 text-[11px] leading-4 text-sky-800">
-              The booking is today&apos;s transaction. The relationship is what can compound across visits.
-            </p>
+            <p className="mt-2 text-[11px] leading-4 text-sky-800">The booking is today&apos;s transaction. The relationship is what can compound across visits.</p>
           </section>
         ) : null}
 
@@ -309,12 +295,7 @@ export default function JobDetailsScreen() {
           </section>
         ) : null}
 
-        {(booking.access_notes ||
-          booking.gate_code ||
-          booking.parking_notes ||
-          booking.entry_instructions ||
-          booking.pet_notes ||
-          booking.surfaces_to_avoid) && (
+        {(booking.access_notes || booking.gate_code || booking.parking_notes || booking.entry_instructions || booking.pet_notes || booking.surfaces_to_avoid) && (
           <section className="bg-white border border-slate-200 rounded-2xl p-4 mb-3 shadow-md">
             <p className="text-xs font-semibold text-slate-500 mb-1">This visit</p>
             <p className="text-[11px] text-slate-500 mb-2">Current booking details from the customer. These can differ from remembered household preferences.</p>
@@ -326,14 +307,25 @@ export default function JobDetailsScreen() {
               {booking.pet_notes ? <div><dt className="text-xs text-slate-500">Pets</dt><dd className="whitespace-pre-wrap">{booking.pet_notes}</dd></div> : null}
               {booking.surfaces_to_avoid ? <div><dt className="text-xs text-slate-500">Surfaces to avoid</dt><dd className="whitespace-pre-wrap">{booking.surfaces_to_avoid}</dd></div> : null}
             </dl>
-            {booking.customer_access_updated_at ? (
-              <p className="text-[10px] text-slate-400 mt-2">Customer last updated {new Date(booking.customer_access_updated_at).toLocaleString()}</p>
-            ) : null}
+            {booking.customer_access_updated_at ? <p className="text-[10px] text-slate-400 mt-2">Customer last updated {new Date(booking.customer_access_updated_at).toLocaleString()}</p> : null}
           </section>
         )}
 
+        <section className="bg-violet-50 border border-violet-200 rounded-2xl p-4 mb-3 shadow-md">
+          <p className="text-xs font-semibold text-violet-900">Cleanr Method</p>
+          <p className="mt-1 text-[11px] leading-4 text-violet-800">Use the information Cleanr handles so you can pay attention to the person and the home. These are relationship practices, not extra cleaning tasks.</p>
+          <div className="mt-3 space-y-3">
+            {methodPractices.map((practice) => (
+              <div key={practice.key} className="rounded-xl border border-violet-200/80 bg-white/70 p-3">
+                <p className="text-xs font-semibold text-slate-900">{practice.label}</p>
+                <p className="mt-1 text-xs leading-5 text-slate-600">{practice.guidance}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
         <section className="bg-white border border-slate-200 rounded-2xl p-4 mb-3 shadow-md">
-          <p className="text-xs font-semibold text-slate-500 mb-2">Checklist</p>
+          <p className="text-xs font-semibold text-slate-500 mb-2">Cleaning checklist</p>
           <ul className="space-y-2">
             {checklist.map((item) => (
               <li key={item} className="flex items-center gap-2">
