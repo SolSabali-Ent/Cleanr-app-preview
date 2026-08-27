@@ -144,7 +144,7 @@ export default function TodayScreen() {
         ) : (
           <>
             <header style={{ marginBottom: CSP_SECTION_GAP }}>
-              <h1 className="text-2xl font-semibold">You're almost ready to start earning.</h1>
+              <h1 className="text-2xl font-semibold">You&apos;re almost ready to start earning.</h1>
               <p className="text-sm mt-2" style={{ color: CSP_TEXT_SECONDARY }}>Complete verification to unlock jobs and payouts.</p>
             </header>
             <section className="space-y-3" style={{ marginBottom: CSP_SECTION_GAP }}>
@@ -164,8 +164,10 @@ export default function TodayScreen() {
       ) : (
         <>
           <header style={{ marginBottom: CSP_SECTION_GAP }}>
-            <h1 className="text-2xl font-semibold">You're live in the marketplace.</h1>
-            <p className="text-sm mt-2" style={{ color: CSP_TEXT_SECONDARY }}>Pick jobs fast, stay consistent, and keep your rating high.</p>
+            <h1 className="text-2xl font-semibold">You&apos;re live in the marketplace.</h1>
+            <p className="text-sm mt-2" style={{ color: CSP_TEXT_SECONDARY }}>
+              Build a reliable service practice, create repeat household relationships, and choose work that fits your life.
+            </p>
           </header>
 
           <section style={{ marginBottom: CSP_SECTION_GAP }}>
@@ -177,7 +179,9 @@ export default function TodayScreen() {
                     <p className="text-sm font-semibold">Your North Star</p>
                     <span className="text-xs font-medium" style={{ color: CSP_PRIMARY_BUTTON }}>Explore →</span>
                   </div>
-                  <p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>Your work today can support what you want to build next. Define your direction, grow capabilities, and discover opportunities beyond the job queue.</p>
+                  <p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>
+                    Your service practice can be the destination or the engine for something else. Define what matters to you and let Cleanr help connect the work, capabilities, relationships, and opportunities that can move it forward.
+                  </p>
                 </div>
               </div>
             </button>
@@ -212,7 +216,9 @@ export default function TodayScreen() {
           </section>
           <section>
             <h2 className="text-sm font-medium mb-3" style={{ color: CSP_TEXT_SECONDARY }}>Today</h2>
-            <p className="text-sm" style={{ color: CSP_TEXT_SECONDARY }}>Keep momentum. Fast responses unlock more volume.</p>
+            <p className="text-sm leading-6" style={{ color: CSP_TEXT_SECONDARY }}>
+              Reliability compounds. Show up prepared, communicate early, learn the household, and let each good visit make the next one easier.
+            </p>
           </section>
         </>
       )}
