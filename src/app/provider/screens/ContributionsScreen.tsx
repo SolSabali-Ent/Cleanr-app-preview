@@ -43,7 +43,7 @@ export default function ContributionsScreen() {
         </div>
         <h1 className="text-2xl font-semibold">Contribution</h1>
         <p className="mt-2 text-sm leading-6" style={{ color: CSP_TEXT_SECONDARY }}>
-          This is evidence of value you helped create for someone else or for the network: referrals, coverage, mentorship, trust handoffs, knowledge, opportunities, businesses, employment, capital, or leadership.
+          This is durable evidence of value you helped create for another person or for the network—referrals, trusted coverage, knowledge, useful introductions, opportunities, businesses, employment, capital, leadership, or other contributions that increase what the collective can do next.
         </p>
       </header>
 

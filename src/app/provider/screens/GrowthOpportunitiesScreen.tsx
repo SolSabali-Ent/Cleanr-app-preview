@@ -77,11 +77,11 @@ export default function GrowthOpportunitiesScreen() {
       <header style={{ marginBottom: CSP_SECTION_GAP }}>
         <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs">
           <Sparkles size={14} style={{ color: CSP_PRIMARY_BUTTON }} />
-          <span style={{ color: CSP_TEXT_SECONDARY }}>More than jobs</span>
+          <span style={{ color: CSP_TEXT_SECONDARY }}>Paths beyond Jobs</span>
         </div>
         <h1 className="text-2xl font-semibold">Opportunities</h1>
         <p className="mt-2 text-sm leading-6" style={{ color: CSP_TEXT_SECONDARY }}>
-          Jobs remain in Jobs. This space is for opportunities that can move you toward your North Star: coverage, mentorship, training, leadership, business, education, vendor, and external paths.
+          Jobs remain in Jobs. This space is for useful paths beyond a cleaning assignment—coverage, referrals, training, leadership, business, vendor, education, external, investing, or something the network makes possible later.
         </p>
         <button type="button" onClick={() => navigate(CSP_GROWTH_ROUTES.fit)} className="mt-4 flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold">
           <SlidersHorizontal size={14} /> Set what fits my life
@@ -96,7 +96,7 @@ export default function GrowthOpportunitiesScreen() {
           <div className="rounded-2xl border" style={{ backgroundColor: CSP_SURFACE, borderColor: "rgba(248,250,252,.08)", padding: CSP_CARD_PADDING }}>
             <p className="text-sm font-medium">No matched opportunities yet.</p>
             <p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>
-              Kinex can eventually match opportunities using durable Cleanr truth like your North Star, capabilities, location, interests, and constraints. Cleanr stores the match; Kinex decides what should surface next.
+              When you opt into opportunity matching, Kinex may use durable Cleanr truth such as your North Star, capabilities, interests, location, and practical constraints to decide what may be relevant. Cleanr stores the resulting match. Turning matching off stops new matching and never affects cleaning marketplace access, ranking, payouts, or service opportunities.
             </p>
           </div>
         ) : (
@@ -121,7 +121,7 @@ export default function GrowthOpportunitiesScreen() {
                   </div>
                 ) : !["interested","accepted","declined","completed"].includes(match.status) && !isOfflinePreviewMode ? (
                   <div className="mt-4 grid grid-cols-2 gap-2">
-                    <button type="button" disabled={busyMatchId === match.id} onClick={() => void respond(match.id, "interested")} className="rounded-xl px-2 py-2 text-xs font-semibold text-white" style={{ backgroundColor: CSP_PRIMARY_BUTTON }}>I'm interested</button>
+                    <button type="button" disabled={busyMatchId === match.id} onClick={() => void respond(match.id, "interested")} className="rounded-xl px-2 py-2 text-xs font-semibold text-white" style={{ backgroundColor: CSP_PRIMARY_BUTTON }}>I&apos;m interested</button>
                     <button type="button" disabled={busyMatchId === match.id} onClick={() => void respond(match.id, "declined")} className="rounded-xl border border-white/10 bg-white/5 px-2 py-2 text-xs font-semibold">Pass</button>
                   </div>
                 ) : null}
