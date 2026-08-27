@@ -1,14 +1,12 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { getBooking, updateCustomerBookingAccess } from "../../lib/bookingApi";
-import { getMyHouseholdContext, setMyHouseholdContext } from "../../lib/householdContextApi";
 import type { Booking } from "../../domain/booking";
 import { BEFORE_VISIT_TRUTH_SLOTS } from "../../product/beforeVisitTruth";
 import { Button } from "../../components/ui/Button";
 import { CustomerTrustedHandoffCard } from "../components/CustomerTrustedHandoffCard";
 import { ArrowLeft } from "lucide-react";
 import { isUuid } from "@/utils/isUuid";
-import { isOfflinePreviewMode } from "@/lib/supabase";
 
 function emptyToNull(s: string): string | null {
   const t = s.trim();
@@ -31,14 +29,6 @@ export function BeforeYourCleaning() {
   const [petNotes, setPetNotes] = useState("");
   const [surfacesToAvoid, setSurfacesToAvoid] = useState("");
 
-  const [memoryEnabled, setMemoryEnabled] = useState(false);
-  const [servicePreferences, setServicePreferences] = useState("");
-  const [memoryPetContext, setMemoryPetContext] = useState("");
-  const [memorySurfacesToAvoid, setMemorySurfacesToAvoid] = useState("");
-  const [communicationPreferences, setCommunicationPreferences] = useState("");
-  const [memorySaving, setMemorySaving] = useState(false);
-  const [memorySavedAt, setMemorySavedAt] = useState<string | null>(null);
-
   const validId = bookingId && isUuid(bookingId);
 
   useEffect(() => {
@@ -48,34 +38,25 @@ export function BeforeYourCleaning() {
     }
 
     let active = true;
-    void Promise.all([
-      getBooking(bookingId),
-      getMyHouseholdContext().catch(() => null),
-    ]).then(([b, memory]) => {
-      if (!active) return;
-      setBooking(b);
-      if (b) {
-        setAccessNotes(b.access_notes ?? "");
-        setGateCode(b.gate_code ?? "");
-        setParkingNotes(b.parking_notes ?? "");
-        setEntryInstructions(b.entry_instructions ?? "");
-        setPetNotes(b.pet_notes ?? "");
-        setSurfacesToAvoid(b.surfaces_to_avoid ?? "");
-        setSavedAt(b.customer_access_updated_at ?? null);
-      }
-      if (memory) {
-        setMemoryEnabled(memory.memoryEnabled);
-        setServicePreferences(memory.servicePreferences ?? "");
-        setMemoryPetContext(memory.petContext ?? "");
-        setMemorySurfacesToAvoid(memory.surfacesToAvoid ?? "");
-        setCommunicationPreferences(memory.communicationPreferences ?? "");
-        setMemorySavedAt(memory.updatedAt);
-      }
-    }).catch(() => {
-      if (active) setError("Could not load booking.");
-    }).finally(() => {
-      if (active) setLoading(false);
-    });
+    void getBooking(bookingId)
+      .then((nextBooking) => {
+        if (!active) return;
+        setBooking(nextBooking);
+        if (!nextBooking) return;
+        setAccessNotes(nextBooking.access_notes ?? "");
+        setGateCode(nextBooking.gate_code ?? "");
+        setParkingNotes(nextBooking.parking_notes ?? "");
+        setEntryInstructions(nextBooking.entry_instructions ?? "");
+        setPetNotes(nextBooking.pet_notes ?? "");
+        setSurfacesToAvoid(nextBooking.surfaces_to_avoid ?? "");
+        setSavedAt(nextBooking.customer_access_updated_at ?? null);
+      })
+      .catch(() => {
+        if (active) setError("Could not load booking.");
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
 
     return () => { active = false; };
   }, [bookingId, validId]);
@@ -93,39 +74,13 @@ export function BeforeYourCleaning() {
         pet_notes: emptyToNull(petNotes),
         surfaces_to_avoid: emptyToNull(surfacesToAvoid),
       });
-      const b = await getBooking(bookingId);
-      setBooking(b);
-      setSavedAt(b?.customer_access_updated_at ?? new Date().toISOString());
+      const nextBooking = await getBooking(bookingId);
+      setBooking(nextBooking);
+      setSavedAt(nextBooking?.customer_access_updated_at ?? new Date().toISOString());
     } catch {
       setError("Some details may need to be updated later.");
     } finally {
       setSaving(false);
-    }
-  };
-
-  const handleSaveMemory = async () => {
-    if (isOfflinePreviewMode) return;
-    setMemorySaving(true);
-    setError(null);
-    try {
-      const saved = await setMyHouseholdContext({
-        memoryEnabled,
-        servicePreferences: emptyToNull(servicePreferences),
-        petContext: emptyToNull(memoryPetContext),
-        surfacesToAvoid: emptyToNull(memorySurfacesToAvoid),
-        communicationPreferences: emptyToNull(communicationPreferences),
-      });
-      setMemorySavedAt(saved.updatedAt);
-      if (!saved.memoryEnabled) {
-        setServicePreferences("");
-        setMemoryPetContext("");
-        setMemorySurfacesToAvoid("");
-        setCommunicationPreferences("");
-      }
-    } catch {
-      setError("Reusable household preferences could not be saved yet.");
-    } finally {
-      setMemorySaving(false);
     }
   };
 
@@ -166,40 +121,12 @@ export function BeforeYourCleaning() {
 
       <section className="provider-card p-4 mb-4 space-y-3">
         <div>
-          <p className="section-label">Remember for future cleanings</p>
-          <p className="mt-1 text-xs text-[#667085]">Optional. Cleanr can remember reusable household preferences so you don&apos;t have to repeat them. Door codes, gate codes, and one-visit entry instructions are never stored here.</p>
+          <p className="section-label">This visit only</p>
+          <p className="mt-1 text-xs text-[#667085]">
+            Use this for arrival and access details that belong to this booking. Reusable household memory is controlled separately in <Link to="/app/profile" className="text-[#0A84FF] underline">Profile</Link>.
+          </p>
         </div>
-
-        <label className="flex items-start gap-3 rounded-lg border border-[#E5E7EB] p-3">
-          <input type="checkbox" checked={memoryEnabled} onChange={(e) => setMemoryEnabled(e.target.checked)} className="mt-0.5 h-4 w-4" />
-          <span>
-            <span className="block text-sm font-medium">Remember my reusable household preferences</span>
-            <span className="block text-xs text-[#667085]">You can turn this off later. Turning it off clears the reusable preferences stored here.</span>
-          </span>
-        </label>
-
-        {memoryEnabled ? (
-          <>
-            <label className="block text-xs font-medium text-[#667085]">How you like the service handled</label>
-            <textarea className="w-full border border-[#E5E7EB] rounded-lg p-2 text-sm min-h-[72px]" value={servicePreferences} onChange={(e) => setServicePreferences(e.target.value)} placeholder="Reusable preferences that matter across visits" />
-            <label className="block text-xs font-medium text-[#667085]">Pets</label>
-            <textarea className="w-full border border-[#E5E7EB] rounded-lg p-2 text-sm min-h-[56px]" value={memoryPetContext} onChange={(e) => setMemoryPetContext(e.target.value)} placeholder="Only details useful across visits" />
-            <label className="block text-xs font-medium text-[#667085]">Surfaces or items to avoid</label>
-            <textarea className="w-full border border-[#E5E7EB] rounded-lg p-2 text-sm min-h-[56px]" value={memorySurfacesToAvoid} onChange={(e) => setMemorySurfacesToAvoid(e.target.value)} />
-            <label className="block text-xs font-medium text-[#667085]">Communication preferences</label>
-            <textarea className="w-full border border-[#E5E7EB] rounded-lg p-2 text-sm min-h-[56px]" value={communicationPreferences} onChange={(e) => setCommunicationPreferences(e.target.value)} placeholder="For example: text before arrival" />
-          </>
-        ) : null}
-
-        <Button variant="primaryBlue" size="md" fullWidth loading={memorySaving} disabled={isOfflinePreviewMode} onClick={() => void handleSaveMemory()}>
-          {memoryEnabled ? "Save reusable preferences" : "Turn off household memory"}
-        </Button>
-        {isOfflinePreviewMode ? <p className="text-xs text-[#667085]">Preview mode shows the real consent model; saving will be enabled when the backend is connected.</p> : memorySavedAt ? <p className="text-xs text-[#667085]">Household memory last updated {new Date(memorySavedAt).toLocaleString()}.</p> : null}
-      </section>
-
-      <section className="provider-card p-4 mb-4 space-y-3">
-        <p className="section-label">This visit only</p>
-        <p className="text-xs text-[#667085]">Use this for arrival/access details that belong to this booking. Last saved: {savedAt ? new Date(savedAt).toLocaleString() : "—"}. For chat, use <Link to={`/app/bookings/${booking.id}/message`} className="text-[#0A84FF] underline">Messages</Link>.</p>
+        <p className="text-xs text-[#667085]">Last saved: {savedAt ? new Date(savedAt).toLocaleString() : "—"}. For chat, use <Link to={`/app/bookings/${booking.id}/message`} className="text-[#0A84FF] underline">Messages</Link>.</p>
         {error ? <p className="text-sm text-red-600" role="alert">{error}</p> : null}
         <label className="block text-xs font-medium text-[#667085]">Access notes</label>
         <textarea className="w-full border border-[#E5E7EB] rounded-lg p-2 text-sm min-h-[72px]" value={accessNotes} onChange={(e) => setAccessNotes(e.target.value)} placeholder="Anything critical for arrival" />
