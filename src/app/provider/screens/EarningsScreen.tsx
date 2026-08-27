@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSession } from "@/lib/useSession";
+import { buildServicePracticeSnapshot } from "@/domain/servicePractice";
 import {
   isProviderPaidEarning,
   isProviderPendingEarning,
@@ -73,8 +74,7 @@ function EarningsRow({
   variant: "pending" | "paid";
 }) {
   const cents = providerEarningCentsFromRow(row);
-  const chip =
-    variant === "pending" ? "Pending payout" : "Paid";
+  const chip = variant === "pending" ? "Pending payout" : "Paid";
 
   return (
     <div
@@ -116,6 +116,25 @@ function EarningsRow({
   );
 }
 
+function PracticeSignal({ label, value }: { label: string; value: number }) {
+  return (
+    <div
+      className="rounded-2xl border p-4"
+      style={{
+        backgroundColor: CSP_SURFACE,
+        borderColor: "rgba(248, 250, 252, 0.08)",
+      }}
+    >
+      <p className="text-2xl font-semibold" style={{ color: CSP_TEXT_PRIMARY }}>
+        {value}
+      </p>
+      <p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>
+        {label}
+      </p>
+    </div>
+  );
+}
+
 export default function EarningsScreen() {
   const { session, loading: sessionLoading } = useSession();
   const [rows, setRows] = useState<ProviderEarningsBookingRow[]>([]);
@@ -152,6 +171,18 @@ export default function EarningsScreen() {
     const paidList = rows.filter(isProviderPaidEarning);
     return { pending: pendingList, paid: paidList };
   }, [rows]);
+
+  const practice = useMemo(
+    () =>
+      buildServicePracticeSnapshot(
+        rows.map((row) => ({
+          status: row.status,
+          customerId: row.customer_id,
+          scheduledStart: row.scheduled_start,
+        }))
+      ),
+    [rows]
+  );
 
   const pendingTotalCents = useMemo(
     () => pending.reduce((s, r) => s + providerEarningCentsFromRow(r), 0),
@@ -191,9 +222,42 @@ export default function EarningsScreen() {
       <header style={{ marginBottom: CSP_SECTION_GAP }}>
         <h1 className="text-2xl font-semibold">Earnings</h1>
         <p className="text-sm mt-2" style={{ color: CSP_TEXT_SECONDARY }}>
-          Track completed work and payout status.
+          Track completed work, payout status, and the relationship continuity making your service practice more dependable.
         </p>
       </header>
+
+      <section style={{ marginBottom: CSP_SECTION_GAP }}>
+        <div className="mb-3">
+          <h2 className="text-sm font-medium" style={{ color: CSP_TEXT_PRIMARY }}>
+            Your service practice
+          </h2>
+          <p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>
+            Stability is not a score. It becomes visible when confirmed service turns into repeat household relationships and future visits are already on the schedule.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <PracticeSignal label="confirmed services" value={practice.confirmedServicesCount} />
+          <PracticeSignal label="households with confirmed service" value={practice.confirmedHouseholdsCount} />
+          <PracticeSignal label="repeat households" value={practice.repeatHouseholdsCount} />
+          <PracticeSignal label="returning households already scheduled" value={practice.returningHouseholdsScheduledCount} />
+        </div>
+
+        <div
+          className="mt-3 rounded-2xl border p-4 text-xs leading-5"
+          style={{
+            backgroundColor: CSP_SURFACE,
+            borderColor: "rgba(248, 250, 252, 0.08)",
+            color: CSP_TEXT_SECONDARY,
+          }}
+        >
+          {practice.confirmedServicesCount === 0
+            ? "As customers confirm completed service, Cleanr can show how your household relationships are becoming a more durable service base."
+            : practice.repeatHouseholdsCount === 0
+              ? "Confirmed work is building your service history. When a household returns, that continuity will appear here without changing marketplace ranking or access."
+              : `${practice.repeatServicesCount} confirmed service${practice.repeatServicesCount === 1 ? "" : "s"} happened after a household's first confirmed visit. Repeat work can create steadier income without requiring your North Star to be anything other than a strong cleaning practice.`}
+        </div>
+      </section>
 
       <section style={{ marginBottom: CSP_SECTION_GAP }}>
         <h2 className="text-sm font-medium mb-3" style={{ color: CSP_TEXT_SECONDARY }}>
