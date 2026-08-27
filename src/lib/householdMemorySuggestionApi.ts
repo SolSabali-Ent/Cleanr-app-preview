@@ -3,6 +3,7 @@ import type {
   HouseholdMemorySuggestionField,
 } from "@/domain/householdMemorySuggestion";
 import { isOfflinePreviewMode, supabase } from "@/lib/supabase";
+import { dormantFeatureError, isSupabaseFeatureUnavailable } from "@/lib/supabaseFeature";
 
 type HouseholdMemorySuggestionRow = {
   id: string;
@@ -43,6 +44,7 @@ export async function listHouseholdMemorySuggestionsForBooking(bookingId: string
     .select(SELECT_FIELDS)
     .eq("booking_id", bookingId)
     .order("created_at", { ascending: true });
+  if (isSupabaseFeatureUnavailable(error)) return [];
   if (error) throw error;
   return (data ?? []).map((row) => mapSuggestion(row as HouseholdMemorySuggestionRow));
 }
@@ -60,6 +62,7 @@ export async function suggestHouseholdMemoryFromBooking(
     p_context_field: contextField,
     p_suggested_text: suggestedText.trim(),
   });
+  if (isSupabaseFeatureUnavailable(error)) throw dormantFeatureError("Household learning");
   if (error) throw error;
   return mapSuggestion(data as HouseholdMemorySuggestionRow);
 }
@@ -71,6 +74,7 @@ export async function withdrawMyHouseholdMemorySuggestion(suggestionId: string):
   const { data, error } = await supabase.rpc("withdraw_my_household_memory_suggestion", {
     p_suggestion_id: suggestionId,
   });
+  if (isSupabaseFeatureUnavailable(error)) throw dormantFeatureError("Household learning");
   if (error) throw error;
   return mapSuggestion(data as HouseholdMemorySuggestionRow);
 }
@@ -88,6 +92,7 @@ export async function respondToHouseholdMemorySuggestion(
     p_response: response,
     p_final_text: finalText?.trim() || null,
   });
+  if (isSupabaseFeatureUnavailable(error)) throw dormantFeatureError("Household learning");
   if (error) throw error;
   return mapSuggestion(data as HouseholdMemorySuggestionRow);
 }

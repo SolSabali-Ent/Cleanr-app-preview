@@ -1,4 +1,5 @@
 import { isOfflinePreviewMode, supabase } from "@/lib/supabase";
+import { dormantFeatureError, isSupabaseFeatureUnavailable } from "@/lib/supabaseFeature";
 import type {
   TrustedServiceHandoff,
   TrustedServiceHandoffReason,
@@ -67,6 +68,7 @@ export async function listMyTrustedServiceHandoffs(): Promise<TrustedServiceHand
     .or(`from_provider_id.eq.${personId},to_provider_id.eq.${personId}`)
     .order("updated_at", { ascending: false });
 
+  if (isSupabaseFeatureUnavailable(error)) return [];
   if (error) throw error;
 
   return ((data ?? []) as TrustedServiceHandoffRow[]).map((row) => ({
@@ -75,13 +77,7 @@ export async function listMyTrustedServiceHandoffs(): Promise<TrustedServiceHand
   }));
 }
 
-/**
- * Booking-scoped read for a participant, including the customer. RLS remains authoritative;
- * this helper does not broaden who can see the handoff.
- */
-export async function getTrustedServiceHandoffForBooking(
-  bookingId: string
-): Promise<TrustedServiceHandoff | null> {
+export async function getTrustedServiceHandoffForBooking(bookingId: string): Promise<TrustedServiceHandoff | null> {
   if (isOfflinePreviewMode) return null;
 
   const { data, error } = await supabase
@@ -93,6 +89,7 @@ export async function getTrustedServiceHandoffForBooking(
     .limit(1)
     .maybeSingle();
 
+  if (isSupabaseFeatureUnavailable(error)) return null;
   if (error) throw error;
   return data ? mapHandoff(data as TrustedServiceHandoffRow) : null;
 }
@@ -114,6 +111,7 @@ export async function proposeTrustedServiceHandoff(input: {
     p_reason_note: input.reasonNote?.trim() || null,
   });
 
+  if (isSupabaseFeatureUnavailable(error)) throw dormantFeatureError("Trusted coverage");
   if (error) throw error;
   return mapHandoff(data as TrustedServiceHandoffRow);
 }
@@ -129,6 +127,7 @@ export async function respondToTrustedServiceHandoff(
     p_response: response,
   });
 
+  if (isSupabaseFeatureUnavailable(error)) throw dormantFeatureError("Trusted coverage");
   if (error) throw error;
   return mapHandoff(data as TrustedServiceHandoffRow);
 }

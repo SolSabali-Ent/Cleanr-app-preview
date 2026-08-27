@@ -1,4 +1,5 @@
 import { isOfflinePreviewMode, supabase } from "@/lib/supabase";
+import { dormantFeatureError, isSupabaseFeatureUnavailable } from "@/lib/supabaseFeature";
 import type {
   NetworkConnectionSummary,
   NetworkRelationship,
@@ -70,6 +71,7 @@ export async function listMyNetworkRelationships(): Promise<NetworkConnectionSum
     .or(`source_person_id.eq.${personId},target_person_id.eq.${personId}`)
     .order("updated_at", { ascending: false });
 
+  if (isSupabaseFeatureUnavailable(error)) return [];
   if (error) throw error;
 
   return ((data ?? []) as NetworkRelationshipRow[]).map((row) => ({
@@ -91,6 +93,7 @@ export async function respondToNetworkRelationship(
     p_response: response,
   });
 
+  if (isSupabaseFeatureUnavailable(error)) throw dormantFeatureError("Network relationships");
   if (error) throw error;
   return mapRelationship(data as NetworkRelationshipRow);
 }

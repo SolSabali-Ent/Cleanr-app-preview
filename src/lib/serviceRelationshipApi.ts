@@ -2,6 +2,7 @@ import type { Booking } from "@/domain/booking";
 import type { ProviderHouseholdRelationshipSummary, ServiceRelationship } from "@/domain/serviceRelationship";
 import { listMyJobsAsProvider } from "@/lib/bookingApi";
 import { isOfflinePreviewMode, supabase } from "@/lib/supabase";
+import { dormantFeatureError, isSupabaseFeatureUnavailable } from "@/lib/supabaseFeature";
 
 const COMPLETED_STATUSES = new Set<Booking["status"]>(["completed_by_provider", "confirmed"]);
 const ACTIVE_STATUSES = new Set<Booking["status"]>(["accepted", "in_progress"]);
@@ -52,13 +53,6 @@ function dateOrNull(value: string | null | undefined): Date | null {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
-/**
- * Transitional relationship summary derived only from existing booking truth.
- *
- * This intentionally does not query the future service_relationships table yet, so the current
- * app remains compatible until the dormant migration is applied. Once durable relationship state
- * is live, this function can reconcile booking evidence into that table instead of redefining jobs.
- */
 export async function listMyHouseholdContinuity(): Promise<ProviderHouseholdRelationshipSummary[]> {
   const bookings = await listMyJobsAsProvider();
   const byCustomer = new Map<string, Booking[]>();
@@ -104,16 +98,7 @@ export async function listMyHouseholdContinuity(): Promise<ProviderHouseholdRela
     });
 }
 
-/**
- * Booking-safe continuity lookup for the provider's current household relationship.
- *
- * This derives only from the same provider-owned booking history used by the Network screen.
- * It gives an operational service screen relationship context without creating a parallel
- * relationship score or exposing any new household data.
- */
-export async function getMyHouseholdContinuityForCustomer(
-  customerId: string
-): Promise<ProviderHouseholdRelationshipSummary | null> {
+export async function getMyHouseholdContinuityForCustomer(customerId: string): Promise<ProviderHouseholdRelationshipSummary | null> {
   const normalizedCustomerId = customerId.trim();
   if (!normalizedCustomerId) return null;
   const households = await listMyHouseholdContinuity();
@@ -132,6 +117,7 @@ export async function getMyServiceRelationshipWithProvider(providerId: string): 
     .limit(1)
     .maybeSingle();
 
+  if (isSupabaseFeatureUnavailable(error)) return null;
   if (error) throw error;
   return data ? mapServiceRelationship(data as ServiceRelationshipRow) : null;
 }
@@ -146,6 +132,7 @@ export async function setMyPreferredServiceProvider(providerId: string, preferre
     p_preferred: preferred,
   });
 
+  if (isSupabaseFeatureUnavailable(error)) throw dormantFeatureError("Preferred CSP continuity");
   if (error) throw error;
   return mapServiceRelationship(data as ServiceRelationshipRow);
 }
