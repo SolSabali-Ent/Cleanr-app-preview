@@ -2,15 +2,22 @@ import { useState } from "react";
 import { LogOut, HelpCircle, CreditCard, MapPin, Phone, Share2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
+import { useProfile } from "@/lib/useProfile";
+import { useSession } from "@/lib/useSession";
 import { Button } from "../../components/ui/Button";
+import { CustomerHouseholdMemoryCard } from "../components/CustomerHouseholdMemoryCard";
 import { createReferral } from "@/lib/referralApi";
 
 export function CustomerProfile() {
   const navigate = useNavigate();
+  const { session } = useSession();
+  const { profile, loading: profileLoading } = useProfile();
   const [inviteCopied, setInviteCopied] = useState(false);
-  const name = "Shine Campbell";
-  const phone = "+1 (404) 123-4567";
-  const email = "shine@example.com";
+
+  const email = session?.user.email ?? null;
+  const name = profile?.full_name?.trim() || email?.split("@")[0] || "Cleanr customer";
+  const phone = profile?.phone?.trim() || null;
+  const initial = name.charAt(0).toUpperCase() || "C";
 
   const handleInviteLink = async () => {
     try {
@@ -35,14 +42,16 @@ export function CustomerProfile() {
 
       <section className="provider-card mb-4 flex gap-3">
         <div className="w-12 h-12 rounded-full bg-[#F3FAF1] border border-[#DCEED7] flex items-center justify-center text-lg font-semibold text-[#166534]">
-          {name.charAt(0)}
+          {profileLoading ? "…" : initial}
         </div>
-        <div>
-          <p className="text-sm font-semibold">{name}</p>
-          <p className="text-xs text-[#667085]">{email}</p>
-          <p className="text-xs text-[#667085]">{phone}</p>
+        <div className="min-w-0">
+          <p className="text-sm font-semibold">{profileLoading ? "Loading profile…" : name}</p>
+          {email ? <p className="text-xs text-[#667085] break-all">{email}</p> : null}
+          {phone ? <p className="text-xs text-[#667085]">{phone}</p> : null}
         </div>
       </section>
+
+      <CustomerHouseholdMemoryCard />
 
       <section className="provider-card p-1 mb-3">
         <div className="w-full flex items-center justify-between px-3 py-3 text-left">
@@ -50,9 +59,7 @@ export function CustomerProfile() {
             <CreditCard className="w-4 h-4 text-[#8DCC64]" />
             <div>
               <p className="text-sm">Payment methods</p>
-              <p className="text-xs text-[#667085]">
-                Manage your saved cards
-              </p>
+              <p className="text-xs text-[#667085]">Manage your saved cards</p>
             </div>
           </div>
         </div>
@@ -62,9 +69,7 @@ export function CustomerProfile() {
             <MapPin className="w-4 h-4 text-[#8DCC64]" />
             <div>
               <p className="text-sm">Addresses</p>
-              <p className="text-xs text-[#667085]">
-                Home, office, or recurring locations
-              </p>
+              <p className="text-xs text-[#667085]">Home, office, or recurring locations</p>
             </div>
           </div>
         </div>
@@ -80,9 +85,7 @@ export function CustomerProfile() {
             <Share2 className="w-4 h-4 text-[#8DCC64]" />
             <div>
               <p className="text-sm">Invite friends</p>
-              <p className="text-xs text-[#667085]">
-                {inviteCopied ? "Link copied" : "Get your invite link"}
-              </p>
+              <p className="text-xs text-[#667085]">{inviteCopied ? "Link copied" : "Get your invite link"}</p>
             </div>
           </div>
         </button>
@@ -92,9 +95,7 @@ export function CustomerProfile() {
             <HelpCircle className="w-4 h-4 text-[#8DCC64]" />
             <div>
               <p className="text-sm">Support & FAQ</p>
-              <p className="text-xs text-[#667085]">
-                Get help, see policies, or contact us
-              </p>
+              <p className="text-xs text-[#667085]">Get help, see policies, or contact us</p>
             </div>
           </div>
         </div>
@@ -104,9 +105,7 @@ export function CustomerProfile() {
             <Phone className="w-4 h-4 text-[#8DCC64]" />
             <div>
               <p className="text-sm">Emergency contact</p>
-              <p className="text-xs text-[#667085]">
-                For urgent issues with a cleaning
-              </p>
+              <p className="text-xs text-[#667085]">For urgent issues with a cleaning</p>
             </div>
           </div>
         </div>
@@ -125,4 +124,3 @@ export function CustomerProfile() {
     </div>
   );
 }
-
