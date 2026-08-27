@@ -8,7 +8,7 @@ import type { TrustedServiceHandoffSummary } from "@/domain/trustedHandoff";
 import { isOfflinePreviewMode } from "@/lib/supabase";
 import { listMyNetworkRelationships, respondToNetworkRelationship } from "@/lib/networkApi";
 import { listMyHouseholdContinuity } from "@/lib/serviceRelationshipApi";
-import { listMyTrustedServiceHandoffs } from "@/lib/trustedHandoffApi";
+import { listMyTrustedServiceHandoffs, respondToTrustedServiceHandoff } from "@/lib/trustedHandoffApi";
 import {
   CSP_CARD_PADDING,
   CSP_PRIMARY_BUTTON,
@@ -37,12 +37,38 @@ function provenanceLabel(relationship: NetworkRelationship): string {
   }
 }
 
+function coverageReasonLabel(reason: TrustedServiceHandoffSummary["handoff"]["reason"]): string {
+  switch (reason) {
+    case "time_off": return "Time off";
+    case "availability": return "Availability";
+    case "continuity": return "Continuity";
+    case "coverage": return "Coverage";
+    default: return "Coverage need";
+  }
+}
+
+function handoffStatusCopy(summary: TrustedServiceHandoffSummary): string {
+  const { handoff, viewerRole } = summary;
+  if (handoff.status === "active") {
+    return "The backup CSP and household both agreed. Cleanr has recorded an active trust transfer for this visit; the service engine remains authoritative for fulfillment.";
+  }
+  if (viewerRole === "backup_provider") {
+    if (handoff.backupAcceptedAt && !handoff.customerConfirmedAt) return "You agreed to cover this visit. Waiting for household approval.";
+    if (handoff.customerConfirmedAt && !handoff.backupAcceptedAt) return "The household approved this backup. Your decision is still required.";
+    return "A coverage partner asked you to be the trusted backup for one visit. Nothing changes unless you and the household both agree.";
+  }
+  if (handoff.backupAcceptedAt && !handoff.customerConfirmedAt) return "Your backup agreed. Waiting for household approval.";
+  if (handoff.customerConfirmedAt && !handoff.backupAcceptedAt) return "The household approved your backup. Waiting for the backup CSP to accept.";
+  return "You proposed a trusted backup. The handoff stays inactive until the backup CSP and household both agree.";
+}
+
 export default function NetworkScreen() {
   const navigate = useNavigate();
   const [connections, setConnections] = useState<NetworkConnectionSummary[]>([]);
   const [handoffs, setHandoffs] = useState<TrustedServiceHandoffSummary[]>([]);
   const [households, setHouseholds] = useState<ProviderHouseholdRelationshipSummary[]>([]);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [busyHandoffId, setBusyHandoffId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   async function refresh() {
@@ -81,6 +107,20 @@ export default function NetworkScreen() {
       setError(err instanceof Error ? err.message : "Unable to update this relationship");
     } finally {
       setBusyId(null);
+    }
+  }
+
+  async function respondToHandoff(id: string, response: "accept" | "decline" | "cancel") {
+    if (isOfflinePreviewMode || busyHandoffId) return;
+    try {
+      setBusyHandoffId(id);
+      setError(null);
+      await respondToTrustedServiceHandoff(id, response);
+      await refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to update trusted coverage");
+    } finally {
+      setBusyHandoffId(null);
     }
   }
 
@@ -152,7 +192,7 @@ export default function NetworkScreen() {
                 <span className="text-xs" style={{ color: CSP_TEXT_SECONDARY }}>{isOfflinePreviewMode ? "Preview" : `${coveragePartners.length} partner${coveragePartners.length === 1 ? "" : "s"}`}</span>
               </div>
               <p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>
-                A coverage partner can become a trusted backup for a specific cleaning. Cleanr records who introduced the backup and both the CSP and household must agree before the handoff becomes active.
+                A coverage partner can become a trusted backup for a specific cleaning. Cleanr records who introduced the backup and both the backup CSP and household must agree before the handoff becomes active.
               </p>
               {!isOfflinePreviewMode ? (
                 <p className="mt-3 text-xs" style={{ color: CSP_TEXT_SECONDARY }}>
@@ -162,6 +202,40 @@ export default function NetworkScreen() {
             </div>
           </div>
         </div>
+
+        {!isOfflinePreviewMode && liveHandoffs.length > 0 ? (
+          <div className="mt-3 space-y-3">
+            {liveHandoffs.map((summary) => {
+              const { handoff, viewerRole } = summary;
+              const backupNeedsDecision = viewerRole === "backup_provider" && !handoff.backupAcceptedAt && handoff.status !== "active";
+              const sourceCanCancel = viewerRole === "from_provider" && handoff.status !== "active";
+              return (
+                <div key={handoff.id} className="rounded-2xl border" style={{ backgroundColor: CSP_SURFACE, borderColor: "rgba(248,250,252,.08)", padding: CSP_CARD_PADDING }}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-medium">{viewerRole === "backup_provider" ? "Coverage request for you" : "Your trusted backup handoff"}</p>
+                      <p className="mt-1 text-xs" style={{ color: CSP_TEXT_SECONDARY }}>{coverageReasonLabel(handoff.reason)}</p>
+                    </div>
+                    <span className="text-xs capitalize" style={{ color: CSP_PRIMARY_BUTTON }}>{handoff.status.replaceAll("_", " ")}</span>
+                  </div>
+                  <p className="mt-2 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>{handoffStatusCopy(summary)}</p>
+                  {handoff.reasonNote ? <p className="mt-2 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>{handoff.reasonNote}</p> : null}
+                  {backupNeedsDecision ? (
+                    <div className="mt-4 grid grid-cols-2 gap-2">
+                      <button type="button" disabled={busyHandoffId === handoff.id} onClick={() => void respondToHandoff(handoff.id, "accept")} className="rounded-xl px-3 py-2 text-xs font-semibold text-white" style={{ backgroundColor: CSP_PRIMARY_BUTTON }}>I can cover</button>
+                      <button type="button" disabled={busyHandoffId === handoff.id} onClick={() => void respondToHandoff(handoff.id, "decline")} className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold">I can&apos;t cover</button>
+                    </div>
+                  ) : sourceCanCancel ? (
+                    <button type="button" disabled={busyHandoffId === handoff.id} onClick={() => void respondToHandoff(handoff.id, "cancel")} className="mt-4 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold">Cancel handoff</button>
+                  ) : null}
+                  <p className="mt-3 text-[11px] leading-4" style={{ color: CSP_TEXT_SECONDARY }}>
+                    This records consent and trust transfer only. It does not reassign the booking or let either CSP declare fulfillment complete.
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        ) : null}
       </section>
 
       {error ? <p className="mb-4 text-sm text-red-300">{error}</p> : null}
