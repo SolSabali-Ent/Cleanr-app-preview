@@ -3,7 +3,9 @@ export const CSP_GROWTH_ROUTES = {
   milestones: "/csp/growth/milestones",
   capabilities: "/csp/growth/capabilities",
   opportunities: "/csp/growth/opportunities",
-  fit: "/csp/growth/fit",
+  // Fit preferences now live inside Opportunities. Keep this alias so older navigation
+  // and compatibility redirects land on the single canonical opportunity surface.
+  fit: "/csp/growth/opportunities",
   network: "/csp/growth/network",
   contributions: "/csp/growth/contributions",
 } as const;
