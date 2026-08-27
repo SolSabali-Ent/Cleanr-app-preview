@@ -19,6 +19,7 @@ type TrustedServiceHandoffRow = {
   backup_accepted_at: string | null;
   customer_confirmed_at: string | null;
   activated_at: string | null;
+  fulfillment_applied_at: string | null;
   declined_at: string | null;
   cancelled_at: string | null;
   completed_at: string | null;
@@ -26,7 +27,7 @@ type TrustedServiceHandoffRow = {
   updated_at: string;
 };
 
-const HANDOFF_SELECT = "id, booking_id, customer_id, from_provider_id, to_provider_id, coverage_relationship_id, reason, reason_note, status, source_confirmed_at, backup_accepted_at, customer_confirmed_at, activated_at, declined_at, cancelled_at, completed_at, created_at, updated_at";
+const HANDOFF_SELECT = "id, booking_id, customer_id, from_provider_id, to_provider_id, coverage_relationship_id, reason, reason_note, status, source_confirmed_at, backup_accepted_at, customer_confirmed_at, activated_at, fulfillment_applied_at, declined_at, cancelled_at, completed_at, created_at, updated_at";
 
 function mapHandoff(row: TrustedServiceHandoffRow): TrustedServiceHandoff {
   return {
@@ -43,6 +44,7 @@ function mapHandoff(row: TrustedServiceHandoffRow): TrustedServiceHandoff {
     backupAcceptedAt: row.backup_accepted_at,
     customerConfirmedAt: row.customer_confirmed_at,
     activatedAt: row.activated_at,
+    fulfillmentAppliedAt: row.fulfillment_applied_at,
     declinedAt: row.declined_at,
     cancelledAt: row.cancelled_at,
     completedAt: row.completed_at,
@@ -86,7 +88,7 @@ export async function getTrustedServiceHandoffForBooking(
     .from("trusted_service_handoffs")
     .select(HANDOFF_SELECT)
     .eq("booking_id", bookingId)
-    .in("status", ["proposed", "backup_accepted", "customer_confirmed", "active"])
+    .in("status", ["proposed", "backup_accepted", "customer_confirmed", "active", "completed"])
     .order("updated_at", { ascending: false })
     .limit(1)
     .maybeSingle();

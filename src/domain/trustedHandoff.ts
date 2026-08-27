@@ -1,8 +1,9 @@
 /**
  * Trust-transfer state for a specific residential service booking.
  *
- * A handoff does not reassign a booking or replace marketplace fulfillment logic. It records
- * who introduced a trusted backup, why, and whether the backup CSP and household both agreed.
+ * A handoff records who introduced a trusted backup, why, and whether the backup CSP and household
+ * both agreed. Mutual consent does not itself change fulfillment; Cleanr separately records when a
+ * privileged operations path reconciles that trust transfer into the booking assignment.
  */
 
 export type TrustedServiceHandoffReason =
@@ -40,6 +41,7 @@ export interface TrustedServiceHandoff {
   backupAcceptedAt?: string | null;
   customerConfirmedAt?: string | null;
   activatedAt?: string | null;
+  fulfillmentAppliedAt?: string | null;
   declinedAt?: string | null;
   cancelledAt?: string | null;
   completedAt?: string | null;
@@ -56,4 +58,8 @@ export function trustedHandoffIsActive(handoff: TrustedServiceHandoff): boolean 
   return handoff.status === "active" && Boolean(
     handoff.backupAcceptedAt && handoff.customerConfirmedAt && handoff.activatedAt
   );
+}
+
+export function trustedHandoffIsAppliedToFulfillment(handoff: TrustedServiceHandoff): boolean {
+  return Boolean(handoff.fulfillmentAppliedAt);
 }

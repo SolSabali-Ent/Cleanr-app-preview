@@ -9,8 +9,14 @@ import {
 import { isOfflinePreviewMode, supabase } from "@/lib/supabase";
 
 function statusCopy(handoff: TrustedServiceHandoff): string {
+  if (handoff.status === "completed") {
+    return "Your trusted backup completed the visit through the normal Cleanr service flow, and the service was confirmed.";
+  }
+  if (handoff.fulfillmentAppliedAt) {
+    return "You and the backup CSP agreed, and Cleanr has formally updated this booking so the trusted backup is the assigned CSP for the visit.";
+  }
   if (handoff.status === "active") {
-    return "You and the backup CSP have both agreed. Cleanr has recorded the trusted handoff for this visit.";
+    return "You and the backup CSP have both agreed. Cleanr has recorded the trust transfer; fulfillment assignment is still being finalized.";
   }
   if (handoff.customerConfirmedAt && !handoff.backupAcceptedAt) {
     return "You approved the backup. The handoff will not become active until the backup CSP also accepts.";
@@ -72,7 +78,7 @@ export function CustomerTrustedHandoffCard({ bookingId }: { bookingId: string })
 
   if (isOfflinePreviewMode || !handoff) return null;
 
-  const needsCustomerResponse = !handoff.customerConfirmedAt && handoff.status !== "active";
+  const needsCustomerResponse = !handoff.customerConfirmedAt && handoff.status !== "active" && handoff.status !== "completed";
 
   return (
     <section className="provider-card p-4 mb-3">
@@ -104,7 +110,7 @@ export function CustomerTrustedHandoffCard({ bookingId }: { bookingId: string })
       ) : null}
 
       <p className="text-[11px] text-[#667085] mt-3">
-        Cleanr records the trust transfer, but the booking remains the authoritative service record until fulfillment is formally updated.
+        Cleanr keeps trust-transfer consent separate from the booking itself. The booking changes only when the mutually agreed handoff is formally reconciled into fulfillment.
       </p>
     </section>
   );
