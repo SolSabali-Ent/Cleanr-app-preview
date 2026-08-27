@@ -180,3 +180,18 @@ export interface Contribution {
   occurredAt: string;
   createdAt: string;
 }
+
+/**
+ * Circulation shows when a verified Contribution later helped make another Growth
+ * opportunity possible. It is a provenance link, not a score and not recipient tracking.
+ */
+export interface ContributionCirculation {
+  contributionId: string;
+  opportunityId: string;
+  opportunityType: Exclude<GrowthOpportunityType, "service">;
+  opportunityTitle: string;
+  opportunityStatus: string;
+  capacityReason: string;
+  sourceSystem: "kinex" | "admin" | "system";
+  createdAt: string;
+}
