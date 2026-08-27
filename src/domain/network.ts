@@ -2,7 +2,7 @@
  * Durable person-to-person relationship truth for the Cleanr Network.
  *
  * This is not a social graph or feed. It records bounded relationships that help people
- * create value together: mentorship, peer support, coverage, and collaboration.
+ * create value together: experience-sharing, peer support, coverage, and collaboration.
  */
 
 export type NetworkRelationshipType =
@@ -73,4 +73,25 @@ export function myNetworkRole(
   return direction === "outbound"
     ? relationship.sourceRole ?? null
     : relationship.targetRole ?? null;
+}
+
+/**
+ * Keep each participant's own consent state explicit in the UI. The underlying row stores
+ * source/target acceptance separately; direction translates that durable truth into the
+ * current person's perspective without inferring consent from relationship status alone.
+ */
+export function myNetworkConsent(summary: NetworkConnectionSummary): {
+  accepted: boolean;
+  counterpartAccepted: boolean;
+} {
+  const { relationship, direction } = summary;
+  return direction === "outbound"
+    ? {
+        accepted: Boolean(relationship.sourceAcceptedAt),
+        counterpartAccepted: Boolean(relationship.targetAcceptedAt),
+      }
+    : {
+        accepted: Boolean(relationship.targetAcceptedAt),
+        counterpartAccepted: Boolean(relationship.sourceAcceptedAt),
+      };
 }
