@@ -3,7 +3,9 @@ import { useParams, useNavigate } from "react-router-dom";
 import { getBooking, acceptBookingAsProvider, startBookingAsProvider, completeBookingAsProvider } from "../../../lib/bookingApi";
 import type { Booking } from "../../../domain/booking";
 import type { HouseholdContext } from "../../../domain/householdContext";
+import type { ProviderHouseholdRelationshipSummary } from "../../../domain/serviceRelationship";
 import { getHouseholdContextForBooking } from "../../../lib/householdContextApi";
+import { getMyHouseholdContinuityForCustomer } from "../../../lib/serviceRelationshipApi";
 import { isProviderAvailable } from "../../../api/providerAvailability";
 import { supabase } from "../../../lib/supabase";
 import { checklistTemplates } from "../data/checklistTemplates";
@@ -28,12 +30,20 @@ function formatTime(iso: string) {
   }
 }
 
+function relationshipHeading(continuity: ProviderHouseholdRelationshipSummary): string {
+  if (continuity.relationship?.customerPreferred) return "A household that prefers working with you";
+  if (continuity.completedServicesCount >= 2) return "A household you know";
+  if (continuity.completedServicesCount === 1) return "A returning household";
+  return "A new household relationship";
+}
+
 export default function JobDetailsScreen() {
   const { jobId } = useParams<{ jobId: string }>();
   const navigate = useNavigate();
   const [booking, setBooking] = useState<Booking | null>(null);
   const [providerId, setProviderId] = useState<string | null>(null);
   const [householdContext, setHouseholdContext] = useState<HouseholdContext | null>(null);
+  const [householdContinuity, setHouseholdContinuity] = useState<ProviderHouseholdRelationshipSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionError, setActionError] = useState<string | null>(null);
   const [availabilityHint, setAvailabilityHint] = useState<string | null>(null);
@@ -90,6 +100,30 @@ export default function JobDetailsScreen() {
       mounted = false;
     };
   }, [booking?.id, booking?.provider_id, providerId]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadHouseholdContinuity() {
+      setHouseholdContinuity(null);
+      if (!booking?.customer_id || !booking.provider_id || !providerId) return;
+      if (booking.provider_id !== providerId) return;
+
+      try {
+        const continuity = await getMyHouseholdContinuityForCustomer(booking.customer_id);
+        if (mounted) setHouseholdContinuity(continuity);
+      } catch {
+        // Relationship context is additive. Booking execution must remain available even if
+        // continuity cannot be resolved yet.
+        if (mounted) setHouseholdContinuity(null);
+      }
+    }
+
+    void loadHouseholdContinuity();
+    return () => {
+      mounted = false;
+    };
+  }, [booking?.customer_id, booking?.provider_id, providerId]);
 
   useEffect(() => {
     let mounted = true;
@@ -236,6 +270,25 @@ export default function JobDetailsScreen() {
             ${((booking.price_cents ?? 0) / 100).toFixed(0)}
           </p>
         </section>
+
+        {householdContinuity ? (
+          <section className="bg-sky-50 border border-sky-200 rounded-2xl p-4 mb-3 shadow-md">
+            <p className="text-xs font-semibold text-sky-900">Relationship continuity</p>
+            <p className="mt-1 text-sm font-semibold text-slate-900">{relationshipHeading(householdContinuity)}</p>
+            {householdContinuity.completedServicesCount > 0 ? (
+              <p className="mt-1 text-xs leading-5 text-slate-600">
+                You have completed {householdContinuity.completedServicesCount} prior service{householdContinuity.completedServicesCount === 1 ? "" : "s"} with this household{householdContinuity.lastServedAt ? ` · last visit ${formatDate(householdContinuity.lastServedAt)}` : ""}.
+              </p>
+            ) : (
+              <p className="mt-1 text-xs leading-5 text-slate-600">
+                This is the beginning of the relationship. Learn the household, communicate clearly, and leave useful continuity for the next visit.
+              </p>
+            )}
+            <p className="mt-2 text-[11px] leading-4 text-sky-800">
+              The booking is today&apos;s transaction. The relationship is what can compound across visits.
+            </p>
+          </section>
+        ) : null}
 
         {householdContext?.memoryEnabled ? (
           <section className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 mb-3 shadow-md">
