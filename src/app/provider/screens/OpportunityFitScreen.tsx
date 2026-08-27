@@ -135,6 +135,9 @@ export default function OpportunityFitScreen() {
                 <p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>
                   Separately choose whether Cleanr may consider introducing you to someone in the network when their experience, capability, or opportunity could be useful. You can still receive non-people opportunities with this off.
                 </p>
+                <p className="mt-2 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>
+                  Turning this off stops future person suggestions. It does not end relationships you already accepted, and any new relationship still requires both people to accept it separately.
+                </p>
               </div>
               <input type="checkbox" checked={introductionsEnabled} disabled={isOfflinePreviewMode} onChange={(event) => { setIntroductionsEnabled(event.target.checked); setSaved(false); }} className="mt-1 h-5 w-5" />
             </label>
