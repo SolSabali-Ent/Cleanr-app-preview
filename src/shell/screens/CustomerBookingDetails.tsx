@@ -6,6 +6,7 @@ import type { Booking } from "../../domain/booking";
 import { ArrowLeft, CalendarDays, MapPin, Star } from "lucide-react";
 import { Button } from "../../components/ui/Button";
 import { supabase } from "../../lib/supabase";
+import { confirmMyCompletedService } from "../../lib/serviceCompletionApi";
 import { isUuid } from "@/utils/isUuid";
 import { customerFacingServiceLabel } from "../../lib/serviceCatalog";
 import { useUnreadBookingMessageIds } from "../../hooks/useUnreadBookingMessageIds";
@@ -42,6 +43,8 @@ export function CustomerBookingDetails() {
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
   const [customerUserId, setCustomerUserId] = useState<string | null>(null);
   const [reviewError, setReviewError] = useState<string | null>(null);
+  const [confirmationSubmitting, setConfirmationSubmitting] = useState(false);
+  const [confirmationError, setConfirmationError] = useState<string | null>(null);
   const unsubRef = useRef<(() => void) | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const isValidBookingId = isUuid(bookingId);
@@ -124,7 +127,7 @@ export function CustomerBookingDetails() {
   }, [bookingId, isValidBookingId]);
 
   useEffect(() => {
-    if (!booking?.id || booking.status !== "completed_by_provider" || !booking.provider_id) {
+    if (!booking?.id || booking.status !== "confirmed" || !booking.provider_id) {
       setReviewAlreadyExists(false);
       return;
     }
@@ -219,8 +222,11 @@ export function CustomerBookingDetails() {
   }
 
   const statusMessage = toCustomerBookingStatusLabel(booking.status);
-  const canLeaveReview =
+  const canConfirmCompletion =
     booking.status === "completed_by_provider" &&
+    Boolean(customerUserId ?? booking.customer_id);
+  const canLeaveReview =
+    booking.status === "confirmed" &&
     Boolean(booking.provider_id) &&
     Boolean(customerUserId) &&
     booking.customer_id === customerUserId &&
@@ -309,9 +315,54 @@ export function CustomerBookingDetails() {
         </section>
       ) : null}
 
+      {canConfirmCompletion ? (
+        <section className="provider-card p-4 mb-3">
+          <p className="section-label mb-2">Service completed</p>
+          <p className="text-sm font-semibold text-[#0B1220]">Confirm this visit</p>
+          <p className="mt-1 text-sm leading-6 text-[#667085]">
+            Your CSP marked the service complete. Confirming closes this transaction and leaves durable service history for the relationship. It does not create a trust score or lock you into this CSP.
+          </p>
+          {confirmationError ? (
+            <p className="mt-3 text-sm text-red-600" role="alert">{confirmationError}</p>
+          ) : null}
+          <Button
+            variant="primaryBlue"
+            size="md"
+            fullWidth
+            className="mt-4"
+            disabled={confirmationSubmitting}
+            loading={confirmationSubmitting}
+            onClick={() => void (async () => {
+              setConfirmationSubmitting(true);
+              setConfirmationError(null);
+              try {
+                const confirmed = await confirmMyCompletedService(booking.id);
+                setBooking((current) => current ? { ...current, ...confirmed, provider: current.provider } : confirmed);
+              } catch {
+                setConfirmationError("We couldn't confirm this service yet. Please try again.");
+              } finally {
+                setConfirmationSubmitting(false);
+              }
+            })()}
+          >
+            Confirm service completed
+          </Button>
+        </section>
+      ) : null}
+
+      {booking.status === "confirmed" ? (
+        <section className="provider-card p-4 mb-3">
+          <p className="section-label mb-1">Relationship continuity</p>
+          <p className="text-sm font-semibold text-[#0B1220]">This visit is now part of your shared service history.</p>
+          <p className="mt-1 text-xs leading-5 text-[#667085]">
+            Future continuity can build from completed service without turning the relationship into ownership, exclusivity, or a hidden score.
+          </p>
+        </section>
+      ) : null}
+
       {canLeaveReview ? (
         <section className="provider-card p-4 mb-3">
-          <p className="section-label mb-2">Clean completed</p>
+          <p className="section-label mb-2">Clean confirmed</p>
           <p className="text-sm text-[#667085] mb-3">How did everything go?</p>
           <p className="text-sm font-medium text-[#0B1220] mb-3">Leave a review</p>
           <p className="text-xs font-medium text-[#667085] mb-2">Rate your clean</p>
@@ -381,7 +432,7 @@ export function CustomerBookingDetails() {
           </Button>
         </section>
       ) : null}
-      {(reviewSubmitted || reviewAlreadyExists) && booking.status === "completed_by_provider" ? (
+      {(reviewSubmitted || reviewAlreadyExists) && booking.status === "confirmed" ? (
         <p className="text-sm text-[#667085] mb-3">Thanks — your review was submitted.</p>
       ) : null}
     </div>
