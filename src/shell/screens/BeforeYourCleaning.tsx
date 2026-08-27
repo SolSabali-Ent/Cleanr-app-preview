@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { getBooking, updateCustomerBookingAccess } from "../../lib/bookingApi";
 import type { Booking } from "../../domain/booking";
-import { BEFORE_VISIT_TRUTH_SLOTS } from "../../product/beforeVisitTruth";
 import { Button } from "../../components/ui/Button";
 import { CustomerTrustedHandoffCard } from "../components/CustomerTrustedHandoffCard";
 import { ArrowLeft } from "lucide-react";
@@ -106,27 +105,18 @@ export function BeforeYourCleaning() {
       <Button variant="ghost" size="sm" className="!px-0 mb-3 text-[#667085]" leftIcon={<ArrowLeft className="w-3 h-3" />} onClick={() => navigate(`/app/bookings/${booking.id}`)}>Back to booking</Button>
 
       <h1 className="text-xl font-semibold mb-1">Before your cleaning</h1>
-      <p className="text-xs text-[#667085] mb-4">Anything different this visit? Update what your CSP needs for this cleaning.</p>
+      <p className="text-xs text-[#667085] mb-4">Anything different this visit? Update only what your CSP needs for this cleaning.</p>
 
       <CustomerTrustedHandoffCard bookingId={booking.id} />
-
-      <div className="space-y-3 mb-6">
-        {BEFORE_VISIT_TRUTH_SLOTS.map((slot) => (
-          <section key={slot.id} className="provider-card p-3">
-            <p className="section-label mb-1">{slot.title}</p>
-            <p className="text-sm text-[#0B1220]">{slot.body}</p>
-          </section>
-        ))}
-      </div>
 
       <section className="provider-card p-4 mb-4 space-y-3">
         <div>
           <p className="section-label">This visit only</p>
           <p className="mt-1 text-xs text-[#667085]">
-            Use this for arrival and access details that belong to this booking. Reusable household memory is controlled separately in <Link to="/app/profile" className="text-[#0A84FF] underline">Profile</Link>.
+            Arrival and access details here stay with this booking. Reusable household memory is controlled separately in <Link to="/app/profile" className="text-[#0A84FF] underline">Profile</Link>.
           </p>
         </div>
-        <p className="text-xs text-[#667085]">Last saved: {savedAt ? new Date(savedAt).toLocaleString() : "—"}. For chat, use <Link to={`/app/bookings/${booking.id}/message`} className="text-[#0A84FF] underline">Messages</Link>.</p>
+        <p className="text-xs text-[#667085]">Last saved: {savedAt ? new Date(savedAt).toLocaleString() : "—"}. For anything conversational, use <Link to={`/app/bookings/${booking.id}/message`} className="text-[#0A84FF] underline">Messages</Link>.</p>
         {error ? <p className="text-sm text-red-600" role="alert">{error}</p> : null}
         <label className="block text-xs font-medium text-[#667085]">Access notes</label>
         <textarea className="w-full border border-[#E5E7EB] rounded-lg p-2 text-sm min-h-[72px]" value={accessNotes} onChange={(e) => setAccessNotes(e.target.value)} placeholder="Anything critical for arrival" />
