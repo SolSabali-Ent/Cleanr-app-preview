@@ -9,6 +9,7 @@ import type {
   OpportunityLocationPreference,
   OpportunityMatch,
   OpportunityMatchStatus,
+  OpportunityOutcome,
   OpportunityTimePreference,
   PersonCapability,
 } from "@/domain/growth";
@@ -67,6 +68,17 @@ type OpportunityPreferenceRow = {
   updated_at: string;
 };
 
+type OpportunityOutcomeRow = {
+  id: string;
+  match_id: string;
+  opportunity_id: string;
+  person_id: string;
+  outcome_summary: string | null;
+  source_system: OpportunityOutcome["sourceSystem"];
+  occurred_at: string;
+  created_at: string;
+};
+
 type OpportunityMatchRow = {
   id: string;
   opportunity_id: string;
@@ -83,6 +95,7 @@ type OpportunityMatchRow = {
   created_at: string;
   updated_at: string;
   growth_opportunities: OpportunityRow | OpportunityRow[] | null;
+  growth_opportunity_outcomes: OpportunityOutcomeRow | OpportunityOutcomeRow[] | null;
 };
 
 type ContributionRow = {
@@ -147,8 +160,27 @@ function mapOpportunity(row: OpportunityRow): GrowthOpportunity {
   };
 }
 
+function mapOpportunityOutcome(row: OpportunityOutcomeRow): OpportunityOutcome {
+  return {
+    id: row.id,
+    matchId: row.match_id,
+    opportunityId: row.opportunity_id,
+    personId: row.person_id,
+    summary: row.outcome_summary,
+    sourceSystem: row.source_system,
+    occurredAt: row.occurred_at,
+    createdAt: row.created_at,
+  };
+}
+
 function firstOpportunity(row: OpportunityMatchRow): OpportunityRow | null {
   const related = row.growth_opportunities;
+  if (!related) return null;
+  return Array.isArray(related) ? related[0] ?? null : related;
+}
+
+function firstOutcome(row: OpportunityMatchRow): OpportunityOutcomeRow | null {
+  const related = row.growth_opportunity_outcomes;
   if (!related) return null;
   return Array.isArray(related) ? related[0] ?? null : related;
 }
@@ -294,7 +326,7 @@ export async function listMyOpportunityMatches(): Promise<OpportunityMatch[]> {
   if (isOfflinePreviewMode) return [];
   const { data, error } = await supabase
     .from("opportunity_matches")
-    .select("id, opportunity_id, person_id, match_reason, north_star_alignment, capability_alignment, interest_alignment, constraint_fit, match_source, status, offered_at, matched_at, created_at, updated_at, growth_opportunities(id, opportunity_type, title, description, status, visibility, geographic_scope, starts_at, closes_at)")
+    .select("id, opportunity_id, person_id, match_reason, north_star_alignment, capability_alignment, interest_alignment, constraint_fit, match_source, status, offered_at, matched_at, created_at, updated_at, growth_opportunities(id, opportunity_type, title, description, status, visibility, geographic_scope, starts_at, closes_at), growth_opportunity_outcomes(id, match_id, opportunity_id, person_id, outcome_summary, source_system, occurred_at, created_at)")
     .order("matched_at", { ascending: false });
   if (error) throw error;
 
@@ -302,6 +334,7 @@ export async function listMyOpportunityMatches(): Promise<OpportunityMatch[]> {
   return rows.flatMap((row) => {
     const opportunity = firstOpportunity(row);
     if (!opportunity) return [];
+    const outcome = firstOutcome(row);
     return [{
       id: row.id,
       opportunityId: row.opportunity_id,
@@ -318,6 +351,7 @@ export async function listMyOpportunityMatches(): Promise<OpportunityMatch[]> {
       matchedAt: row.matched_at,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
+      outcome: outcome ? mapOpportunityOutcome(outcome) : null,
     }];
   });
 }
