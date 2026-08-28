@@ -10,6 +10,7 @@ import { isOfflinePreviewMode } from "@/lib/supabase";
 import {
   CSP_CARD_PADDING,
   CSP_PRIMARY_BUTTON,
+  CSP_SECTION_GAP,
   CSP_SURFACE,
   CSP_TEXT_PRIMARY,
   CSP_TEXT_SECONDARY,
@@ -49,7 +50,10 @@ export function ContinuumParticipationCard() {
   }
 
   return (
-    <section className="px-4 pb-6" style={{ color: CSP_TEXT_PRIMARY }}>
+    <section style={{ color: CSP_TEXT_PRIMARY, marginBottom: CSP_SECTION_GAP }}>
+      <h2 className="mb-3 text-sm font-medium" style={{ color: CSP_TEXT_SECONDARY }}>
+        Your Continuum
+      </h2>
       <div
         className="rounded-2xl border"
         style={{
