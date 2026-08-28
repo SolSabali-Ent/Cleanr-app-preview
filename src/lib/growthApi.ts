@@ -61,7 +61,10 @@ export async function listMyNorthStarMilestones(northStarId: string): Promise<No
 
 export async function addNorthStarMilestone(northStarId: string, description: string): Promise<NorthStarMilestone> {
   if (isOfflinePreviewMode) throw new Error("Milestone persistence is unavailable in offline preview mode.");
-  const { data, error } = await supabase.from("north_star_milestones").insert({ north_star_id: northStarId, description: description.trim(), status: "not_started" }).select("id, north_star_id, description, status, target_date, completed_at").single();
+  const { data, error } = await supabase.rpc("add_my_north_star_milestone", {
+    p_north_star_id: northStarId,
+    p_description: description.trim(),
+  });
   if (isSupabaseFeatureUnavailable(error)) throw dormantFeatureError("North Star milestones");
   if (error) throw error;
   return mapMilestone(data as MilestoneRow);
@@ -69,7 +72,10 @@ export async function addNorthStarMilestone(northStarId: string, description: st
 
 export async function setNorthStarMilestoneStatus(milestoneId: string, status: NorthStarMilestone["status"]): Promise<NorthStarMilestone> {
   if (isOfflinePreviewMode) throw new Error("Milestone persistence is unavailable in offline preview mode.");
-  const { data, error } = await supabase.from("north_star_milestones").update({ status, completed_at: status === "completed" ? new Date().toISOString() : null, updated_at: new Date().toISOString() }).eq("id", milestoneId).select("id, north_star_id, description, status, target_date, completed_at").single();
+  const { data, error } = await supabase.rpc("set_my_north_star_milestone_status", {
+    p_milestone_id: milestoneId,
+    p_status: status,
+  });
   if (isSupabaseFeatureUnavailable(error)) throw dormantFeatureError("North Star milestones");
   if (error) throw error;
   return mapMilestone(data as MilestoneRow);
