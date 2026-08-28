@@ -115,7 +115,7 @@ export async function setMyOpportunityFitPreferences(input: { matchingEnabled: b
 
 export async function listOpenGrowthOpportunities(): Promise<GrowthOpportunity[]> {
   if (isOfflinePreviewMode) return [];
-  const { data, error } = await supabase.from("growth_opportunities").select("id, opportunity_type, title, description, status, visibility, geographic_scope, starts_at, closes_at").eq("status", "open").eq("visibility", "network").neq("opportunity_type", "service").order("created_at", { ascending: false }).limit(24);
+  const { data, error } = await supabase.from("growth_opportunities").select("id, opportunity_type, title, description, status, visibility, geographic_scope, starts_at, closes_at").eq("status", "open").eq("visibility", "network").neq("opportunity_type", "service").neq("opportunity_type", "mentorship").order("created_at", { ascending: false }).limit(24);
   if (isSupabaseFeatureUnavailable(error)) return [];
   if (error) throw error;
   return ((data ?? []) as OpportunityRow[]).map(mapOpportunity);
