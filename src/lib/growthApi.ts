@@ -115,7 +115,7 @@ export async function setMyOpportunityFitPreferences(input: { matchingEnabled: b
 
 export async function listOpenGrowthOpportunities(): Promise<GrowthOpportunity[]> {
   if (isOfflinePreviewMode) return [];
-  const { data, error } = await supabase.from("growth_opportunities").select("id, opportunity_type, title, description, status, visibility, geographic_scope, starts_at, closes_at").eq("status", "open").eq("visibility", "network").order("created_at", { ascending: false }).limit(24);
+  const { data, error } = await supabase.from("growth_opportunities").select("id, opportunity_type, title, description, status, visibility, geographic_scope, starts_at, closes_at").eq("status", "open").eq("visibility", "network").neq("opportunity_type", "service").order("created_at", { ascending: false }).limit(24);
   if (isSupabaseFeatureUnavailable(error)) return [];
   if (error) throw error;
   return ((data ?? []) as OpportunityRow[]).map(mapOpportunity);
@@ -129,7 +129,7 @@ export async function listMyOpportunityMatches(): Promise<OpportunityMatch[]> {
   const rows = (data ?? []) as unknown as OpportunityMatchRow[];
   return rows.flatMap((row) => {
     const opportunity = firstOpportunity(row);
-    if (!opportunity) return [];
+    if (!opportunity || opportunity.opportunity_type === "service") return [];
     const outcome = firstOutcome(row);
     return [{ id: row.id, opportunityId: row.opportunity_id, personId: row.person_id, opportunity: mapOpportunity(opportunity), matchReason: row.match_reason, northStarAlignment: row.north_star_alignment, capabilityAlignment: row.capability_alignment, interestAlignment: row.interest_alignment, constraintFit: row.constraint_fit, matchSource: row.match_source, status: row.status, offeredAt: row.offered_at, matchedAt: row.matched_at, createdAt: row.created_at, updatedAt: row.updated_at, outcome: outcome ? mapOpportunityOutcome(outcome) : null }];
   });
