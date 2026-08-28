@@ -79,7 +79,6 @@ export function ProviderOverview() {
         if (active) setDurableRelationship(relationship);
       })
       .catch(() => {
-        // Relationship migrations are intentionally dormant until the backend is ready.
         if (active) setDurableRelationship(null);
       });
 
@@ -124,7 +123,7 @@ export function ProviderOverview() {
       <div className="text-[#0B1220]">
         <h1 className="text-xl font-semibold mb-2">Your Cleanr connection</h1>
         <p className="text-sm text-[#667085] mb-3">
-          No provider relationship is established yet. Choose a provider or book a cleaning to get started.
+          No provider relationship is established yet. Browse CSPs or book a cleaning to get started.
         </p>
         <Button
           onClick={() => navigate("/app/provider/list")}
@@ -133,7 +132,7 @@ export function ProviderOverview() {
           fullWidth
           className="mt-2"
         >
-          Browse providers in my area
+          Browse providers
         </Button>
       </div>
     );
@@ -142,10 +141,10 @@ export function ProviderOverview() {
   const relationshipLabel = durableRelationship?.customerPreferred
     ? "Your preferred CSP"
     : relationshipSource === "customer_selection"
-      ? "Your selected CSP"
+      ? "CSP you're viewing"
       : relationshipSource === "booking_history"
         ? "Your recent CSP"
-        : "Your CSP";
+        : "CSP you're viewing";
 
   return (
     <div className="text-[#0B1220] pb-4">
@@ -200,7 +199,7 @@ export function ProviderOverview() {
           </div>
         ) : (
           <p className="text-sm text-[#667085]">
-            You selected this CSP. Your shared service history will appear here after you book together.
+            You're viewing this CSP. Shared service history will appear here only after you actually book and work together.
           </p>
         )}
       </section>
@@ -260,7 +259,7 @@ export function ProviderOverview() {
           {messageLoading ? "Loading…" : "Message CSP"}
         </Button>
         <Button onClick={() => navigate("/app/provider/list")} variant="secondary" size="lg" fullWidth>
-          Manage provider
+          Browse providers
         </Button>
       </section>
     </div>
