@@ -152,26 +152,26 @@ export default function ProfileScreen() {
       setToast(`Service radius must be between ${SERVICE_RADIUS_MILES_MIN} and ${SERVICE_RADIUS_MILES_MAX} miles. Value was clamped.`);
     }
     setSaving(true);
-    const profilePayload = {
-      full_name: fullName.trim() || null,
-      phone: phone.trim() || null,
-      zip_code: zip.trim() || null,
-      service_radius_miles: clampedRadius,
+    const rpcArgs = {
+      p_full_name: fullName.trim(),
+      p_phone: phone.trim() || null,
+      p_zip: zip.trim(),
+      p_service_radius_miles: clampedRadius,
     };
-    const traceUpd = await traceProfileWriteStart({
-      source: "ProfileScreen.handleSave",
-      operation: "update",
+    const traceRpc = await traceProfileWriteStart({
+      source: "ProfileScreen.handleSave:update_provider_profile_self_service",
+      operation: "rpc",
       targetId: profile.id,
-      payload: profilePayload,
+      payload: rpcArgs,
       pathname: "/csp/dashboard/profile",
       cspFlowState: {
         is_onboarded: profile.is_onboarded,
         application_status: profile.application_status,
       },
     });
-    const updateResult = await supabase.from("profiles").update(profilePayload).eq("id", profile.id);
-    traceProfileWriteResult(traceUpd, updateResult);
-    const { error } = updateResult;
+    const rpcResult = await supabase.rpc("update_provider_profile_self_service", rpcArgs);
+    traceProfileWriteResult(traceRpc, rpcResult);
+    const { error } = rpcResult;
     if (error) {
       setSaving(false);
       setToast(error.message);
@@ -333,7 +333,7 @@ export default function ProfileScreen() {
         <h2 className="text-sm font-medium mb-3" style={{ color: CSP_TEXT_SECONDARY }}>Verification Status</h2>
         <div className="rounded-2xl border space-y-1" style={{ backgroundColor: CSP_SURFACE, padding: CSP_CARD_PADDING, borderColor: "rgba(248, 250, 252, 0.08)" }}>
           <p className="text-sm" style={{ color: CSP_TEXT_SECONDARY }}>Customers trust verified pros.</p>
-          <p className="text-sm" style={{ color: CSP_TEXT_SECONDARY }}>Insurance + ID verification unlock higher-value jobs.</p>
+          <p className="text-sm" style={{ color: CSP_TEXT_SECONDARY }}>Verification supports trust and access to eligible opportunities.</p>
           <p className="text-sm">Application: <span style={{ color: CSP_TEXT_SECONDARY }}>{profile.application_status ?? "draft"}</span></p>
           <p className="text-sm">Insurance (optional): <span style={{ color: CSP_TEXT_SECONDARY }}>{profile.insurance_status ?? "not_started"}</span></p>
           <p className="text-sm">Identity: <span style={{ color: CSP_TEXT_SECONDARY }}>{profile.identity_status ?? "not_started"}</span></p>

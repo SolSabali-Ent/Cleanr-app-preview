@@ -1,5 +1,5 @@
 /**
- * Stripe Connect Express: get onboarding link and sync account status.
+ * Stripe Connect Express: get onboarding link and sync durable payout/activation status.
  * Used by Payout Setup flow.
  */
 
@@ -21,9 +21,12 @@ export async function getStripeConnectLink(): Promise<{ url: string }> {
   return { url: result.url };
 }
 
-export async function syncStripeConnectStatus(): Promise<{ ready: boolean }> {
+export async function syncStripeConnectStatus(): Promise<{ ready: boolean; activated: boolean }> {
   const { data, error } = await supabase.functions.invoke("stripe-connect-sync", { body: {} });
   if (error) throw error;
-  const result = data as { ready?: boolean } | null;
-  return { ready: result?.ready === true };
+  const result = data as { ready?: boolean; activated?: boolean } | null;
+  return {
+    ready: result?.ready === true,
+    activated: result?.activated === true,
+  };
 }

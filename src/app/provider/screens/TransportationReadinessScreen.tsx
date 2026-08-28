@@ -52,26 +52,24 @@ export default function TransportationReadinessScreen() {
     setError(null);
     setMessage(null);
 
-    const transportPayload = {
-      transport_mode: transportMode.trim() || null,
-      can_transport_supplies: canTransportSupplies,
-      travel_constraints: travelConstraints.trim() || null,
-      prefers_local_jobs_only: prefersLocalJobsOnly,
-      travel_readiness_status: "submitted",
+    const rpcPayload = {
+      p_transport_mode: transportMode.trim() || null,
+      p_can_transport_supplies: canTransportSupplies,
+      p_travel_constraints: travelConstraints.trim() || null,
+      p_prefers_local_jobs_only: prefersLocalJobsOnly,
     };
-    const traceUpd = await traceProfileWriteStart({
-      source: "TransportationReadinessScreen.handleSave",
-      operation: "update",
+    const traceRpc = await traceProfileWriteStart({
+      source: "TransportationReadinessScreen.handleSave:submit_transportation_readiness",
+      operation: "rpc",
       targetId: profile.id,
-      payload: transportPayload,
+      payload: rpcPayload,
       cspFlowState: { travel_readiness_status: profile.travel_readiness_status },
     });
-    const updateResult = await supabase.from("profiles").update(transportPayload).eq("id", profile.id);
-    traceProfileWriteResult(traceUpd, updateResult);
-    const { error: updateError } = updateResult;
+    const submitResult = await supabase.rpc("submit_transportation_readiness", rpcPayload);
+    traceProfileWriteResult(traceRpc, submitResult);
 
-    if (updateError) {
-      setError(updateError.message);
+    if (submitResult.error) {
+      setError(submitResult.error.message);
       setSaving(false);
       return;
     }
@@ -166,6 +164,7 @@ export default function TransportationReadinessScreen() {
             onChange={(e) => setTravelConstraints(e.target.value)}
             placeholder="e.g. parking limitations, accessibility needs"
             rows={3}
+            maxLength={1000}
             className="w-full rounded-xl border bg-white/5 px-3 py-2.5 text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-white/20"
             style={{ borderColor: "rgba(248, 250, 252, 0.12)", color: CSP_TEXT_PRIMARY }}
           />

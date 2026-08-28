@@ -10,7 +10,7 @@ import {
 } from "@/theme/cspTheme";
 import { traceProfileWriteStart, traceProfileWriteResult } from "@/lib/debug/profileWriteTrace";
 
-const CSP_TERMS_VERSION = "v1";
+const CSP_TERMS_VERSION = "v2";
 
 export default function CSPTermsScreen() {
   const navigate = useNavigate();
@@ -120,11 +120,15 @@ export default function CSPTermsScreen() {
           </p>
 
           <h2 className="font-semibold mt-4" style={{ color: CSP_TEXT_PRIMARY }}>
-            On-Platform Bookings
+            Cleanr Bookings and Relationships
           </h2>
           <p>
-            You may not use Cleanr to obtain customers and then move services or payments off-platform
-            in order to avoid fees, policies, monitoring, or platform protections.
+            A booking you accept through Cleanr must be completed and paid through Cleanr so the
+            parties receive the scheduling, payment, support, dispute-resolution, and protection
+            services attached to that booking. Cleanr does not claim ownership of your ongoing
+            relationship with a customer outside an active Cleanr booking. If you and a customer
+            choose to continue working together, Cleanr earns its continued role by providing value
+            you both choose to use.
           </p>
 
           <h2 className="font-semibold mt-4" style={{ color: CSP_TEXT_PRIMARY }}>
@@ -148,8 +152,8 @@ export default function CSPTermsScreen() {
           </h2>
           <p>
             Cleanr may suspend, restrict, or terminate access for fraud, false statements, safety
-            concerns, off-platform circumvention, repeated service issues, failure to cooperate, or
-            violations of platform rules.
+            concerns, misuse of an active Cleanr booking, repeated service issues, failure to
+            cooperate, or violations of platform rules.
           </p>
 
           <h2 className="font-semibold mt-4" style={{ color: CSP_TEXT_PRIMARY }}>

@@ -73,63 +73,42 @@ export default function OnboardingWizard() {
     setErr(null);
 
     const zipTrimmed = zip.trim();
-    const full_name = fullName.trim();
-    const phone_val = phone.trim() || null;
+    const fullNameTrimmed = fullName.trim();
+    const phoneValue = phone.trim() || null;
 
     try {
       const radiusToSave = clampServiceRadiusMiles(radius) ?? SERVICE_RADIUS_MILES_MIN;
-      const cspFlowSnap =
-        profileFlow &&
-        ({
-          is_onboarded: profileFlow.is_onboarded,
-          application_status: profileFlow.application_status,
-          identity_status: profileFlow.identity_status,
-          readiness_status: profileFlow.readiness_status,
-          provider_interest_submitted_at: profileFlow.provider_interest_submitted_at,
-        } as Record<string, unknown>);
-      const traceRpc = await traceProfileWriteStart({
-        source: "OnboardingWizard.handleFinish:set_provider_location_from_zip",
-        operation: "rpc",
-        targetId: uid,
-        payload: { p_zip: zipTrimmed, p_service_radius_miles: radiusToSave },
-        pathname: ONBOARDING_PATH,
-        cspFlowState: cspFlowSnap ?? null,
-      });
-      const locResult = await supabase.rpc("set_provider_location_from_zip", {
+      const cspFlowSnap = {
+        is_onboarded: profileFlow.is_onboarded,
+        application_status: profileFlow.application_status,
+        identity_status: profileFlow.identity_status,
+        readiness_status: profileFlow.readiness_status,
+        provider_interest_submitted_at: profileFlow.provider_interest_submitted_at,
+      } as Record<string, unknown>;
+      const rpcPayload = {
+        p_full_name: fullNameTrimmed,
+        p_phone: phoneValue,
         p_zip: zipTrimmed,
         p_service_radius_miles: radiusToSave,
-      });
-      traceProfileWriteResult(traceRpc, locResult);
-      const { error: locationError } = locResult;
-      if (locationError) throw new Error(locationError.message);
-
-      const userId = uid;
-
-      const updatePayload = {
-        full_name,
-        phone: phone_val,
-        zip_code: zipTrimmed,
-        is_onboarded: true,
-        waiver_accepted_at: profileFlow.waiver_accepted_at ?? new Date().toISOString(),
       };
-      const traceUpd = await traceProfileWriteStart({
-        source: "OnboardingWizard.handleFinish:profiles.update",
-        operation: "update",
-        targetId: userId,
-        payload: updatePayload,
+      const traceRpc = await traceProfileWriteStart({
+        source: "OnboardingWizard.handleFinish:complete_csp_onboarding",
+        operation: "rpc",
+        targetId: uid,
+        payload: rpcPayload,
         pathname: ONBOARDING_PATH,
-        cspFlowState: cspFlowSnap ?? null,
+        cspFlowState: cspFlowSnap,
       });
-      const upd = await supabase.from("profiles").update(updatePayload).eq("id", userId);
-      traceProfileWriteResult(traceUpd, upd);
+      const onboardingResult = await supabase.rpc("complete_csp_onboarding", rpcPayload);
+      traceProfileWriteResult(traceRpc, onboardingResult);
+      if (onboardingResult.error) throw new Error(onboardingResult.error.message);
 
-      if (upd.error) throw new Error(upd.error.message);
       traceCspFlow("onboarding", {
         branch: "onboarding.write.complete",
-        reason: "profile_update_success",
+        reason: "onboarding_rpc_success",
         pathname: ONBOARDING_PATH,
-        uid: userId,
-        profileId: userId,
+        uid,
+        profileId: uid,
         is_onboarded: true,
         waiver_accepted_at: profileFlow.waiver_accepted_at ?? null,
       });
@@ -140,20 +119,20 @@ export default function OnboardingWizard() {
         .from("provider_preferences")
         .upsert(
           {
-            provider_id: userId,
+            provider_id: uid,
           },
           { onConflict: "provider_id" }
         );
       if (preferencesUpsert.error) throw new Error(preferencesUpsert.error.message);
 
-      setOnboardingCompleteHandoff(userId);
+      setOnboardingCompleteHandoff(uid);
 
       traceCspFlow("onboarding", {
         branch: "onboarding.complete.navigate-verification",
         reason: "submit_success",
         pathname: ONBOARDING_PATH,
-        uid: userId,
-        profileId: userId,
+        uid,
+        profileId: uid,
         handoffOnboardingComplete: true,
         target: "/csp/dashboard/verification",
       });

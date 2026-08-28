@@ -32,19 +32,17 @@ export default function BackgroundCheckScreen() {
     setError(null);
     setMessage(null);
 
-    const bgPayload = { background_check_status: "submitted" };
-    const traceUpd = await traceProfileWriteStart({
-      source: "BackgroundCheckScreen.handleSubmit",
-      operation: "update",
+    const traceRpc = await traceProfileWriteStart({
+      source: "BackgroundCheckScreen.handleSubmit:submit_background_check_step",
+      operation: "rpc",
       targetId: profile.id,
-      payload: bgPayload,
+      payload: {},
       cspFlowState: { background_check_status: profile.background_check_status },
     });
-    const updateResult = await supabase.from("profiles").update(bgPayload).eq("id", profile.id);
-    traceProfileWriteResult(traceUpd, updateResult);
-    const { error: updateError } = updateResult;
-    if (updateError) {
-      setError(updateError.message);
+    const submitResult = await supabase.rpc("submit_background_check_step");
+    traceProfileWriteResult(traceRpc, submitResult);
+    if (submitResult.error) {
+      setError(submitResult.error.message);
       setSaving(false);
       return;
     }

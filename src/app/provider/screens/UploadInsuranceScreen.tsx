@@ -59,25 +59,27 @@ export default function UploadInsuranceScreen() {
     }
 
     const coverageCents = coverage.trim() ? Math.round(Number(coverage) * 100) : null;
-    const insPayload = {
-      insurance_document_path: path,
-      insurance_status: "submitted",
-      insurance_coverage_cents: Number.isFinite(coverageCents) ? coverageCents : null,
-      insurance_expires_at: expiresAt || null,
+    const rpcPayload = {
+      p_document_path: path,
+      p_coverage_cents: Number.isFinite(coverageCents) ? coverageCents : null,
+      p_expires_on: expiresAt || null,
     };
-    const traceUpd = await traceProfileWriteStart({
-      source: "UploadInsuranceScreen.handleSubmit",
-      operation: "update",
+    const traceRpc = await traceProfileWriteStart({
+      source: "UploadInsuranceScreen.handleSubmit:submit_insurance_document",
+      operation: "rpc",
       targetId: profile.id,
-      payload: insPayload,
+      payload: rpcPayload,
       cspFlowState: { insurance_status: profile.insurance_status },
     });
-    const updateResult = await supabase.from("profiles").update(insPayload).eq("id", profile.id);
-    traceProfileWriteResult(traceUpd, updateResult);
-    const { error: updateError } = updateResult;
+    const submitResult = await supabase.rpc("submit_insurance_document", rpcPayload);
+    traceProfileWriteResult(traceRpc, submitResult);
 
-    if (updateError) {
-      setError(updateError.message);
+    if (submitResult.error) {
+      setError(
+        submitResult.error.message.includes("insurance_already_verified")
+          ? "Your verified insurance evidence can’t be replaced from this screen. Contact support when you need to renew or update it."
+          : submitResult.error.message
+      );
       setSaving(false);
       return;
     }

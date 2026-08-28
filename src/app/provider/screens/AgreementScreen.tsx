@@ -20,18 +20,16 @@ export default function AgreementScreen() {
     if (!profile) return;
     setSaving(true);
     setError(null);
-    const agreePayload = { agreement_accepted_at: new Date().toISOString() };
-    const traceUpd = await traceProfileWriteStart({
-      source: "AgreementScreen.handleAccept",
-      operation: "update",
+    const traceRpc = await traceProfileWriteStart({
+      source: "AgreementScreen.handleAccept:accept_provider_service_agreement",
+      operation: "rpc",
       targetId: profile.id,
-      payload: agreePayload,
+      payload: {},
     });
-    const updateResult = await supabase.from("profiles").update(agreePayload).eq("id", profile.id);
-    traceProfileWriteResult(traceUpd, updateResult);
-    const { error: updateError } = updateResult;
-    if (updateError) {
-      setError(updateError.message);
+    const acceptResult = await supabase.rpc("accept_provider_service_agreement");
+    traceProfileWriteResult(traceRpc, acceptResult);
+    if (acceptResult.error) {
+      setError(acceptResult.error.message);
       setSaving(false);
       return;
     }

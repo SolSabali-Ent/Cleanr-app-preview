@@ -22,29 +22,26 @@ export default function IncidentLogScreen() {
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files?.length) return;
     const newFiles = Array.from(e.target.files);
-    setImages((prev) => {
-      const next = [...prev, ...newFiles].slice(0, MAX_IMAGES);
-      return next;
-    });
-    e.target.value = '';
+    setImages((prev) => [...prev, ...newFiles].slice(0, MAX_IMAGES));
+    e.target.value = "";
   };
 
   const removeImage = (index: number) => {
     setImages((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const uploadImages = async (incidentId: string): Promise<string[]> => {
-    const uploaded: string[] = [];
+  const uploadImages = async (providerId: string, incidentId: string): Promise<string[]> => {
+    const uploadedPaths: string[] = [];
     for (const file of images) {
-      const filePath = `${incidentId}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+      const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, "_");
+      const filePath = `providers/${providerId}/incidents/${incidentId}/${Date.now()}-${safeName}`;
       const { error } = await supabase.storage
-        .from('incident-photos')
+        .from("incident-photos")
         .upload(filePath, file, { upsert: false });
       if (error) throw error;
-      const { data: urlData } = supabase.storage.from('incident-photos').getPublicUrl(filePath);
-      uploaded.push(urlData.publicUrl);
+      uploadedPaths.push(filePath);
     }
-    return uploaded;
+    return uploadedPaths;
   };
 
   const handleSubmit = async () => {
@@ -56,7 +53,9 @@ export default function IncidentLogScreen() {
       alert("Please add at least one photo.");
       return;
     }
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) {
       alert("You must be signed in to report an incident.");
       return;
@@ -68,21 +67,14 @@ export default function IncidentLogScreen() {
     setIsSubmitting(true);
     try {
       const incidentId = crypto.randomUUID();
-      const imageUrls = await uploadImages(incidentId);
-      const { error: incidentError } = await supabase.from("incidents").insert({
-        id: incidentId,
-        booking_id: jobId,
-        provider_id: user.id,
-        description: description.trim(),
-        status: "submitted",
+      const imagePaths = await uploadImages(user.id, incidentId);
+      const { error: incidentError } = await supabase.rpc("submit_provider_incident", {
+        p_incident_id: incidentId,
+        p_booking_id: jobId,
+        p_description: description.trim(),
+        p_image_paths: imagePaths,
       });
       if (incidentError) throw incidentError;
-      if (imageUrls.length > 0) {
-        const { error: imagesError } = await supabase.from("incident_images").insert(
-          imageUrls.map((image_url) => ({ incident_id: incidentId, image_url }))
-        );
-        if (imagesError) throw imagesError;
-      }
       track("incident_submitted", { incidentId });
       alert("Incident reported. Our team will review it shortly.");
       navigate(-1);
@@ -100,7 +92,7 @@ export default function IncidentLogScreen() {
         src="/cleanr_final-04.png"
         alt=""
         className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none"
-        style={{ zIndex: 1, width: '360px', opacity: 0.08 }}
+        style={{ zIndex: 1, width: "360px", opacity: 0.08 }}
       />
       <div className="relative z-10">
         <button
@@ -116,11 +108,11 @@ export default function IncidentLogScreen() {
           <textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
+            maxLength={5000}
             placeholder="Describe what happened..."
             className="w-full h-40 p-3 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0A84FF]"
           />
 
-          {/* Image Upload */}
           <div className="mt-4">
             <label className="inline-block px-3.5 py-2.5 bg-[#0A84FF] text-white text-sm font-medium rounded-xl cursor-pointer shadow-md shadow-[#0A84FF]/40 active:scale-[0.99] transition">
               + Add Photos {images.length > 0 && `(${images.length}/${MAX_IMAGES})`}
@@ -162,7 +154,7 @@ export default function IncidentLogScreen() {
           onClick={handleSubmit}
           disabled={isSubmitting}
         >
-          {isSubmitting ? 'Submitting...' : 'Submit Incident'}
+          {isSubmitting ? "Submitting..." : "Submit Incident"}
         </button>
       </div>
     </div>

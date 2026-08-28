@@ -26,12 +26,6 @@ type ProviderApplicationRow = {
   provider_interest_submitted_at: string | null;
 };
 
-function toDocUrl(path: string | null): string | null {
-  if (!path) return null;
-  const { data } = supabase.storage.from("provider-documents").getPublicUrl(path);
-  return data.publicUrl;
-}
-
 export function ProviderApplications() {
   const { profile } = useProfile();
   const [rows, setRows] = useState<ProviderApplicationRow[]>([]);
@@ -60,6 +54,18 @@ export function ProviderApplications() {
     }
     setRows((data ?? []) as ProviderApplicationRow[]);
     setLoading(false);
+  }
+
+  async function openProviderDocument(path: string | null) {
+    if (!path) return;
+    const { data, error } = await supabase.storage
+      .from("provider-documents")
+      .createSignedUrl(path, 60);
+    if (error || !data?.signedUrl) {
+      setMessage(error?.message ?? "Could not open provider document.");
+      return;
+    }
+    window.open(data.signedUrl, "_blank", "noopener,noreferrer");
   }
 
   async function updateStatus(providerId: string, status: "under_review" | "rejected") {
@@ -103,7 +109,7 @@ export function ProviderApplications() {
       setMessage(error.message);
       return;
     }
-    setMessage("Provider approved; marketplace access enabled.");
+    setMessage("Provider approved. Marketplace access remains separately gated.");
     await load();
   }
 
@@ -152,107 +158,111 @@ export function ProviderApplications() {
         </div>
       ) : null}
 
-        {loading ? (
-          <p className="text-sm text-slate-500">Loading applications...</p>
-        ) : rows.length === 0 ? (
-          <p className="text-sm text-slate-500">No matching providers in the queue.</p>
-        ) : (
-          <div className="space-y-3">
-            {rows.map((row) => {
-              const insuranceUrl = toDocUrl(row.insurance_document_path);
-              const identityUrl = toDocUrl(row.identity_document_path);
-              return (
-                <section
-                  key={row.id}
-                  className="rounded-xl border p-4"
-                  style={{ borderColor: adminTheme.border, backgroundColor: adminTheme.card }}
-                >
-                  <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                    <div>
-                      <p className="text-sm font-semibold text-slate-900">{row.full_name ?? row.id}</p>
-                      <p className="mt-1 text-xs text-slate-500">status: {row.application_status ?? "draft"}</p>
-                      <p className="text-xs text-slate-500">
-                        review band: {row.provider_review_band ?? "—"} · interest at:{" "}
-                        {row.provider_interest_submitted_at
-                          ? new Date(row.provider_interest_submitted_at).toLocaleString()
-                          : "—"}
-                      </p>
-                      <p className="text-xs text-slate-500">
-                        readiness: exp {row.cleaning_experience_bucket ?? "—"} · equipment{" "}
-                        {row.has_own_equipment === null ? "—" : row.has_own_equipment ? "yes" : "no"} · transport{" "}
-                        {row.has_reliable_transportation === null ? "—" : row.has_reliable_transportation ? "yes" : "no"}
-                      </p>
-                      <p className="text-xs text-slate-500">insurance: {row.insurance_status ?? "not_started"}</p>
-                      <p className="text-xs text-slate-500">identity: {row.identity_status ?? "not_started"}</p>
-                      <p className="text-xs text-slate-500">
-                        background: {row.background_check_status ?? "not_started"}
-                      </p>
-                      <p className="text-xs text-slate-500">screening: {row.screening_status ?? "not_started"}</p>
-                      <p className="text-xs text-slate-500">
-                        travel: {row.travel_readiness_status ?? "not_started"}
-                      </p>
-                      <p className="text-xs text-slate-500">
-                        CSP terms: {row.csp_terms_accepted_at ? "accepted" : "pending"}
-                      </p>
-                      <p className="text-xs text-slate-500">
-                        agreement: {row.agreement_accepted_at ? "accepted" : "pending"}
-                      </p>
-                      {row.rejection_reason ? (
-                        <p className="text-xs text-red-600">rejection: {row.rejection_reason}</p>
-                      ) : null}
-                    </div>
+      {loading ? (
+        <p className="text-sm text-slate-500">Loading applications...</p>
+      ) : rows.length === 0 ? (
+        <p className="text-sm text-slate-500">No matching providers in the queue.</p>
+      ) : (
+        <div className="space-y-3">
+          {rows.map((row) => (
+            <section
+              key={row.id}
+              className="rounded-xl border p-4"
+              style={{ borderColor: adminTheme.border, backgroundColor: adminTheme.card }}
+            >
+              <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                <div>
+                  <p className="text-sm font-semibold text-slate-900">{row.full_name ?? row.id}</p>
+                  <p className="mt-1 text-xs text-slate-500">status: {row.application_status ?? "draft"}</p>
+                  <p className="text-xs text-slate-500">
+                    review band: {row.provider_review_band ?? "—"} · interest at:{" "}
+                    {row.provider_interest_submitted_at
+                      ? new Date(row.provider_interest_submitted_at).toLocaleString()
+                      : "—"}
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    readiness: exp {row.cleaning_experience_bucket ?? "—"} · equipment{" "}
+                    {row.has_own_equipment === null ? "—" : row.has_own_equipment ? "yes" : "no"} · transport{" "}
+                    {row.has_reliable_transportation === null ? "—" : row.has_reliable_transportation ? "yes" : "no"}
+                  </p>
+                  <p className="text-xs text-slate-500">insurance: {row.insurance_status ?? "not_started"}</p>
+                  <p className="text-xs text-slate-500">identity: {row.identity_status ?? "not_started"}</p>
+                  <p className="text-xs text-slate-500">
+                    background: {row.background_check_status ?? "not_started"}
+                  </p>
+                  <p className="text-xs text-slate-500">screening: {row.screening_status ?? "not_started"}</p>
+                  <p className="text-xs text-slate-500">
+                    travel: {row.travel_readiness_status ?? "not_started"}
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    CSP terms: {row.csp_terms_accepted_at ? "accepted" : "pending"}
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    agreement: {row.agreement_accepted_at ? "accepted" : "pending"}
+                  </p>
+                  {row.rejection_reason ? (
+                    <p className="text-xs text-red-600">rejection: {row.rejection_reason}</p>
+                  ) : null}
+                </div>
 
-                    <div className="flex flex-wrap gap-2">
-                      <button
-                        onClick={() => void updateStatus(row.id, "under_review")}
-                        className="min-h-[52px] rounded-[14px] border border-slate-300 px-6 text-xs font-medium text-slate-700"
-                      >
-                        Mark under review
-                      </button>
-                      <button
-                        onClick={() => void approveProvider(row.id)}
-                        className="min-h-[52px] rounded-[14px] px-6 text-xs font-semibold text-white"
-                        style={{ backgroundColor: adminTheme.success }}
-                      >
-                        Approve
-                      </button>
-                      <button
-                        onClick={() => void updateStatus(row.id, "rejected" as const)}
-                        className="min-h-[52px] rounded-[14px] px-6 text-xs font-semibold text-white"
-                        style={{ backgroundColor: adminTheme.danger }}
-                      >
-                        Reject
-                      </button>
-                    </div>
-                  </div>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={() => void updateStatus(row.id, "under_review")}
+                    className="min-h-[52px] rounded-[14px] border border-slate-300 px-6 text-xs font-medium text-slate-700"
+                  >
+                    Mark under review
+                  </button>
+                  <button
+                    onClick={() => void approveProvider(row.id)}
+                    className="min-h-[52px] rounded-[14px] px-6 text-xs font-semibold text-white"
+                    style={{ backgroundColor: adminTheme.success }}
+                  >
+                    Approve
+                  </button>
+                  <button
+                    onClick={() => void updateStatus(row.id, "rejected" as const)}
+                    className="min-h-[52px] rounded-[14px] px-6 text-xs font-semibold text-white"
+                    style={{ backgroundColor: adminTheme.danger }}
+                  >
+                    Reject
+                  </button>
+                </div>
+              </div>
 
-                  <div className="mt-3 flex flex-wrap gap-4 text-xs">
-                    <span className="text-slate-500">
-                      Insurance doc:{" "}
-                      {insuranceUrl ? (
-                        <a className="text-blue-600 underline" href={insuranceUrl} target="_blank" rel="noreferrer">
-                          Open
-                        </a>
-                      ) : (
-                        "—"
-                      )}
-                    </span>
-                    <span className="text-slate-500">
-                      Identity doc:{" "}
-                      {identityUrl ? (
-                        <a className="text-blue-600 underline" href={identityUrl} target="_blank" rel="noreferrer">
-                          Open
-                        </a>
-                      ) : (
-                        "—"
-                      )}
-                    </span>
-                  </div>
-                </section>
-              );
-            })}
-          </div>
-        )}
+              <div className="mt-3 flex flex-wrap gap-4 text-xs">
+                <span className="text-slate-500">
+                  Insurance doc:{" "}
+                  {row.insurance_document_path ? (
+                    <button
+                      type="button"
+                      className="text-blue-600 underline"
+                      onClick={() => void openProviderDocument(row.insurance_document_path)}
+                    >
+                      Open
+                    </button>
+                  ) : (
+                    "—"
+                  )}
+                </span>
+                <span className="text-slate-500">
+                  Identity doc:{" "}
+                  {row.identity_document_path ? (
+                    <button
+                      type="button"
+                      className="text-blue-600 underline"
+                      onClick={() => void openProviderDocument(row.identity_document_path)}
+                    >
+                      Open
+                    </button>
+                  ) : (
+                    "—"
+                  )}
+                </span>
+              </div>
+            </section>
+          ))}
+        </div>
+      )}
     </main>
   );
 }

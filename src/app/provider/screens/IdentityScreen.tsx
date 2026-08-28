@@ -52,19 +52,18 @@ export default function IdentityScreen() {
       return;
     }
 
-    const idPayload = { identity_document_path: path };
-    const traceUpd = await traceProfileWriteStart({
-      source: "IdentityScreen.handleSubmit",
-      operation: "update",
+    const rpcPayload = { p_document_path: path };
+    const traceRpc = await traceProfileWriteStart({
+      source: "IdentityScreen.handleSubmit:submit_identity_document",
+      operation: "rpc",
       targetId: profile.id,
-      payload: idPayload,
+      payload: rpcPayload,
       cspFlowState: { identity_status: profile.identity_status, application_status: profile.application_status },
     });
-    const updateResult = await supabase.from("profiles").update(idPayload).eq("id", profile.id);
-    traceProfileWriteResult(traceUpd, updateResult);
-    const { error: updateError } = updateResult;
-    if (updateError) {
-      setError(updateError.message);
+    const submitResult = await supabase.rpc("submit_identity_document", rpcPayload);
+    traceProfileWriteResult(traceRpc, submitResult);
+    if (submitResult.error) {
+      setError(submitResult.error.message);
       setSaving(false);
       return;
     }

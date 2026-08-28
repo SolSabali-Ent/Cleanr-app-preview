@@ -25,6 +25,7 @@ export default function PayoutSetupScreen() {
 
   const isReturn = searchParams.get("stripe_return") === "1";
   const ready = payoutReady(profile);
+  const active = profile?.marketplace_access === true;
 
   useEffect(() => {
     if (!isReturn || !profile) return;
@@ -35,7 +36,13 @@ export default function PayoutSetupScreen() {
       .then(async (res) => {
         if (!mounted) return;
         await refresh();
-        setMessage(res.ready ? "Payout setup complete. You’re all set." : "We’re still processing your details. This may take a moment.");
+        if (res.activated) {
+          setMessage("Payout setup complete. Your provider account is active.");
+        } else if (res.ready) {
+          setMessage("Payout setup is complete. Your marketplace access remains restricted pending Cleanr review.");
+        } else {
+          setMessage("We’re still processing your payout details. This may take a moment.");
+        }
       })
       .catch((e) => {
         if (!mounted) return;
@@ -67,7 +74,7 @@ export default function PayoutSetupScreen() {
       <header style={{ marginBottom: CSP_SECTION_GAP }}>
         <h1 className="text-2xl font-semibold">Payout Setup</h1>
         <p className="text-sm mt-2" style={{ color: CSP_TEXT_SECONDARY }}>
-          Connect with Stripe to receive payouts for completed jobs. Required before your account can be activated.
+          Connect with Stripe to receive payouts for completed jobs. Payout readiness and marketplace access are tracked separately.
         </p>
       </header>
 
@@ -76,7 +83,9 @@ export default function PayoutSetupScreen() {
           className="mb-6 rounded-xl border px-4 py-3 text-sm"
           style={{ borderColor: "rgba(52, 211, 153, 0.3)", backgroundColor: "rgba(52, 211, 153, 0.08)", color: "rgb(167, 243, 208)" }}
         >
-          Payout setup complete. You can receive payouts once your application is approved.
+          {active
+            ? "Payout setup complete. Your provider account is active."
+            : "Payout setup complete. Marketplace access is still restricted."}
         </div>
       )}
 
@@ -91,7 +100,7 @@ export default function PayoutSetupScreen() {
       {!ready && (
         <div className="space-y-4" style={{ marginBottom: CSP_SECTION_GAP }}>
           <p className="text-sm" style={{ color: CSP_TEXT_SECONDARY }}>
-            You’ll complete a short Stripe onboarding flow to connect your bank account. This is required before we can activate your provider account.
+            You’ll complete a short Stripe onboarding flow to connect your bank account. For an approved, unrestricted provider, successful payout setup can complete initial marketplace activation.
           </p>
           <button
             type="button"

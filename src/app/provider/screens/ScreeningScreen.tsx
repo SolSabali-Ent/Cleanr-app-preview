@@ -32,19 +32,17 @@ export default function ScreeningScreen() {
     setError(null);
     setMessage(null);
 
-    const scrPayload = { screening_status: "scheduled" };
-    const traceUpd = await traceProfileWriteStart({
-      source: "ScreeningScreen.handleSubmitForReview",
-      operation: "update",
+    const traceRpc = await traceProfileWriteStart({
+      source: "ScreeningScreen.handleSubmitForReview:submit_screening_step",
+      operation: "rpc",
       targetId: profile.id,
-      payload: scrPayload,
+      payload: {},
       cspFlowState: { screening_status: profile.screening_status },
     });
-    const updateResult = await supabase.from("profiles").update(scrPayload).eq("id", profile.id);
-    traceProfileWriteResult(traceUpd, updateResult);
-    const { error: updateError } = updateResult;
-    if (updateError) {
-      setError(updateError.message);
+    const submitResult = await supabase.rpc("submit_screening_step");
+    traceProfileWriteResult(traceRpc, submitResult);
+    if (submitResult.error) {
+      setError(submitResult.error.message);
       setSaving(false);
       return;
     }

@@ -1,7 +1,5 @@
 import { supabase } from "./supabase";
-import type { Booking } from "../domain/booking";
-import type { BookingStatus } from "../domain/booking";
-import { canTransition } from "../domain/booking";
+import type { Booking, BookingStatus } from "../domain/booking";
 import type { BookingState } from "../booking/bookingStore";
 import { persistedServiceLabelForCreateBooking } from "./serviceCatalog";
 import { normalizeBookingSchedule } from "./bookingSchedule";
@@ -16,38 +14,6 @@ export function bookingAccessFieldsFromRow(row: Record<string, unknown>) {
     surfaces_to_avoid: (row.surfaces_to_avoid as string | null | undefined) ?? null,
     customer_access_updated_at: (row.customer_access_updated_at as string | null | undefined) ?? null,
   };
-}
-
-export type CustomerBookingAccessPatch = {
-  access_notes?: string | null;
-  gate_code?: string | null;
-  parking_notes?: string | null;
-  entry_instructions?: string | null;
-  pet_notes?: string | null;
-  surfaces_to_avoid?: string | null;
-};
-
-/**
- * Customer updates durable access fields on their booking (RLS: customer_id = auth.uid()).
- */
-export async function updateCustomerBookingAccess(
-  bookingId: string,
-  patch: CustomerBookingAccessPatch
-): Promise<void> {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user?.id) throw new Error("Must be signed in to update visit details.");
-
-  const { error } = await supabase
-    .from("bookings")
-    .update({
-      ...patch,
-      customer_access_updated_at: new Date().toISOString(),
-    })
-    .eq("id", bookingId)
-    .eq("customer_id", user.id);
-  if (error) throw error;
 }
 
 const CLIENT_REF_KEY = "cleanr_booking_client_ref";
@@ -103,9 +69,7 @@ function buildPricingInputs(state: BookingState) {
   };
 }
 
-/**
- * Get or create client_ref for this browser/session. Persisted in localStorage.
- */
+/** Booking-attempt correlation/idempotency key for this browser. */
 export function getClientRef(): string {
   let ref =
     typeof localStorage !== "undefined"
@@ -124,9 +88,6 @@ export function getClientRef(): string {
   return ref;
 }
 
-/**
- * Map wizard state to RPC params. addressJson: { address, zip_code } (optional lat/lng later).
- */
 function stateToRpcParams(state: BookingState, clientRef: string) {
   const normalizedSchedule = normalizeBookingSchedule(state.date, state.time);
   if (!normalizedSchedule) {
@@ -149,7 +110,7 @@ function stateToRpcParams(state: BookingState, clientRef: string) {
     } as Record<string, unknown>,
     p_scheduled_start: normalizedSchedule.scheduledStartIso,
     p_scheduled_end: normalizedSchedule.scheduledEndIso,
-    // Server-side pricing authority now lives in create-booking-checkout.
+    // Server-side pricing authority lives in create-booking-checkout.
     p_price_cents: 0,
   };
 }
@@ -168,8 +129,8 @@ function normalizeAddress(address: unknown): string {
 }
 
 /**
- * Upsert booking by client_ref. If a booking exists with same client_ref, returns existing id.
- * Otherwise calls create_booking_geo RPC (no direct insert). Prevents duplicate submissions.
+ * Creates the authenticated customer's booking intent through the DB boundary.
+ * A reused booking-attempt client_ref returns the existing booking id.
  */
 export async function createBooking(state: BookingState): Promise<string> {
   const clientRef = getClientRef();
@@ -215,19 +176,6 @@ export async function createBooking(state: BookingState): Promise<string> {
   return bookingId;
 }
 
-/**
- * Invoke Edge Function to dispatch the booking (find providers + auto_dispatch_booking).
- * Runs with service role in the function; client never touches dispatch logic.
- */
-export async function invokeDispatchBooking(bookingId: string): Promise<{ ok: boolean; providerId?: string | null }> {
-  const { data, error } = await supabase.functions.invoke("dispatch-booking", {
-    body: { bookingId },
-  });
-  if (error) throw error;
-  const result = data as { ok?: boolean; providerId?: string | null } | null;
-  return { ok: result?.ok === true, providerId: result?.providerId ?? null };
-}
-
 export async function createBookingCheckoutSession(bookingId: string): Promise<{ url: string }> {
   const clientRef = getClientRef();
   const origin = typeof window !== "undefined" ? window.location.origin : "";
@@ -247,9 +195,7 @@ export async function createBookingCheckoutSession(bookingId: string): Promise<{
   return { url: result.url };
 }
 
-/**
- * Fetch bookings for customer: own (customer_id = auth.uid()) or anonymous with matching client_ref.
- */
+/** Fetch bookings visible to the customer under current booking RLS. */
 export async function listBookingsForCustomer(): Promise<Booking[]> {
   const { data: { user } } = await supabase.auth.getUser();
   const clientRef = typeof localStorage !== "undefined" ? localStorage.getItem(CLIENT_REF_KEY) : null;
@@ -278,9 +224,6 @@ export async function listBookingsForCustomer(): Promise<Booking[]> {
   return [];
 }
 
-/**
- * Fetch a single booking by id.
- */
 export async function getBooking(bookingId: string): Promise<Booking | null> {
   const { data, error } = await supabase
     .from("bookings")
@@ -306,9 +249,6 @@ export async function getBooking(bookingId: string): Promise<Booking | null> {
   } as Booking;
 }
 
-/**
- * Map DB row to Booking type.
- */
 function rowToBooking(row: Record<string, unknown>): Booking {
   const providerRow =
     row.provider && typeof row.provider === "object"
@@ -344,13 +284,9 @@ function rowToBooking(row: Record<string, unknown>): Booking {
   } as Booking;
 }
 
-/** Available job row from find_available_jobs_for_provider (includes distance_meters). */
 export type AvailableJob = Booking & { distance_meters?: number };
 
-/**
- * Fetch available jobs for provider via RPC (DB-first matching).
- * Respects radius, distance, all matching logic in DB. Use this only for CSP job feed.
- */
+/** DB-first provider job feed. Matching/eligibility authority lives in the RPC. */
 export async function findAvailableJobsForProvider(
   p_provider_id: string,
   p_limit: number = 100
@@ -372,7 +308,6 @@ export async function findAvailableJobsForProvider(
     p_limit,
   });
   if (error) {
-    // Keep provider dashboard stable if access is gated or auth is stale.
     if (error.message?.toLowerCase().includes("unauthorized")) {
       return [];
     }
@@ -384,9 +319,6 @@ export async function findAvailableJobsForProvider(
   }));
 }
 
-/**
- * Fetch bookings assigned to current provider (for active + completed lists).
- */
 export async function listMyJobsAsProvider(): Promise<Booking[]> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return [];
@@ -400,7 +332,6 @@ export async function listMyJobsAsProvider(): Promise<Booking[]> {
   return ((data ?? []) as Record<string, unknown>[]).map(rowToBooking);
 }
 
-/** Row shape for provider Earnings (read-only; RLS: provider_id = auth.uid()). */
 export type ProviderEarningsBookingRow = {
   id: string;
   status: string;
@@ -449,9 +380,6 @@ function rowToProviderEarningsBooking(row: Record<string, unknown>): ProviderEar
   };
 }
 
-/**
- * Bookings for the signed-in provider used by the Earnings screen (payout-relevant rows).
- */
 export async function listProviderEarningsBookings(): Promise<ProviderEarningsBookingRow[]> {
   const {
     data: { user },
@@ -485,27 +413,6 @@ export function isProviderPaidEarning(row: ProviderEarningsBookingRow): boolean 
   return tid != null && String(tid).trim() !== "";
 }
 
-/**
- * Update booking status. Validates via domain canTransition. Caller must ensure role (e.g. provider).
- */
-export async function updateBookingStatus(
-  bookingId: string,
-  fromStatus: BookingStatus,
-  toStatus: BookingStatus
-): Promise<void> {
-  if (!canTransition(fromStatus, toStatus)) {
-    throw new Error(`Invalid status transition: ${fromStatus} → ${toStatus}`);
-  }
-  const { error } = await supabase
-    .from("bookings")
-    .update({ status: toStatus, updated_at: new Date().toISOString() })
-    .eq("id", bookingId);
-  if (error) throw error;
-}
-
-/**
- * Provider accepts job via RPC (no direct .update()).
- */
 export async function acceptBookingAsProvider(bookingId: string): Promise<Booking> {
   const { data, error } = await supabase.rpc("accept_booking_as_provider", {
     p_booking_id: bookingId,
@@ -515,9 +422,6 @@ export async function acceptBookingAsProvider(bookingId: string): Promise<Bookin
   return rowToBooking(data as Record<string, unknown>);
 }
 
-/**
- * Provider starts job via RPC (no direct .update()).
- */
 export async function startBookingAsProvider(bookingId: string): Promise<Booking> {
   const { data, error } = await supabase.rpc("start_booking_as_provider", {
     p_booking_id: bookingId,
@@ -527,9 +431,6 @@ export async function startBookingAsProvider(bookingId: string): Promise<Booking
   return rowToBooking(data as Record<string, unknown>);
 }
 
-/**
- * Provider completes job via RPC (no direct .update()).
- */
 export async function completeBookingAsProvider(bookingId: string): Promise<Booking> {
   const { data, error } = await supabase.rpc("complete_booking_as_provider", {
     p_booking_id: bookingId,
@@ -539,9 +440,6 @@ export async function completeBookingAsProvider(bookingId: string): Promise<Book
   return rowToBooking(data as Record<string, unknown>);
 }
 
-/**
- * Provider check-in at job location via RPC.
- */
 export async function checkInBookingAsProvider(
   bookingId: string,
   lat: number,
@@ -557,9 +455,6 @@ export async function checkInBookingAsProvider(
   return rowToBooking(data as Record<string, unknown>);
 }
 
-/**
- * Provider check-out at job location via RPC.
- */
 export async function checkOutBookingAsProvider(
   bookingId: string,
   lat: number,
@@ -573,26 +468,4 @@ export async function checkOutBookingAsProvider(
   if (error) throw error;
   if (!data) throw new Error("No booking returned");
   return rowToBooking(data as Record<string, unknown>);
-}
-
-/**
- * When customer signs up (future): attach their anonymous bookings to their account.
- * Run after auth signUp/signIn: update bookings set customer_id = auth.uid() where client_ref = localStorage client_ref.
- * Usage: call attachAnonymousBookingsToUser() after successful customer auth; then optionally clear or keep client_ref.
- */
-export async function attachAnonymousBookingsToUser(): Promise<number> {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return 0;
-  const clientRef =
-    typeof localStorage !== "undefined" ? localStorage.getItem(CLIENT_REF_KEY) : null;
-  if (!clientRef) return 0;
-
-  const { data, error } = await supabase
-    .from("bookings")
-    .update({ customer_id: user.id, updated_at: new Date().toISOString() })
-    .is("customer_id", null)
-    .eq("client_ref", clientRef)
-    .select("id");
-  if (error) throw error;
-  return (data ?? []).length;
 }
