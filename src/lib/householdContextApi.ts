@@ -1,5 +1,10 @@
 import { isOfflinePreviewMode, supabase } from "@/lib/supabase";
-import type { HouseholdContext, HouseholdContextPatch } from "@/domain/householdContext";
+import { dormantFeatureError, isSupabaseFeatureUnavailable } from "@/lib/supabaseFeature";
+import {
+  householdContextPatchIsSafe,
+  type HouseholdContext,
+  type HouseholdContextPatch,
+} from "@/domain/householdContext";
 
 type HouseholdContextRow = {
   customer_id: string;
@@ -25,20 +30,13 @@ function mapHouseholdContext(row: HouseholdContextRow): HouseholdContext {
   };
 }
 
-function relationMissing(error: { code?: string; message?: string } | null): boolean {
-  const message = (error?.message ?? "").toLowerCase();
-  return error?.code === "42P01"
-    || error?.code === "PGRST205"
-    || (message.includes("household_context") && message.includes("does not exist"));
-}
-
 export async function getMyHouseholdContext(): Promise<HouseholdContext | null> {
   if (isOfflinePreviewMode) return null;
   const { data, error } = await supabase
     .from("household_context")
     .select("customer_id, memory_enabled, service_preferences, pet_context, surfaces_to_avoid, communication_preferences, created_at, updated_at")
     .maybeSingle();
-  if (relationMissing(error)) return null;
+  if (isSupabaseFeatureUnavailable(error)) return null;
   if (error) throw error;
   return data ? mapHouseholdContext(data as HouseholdContextRow) : null;
 }
@@ -48,7 +46,7 @@ export async function getHouseholdContextForBooking(bookingId: string): Promise<
   const { data, error } = await supabase.rpc("get_household_context_for_booking", {
     p_booking_id: bookingId,
   });
-  if (relationMissing(error)) return null;
+  if (isSupabaseFeatureUnavailable(error)) return null;
   if (error) throw error;
   return data ? mapHouseholdContext(data as HouseholdContextRow) : null;
 }
@@ -58,6 +56,10 @@ export async function setMyHouseholdContext(patch: HouseholdContextPatch): Promi
     throw new Error("Household memory is unavailable in offline preview mode.");
   }
 
+  if (!householdContextPatchIsSafe(patch)) {
+    throw new Error("Reusable household memory cannot include access, security, or credential-like details. Keep those visit-specific in the booking.");
+  }
+
   const { data, error } = await supabase.rpc("set_my_household_context", {
     p_memory_enabled: patch.memoryEnabled,
     p_service_preferences: patch.servicePreferences?.trim() || null,
@@ -65,6 +67,7 @@ export async function setMyHouseholdContext(patch: HouseholdContextPatch): Promi
     p_surfaces_to_avoid: patch.surfacesToAvoid?.trim() || null,
     p_communication_preferences: patch.communicationPreferences?.trim() || null,
   });
+  if (isSupabaseFeatureUnavailable(error)) throw dormantFeatureError("Household memory");
   if (error) throw error;
   return mapHouseholdContext(data as HouseholdContextRow);
 }

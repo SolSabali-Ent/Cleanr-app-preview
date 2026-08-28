@@ -26,6 +26,30 @@ export type HouseholdContextPatch = Pick<
   | "communicationPreferences"
 >;
 
+const SECURITY_TERM_PATTERN = /\b(gate|door|entry|access|alarm|garage|keypad|lock|password|passcode|code|pin|key)\b/i;
+const CREDENTIAL_LIKE_DIGITS_PATTERN = /\d{3,}/;
+
+/**
+ * Conservative client-side mirror of the database purpose-limit guard. This is not the
+ * security boundary by itself; the backend enforces the same rule before durable persistence.
+ */
+export function householdMemoryTextIsSafe(value: string | null | undefined): boolean {
+  const text = value?.trim() ?? "";
+  if (!text) return true;
+  if (text.length > 1000) return false;
+  return !SECURITY_TERM_PATTERN.test(text) && !CREDENTIAL_LIKE_DIGITS_PATTERN.test(text);
+}
+
+export function householdContextPatchIsSafe(patch: HouseholdContextPatch): boolean {
+  if (!patch.memoryEnabled) return true;
+  return [
+    patch.servicePreferences,
+    patch.petContext,
+    patch.surfacesToAvoid,
+    patch.communicationPreferences,
+  ].every(householdMemoryTextIsSafe);
+}
+
 export function householdContextHasUsefulMemory(context: HouseholdContext | null | undefined): boolean {
   if (!context?.memoryEnabled) return false;
   return Boolean(
