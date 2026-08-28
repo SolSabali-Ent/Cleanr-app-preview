@@ -33,7 +33,6 @@ import ProviderVerificationScreen from "../app/provider/screens/ProviderVerifica
 import GrowthScreen from "../app/provider/screens/GrowthScreen";
 import CapabilitiesScreen from "../app/provider/screens/CapabilitiesScreen";
 import GrowthOpportunitiesScreen from "../app/provider/screens/GrowthOpportunitiesScreen";
-import OpportunityFitScreen from "../app/provider/screens/OpportunityFitScreen";
 import ContributionsScreen from "../app/provider/screens/ContributionsScreen";
 import MilestonesScreen from "../app/provider/screens/MilestonesScreen";
 import NetworkScreen from "../app/provider/screens/NetworkScreen";
@@ -64,13 +63,13 @@ export function AppRouter() {
     <Route path="/app" element={<CustomerGate><CustomerLayout /></CustomerGate>}><Route index element={<CustomerHome />} /><Route path="bookings" element={<Schedule />} /><Route path="bookings/:bookingId" element={<CustomerBookingDetails />} /><Route path="bookings/:bookingId/prep" element={<BeforeYourCleaning />} /><Route path="bookings/:bookingId/message" element={<CustomerBookingMessagePage />} /><Route path="provider" element={<ProviderOverview />} /><Route path="provider/list" element={<ProviderList />} /><Route path="provider/:providerId" element={<ProviderDetail />} /><Route path="profile" element={<CustomerProfile />} /><Route path="payments" element={<Payments />} /></Route>
     <Route path="/csp/login" element={<CSPLogin />} /><Route path="/csp/signup" element={<CSPSignup />} /><Route path="/onboarding" element={<Navigate to="/csp/dashboard" replace />} /><Route path="/csp/onboarding" element={<Navigate to="/csp/dashboard" replace />} />
 
-    <Route path="/csp/growth" element={<ProviderLayout />}><Route index element={<GrowthScreen />} /><Route path="milestones" element={<MilestonesScreen />} /><Route path="capabilities" element={<CapabilitiesScreen />} /><Route path="opportunities" element={<GrowthOpportunitiesScreen />} /><Route path="fit" element={<OpportunityFitScreen />} /><Route path="network" element={<NetworkScreen />} /><Route path="contributions" element={<ContributionsScreen />} /></Route>
+    <Route path="/csp/growth" element={<ProviderLayout />}><Route index element={<GrowthScreen />} /><Route path="milestones" element={<MilestonesScreen />} /><Route path="capabilities" element={<CapabilitiesScreen />} /><Route path="opportunities" element={<GrowthOpportunitiesScreen />} /><Route path="fit" element={<Navigate to={CSP_GROWTH_ROUTES.opportunities} replace />} /><Route path="network" element={<NetworkScreen />} /><Route path="contributions" element={<ContributionsScreen />} /></Route>
 
     <Route path="/csp/dashboard/growth" element={<Navigate to={CSP_GROWTH_ROUTES.home} replace />} />
     <Route path="/csp/dashboard/growth/milestones" element={<Navigate to={CSP_GROWTH_ROUTES.milestones} replace />} />
     <Route path="/csp/dashboard/growth/capabilities" element={<Navigate to={CSP_GROWTH_ROUTES.capabilities} replace />} />
     <Route path="/csp/dashboard/growth/opportunities" element={<Navigate to={CSP_GROWTH_ROUTES.opportunities} replace />} />
-    <Route path="/csp/dashboard/growth/opportunities/fit" element={<Navigate to={CSP_GROWTH_ROUTES.fit} replace />} />
+    <Route path="/csp/dashboard/growth/opportunities/fit" element={<Navigate to={CSP_GROWTH_ROUTES.opportunities} replace />} />
     <Route path="/csp/dashboard/growth/network" element={<Navigate to={CSP_GROWTH_ROUTES.network} replace />} />
     <Route path="/csp/dashboard/growth/contributions" element={<Navigate to={CSP_GROWTH_ROUTES.contributions} replace />} />
 
