@@ -4,6 +4,7 @@ import type {
 } from "@/domain/northStarOutcomeEvidence";
 import type { NorthStarMilestone } from "@/domain/growth";
 import { isOfflinePreviewMode, supabase } from "@/lib/supabase";
+import { dormantFeatureError, isSupabaseFeatureUnavailable } from "@/lib/supabaseFeature";
 
 type EvidenceRow = {
   evidence_id: string;
@@ -39,13 +40,6 @@ type MatchOutcomeRow = {
     | null;
 };
 
-function relationMissing(error: { code?: string; message?: string } | null): boolean {
-  const message = (error?.message ?? "").toLowerCase();
-  return error?.code === "42P01"
-    || error?.code === "PGRST205"
-    || (message.includes("north_star_milestone_outcome_evidence") && message.includes("does not exist"));
-}
-
 function first<T>(value: T | T[] | null): T | null {
   if (!value) return null;
   return Array.isArray(value) ? value[0] ?? null : value;
@@ -54,7 +48,7 @@ function first<T>(value: T | T[] | null): T | null {
 export async function listMyNorthStarOutcomeEvidence(): Promise<NorthStarOutcomeEvidence[]> {
   if (isOfflinePreviewMode) return [];
   const { data, error } = await supabase.rpc("list_my_north_star_milestone_outcome_evidence");
-  if (relationMissing(error)) return [];
+  if (isSupabaseFeatureUnavailable(error)) return [];
   if (error) throw error;
   return ((data ?? []) as EvidenceRow[]).map((row) => ({
     evidenceId: row.evidence_id,
@@ -77,6 +71,7 @@ export async function listMyEligibleNorthStarOutcomes(): Promise<EligibleNorthSt
     .select("status, growth_opportunities(id, opportunity_type, title), growth_opportunity_outcomes(id, opportunity_id, outcome_summary, occurred_at)")
     .eq("status", "completed")
     .order("updated_at", { ascending: false });
+  if (isSupabaseFeatureUnavailable(error)) return [];
   if (error) throw error;
 
   return ((data ?? []) as unknown as MatchOutcomeRow[]).flatMap((row) => {
@@ -103,6 +98,7 @@ export async function completeMyMilestoneFromOutcome(
     p_milestone_id: milestoneId,
     p_outcome_id: outcomeId,
   });
+  if (isSupabaseFeatureUnavailable(error)) throw dormantFeatureError("Outcome-backed milestone progress");
   if (error) throw error;
   const row = data as MilestoneRow;
   return {

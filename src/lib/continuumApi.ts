@@ -1,5 +1,6 @@
 import type { ContinuumParticipation, ContinuumParticipationKey } from "@/domain/continuum";
 import { isOfflinePreviewMode, supabase } from "@/lib/supabase";
+import { dormantFeatureError, isSupabaseFeatureUnavailable } from "@/lib/supabaseFeature";
 
 type Row = {
   id: string;
@@ -39,11 +40,6 @@ function mapRow(row: Row): ContinuumParticipation {
   };
 }
 
-function relationMissing(error: { code?: string; message?: string } | null): boolean {
-  const message = (error?.message ?? "").toLowerCase();
-  return error?.code === "42P01" || error?.code === "PGRST205" || (message.includes("continuum_participations") && message.includes("does not exist"));
-}
-
 export async function listMyContinuumParticipations(): Promise<ContinuumParticipation[]> {
   if (isOfflinePreviewMode) return [];
   const { data, error } = await supabase
@@ -51,7 +47,7 @@ export async function listMyContinuumParticipations(): Promise<ContinuumParticip
     .select(FIELDS)
     .eq("status", "active")
     .order("updated_at", { ascending: false });
-  if (relationMissing(error)) return [];
+  if (isSupabaseFeatureUnavailable(error)) return [];
   if (error) throw error;
   return ((data ?? []) as Row[]).map(mapRow);
 }
@@ -62,6 +58,7 @@ export async function setMyContinuumParticipation(key: ContinuumParticipationKey
     p_participation_key: key,
     p_active: active,
   });
+  if (isSupabaseFeatureUnavailable(error)) throw dormantFeatureError("Continuum participation");
   if (error) throw error;
   return mapRow(data as Row);
 }
