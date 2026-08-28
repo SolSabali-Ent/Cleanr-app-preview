@@ -29,10 +29,12 @@ export function ProviderContextProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let active = true;
     async function loadProviders() {
+      // provider_public_profiles already owns visibility scope: marketplace-active CSPs are
+      // discoverable, while an authenticated customer also retains visibility of CSPs assigned to
+      // their bookings after later suspension. Do not re-filter that relationship continuity here.
       const { data } = await supabase
         .from("provider_public_profiles")
         .select("*")
-        .eq("marketplace_access", true)
         .order("full_name", { ascending: true });
       if (!active) return;
       setProviders((data ?? []) as PublicProvider[]);

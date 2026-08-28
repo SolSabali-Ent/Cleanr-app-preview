@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
 import { useProfile } from "../../lib/useProfile";
@@ -13,15 +13,6 @@ type BookingAuditRow = {
   check_out_at: string | null;
   payout_approved_at: string | null;
   payout_released: boolean | null;
-};
-
-type DisputeRow = {
-  id: string;
-  booking_id: string;
-  provider_id: string;
-  status: "open" | "under_review" | "resolved";
-  issue_type: string;
-  created_at: string;
 };
 
 type ProviderOpsRow = {
@@ -48,7 +39,6 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 export function OperationsDashboard() {
   const { profile } = useProfile();
   const [bookings, setBookings] = useState<BookingAuditRow[]>([]);
-  const [disputes, setDisputes] = useState<DisputeRow[]>([]);
   const [providers, setProviders] = useState<ProviderOpsRow[]>([]);
   const [bookingIdInput, setBookingIdInput] = useState("");
   const [message, setMessage] = useState<string | null>(null);
@@ -60,18 +50,13 @@ export function OperationsDashboard() {
     setLoading(true);
     setMessage(null);
     try {
-      const [b, d, p] = await Promise.all([
+      const [b, p] = await Promise.all([
         supabase
           .from("bookings")
           .select(
             "id,status,customer_id,provider_id,check_in_at,check_out_at,payout_approved_at,payout_released"
           )
           .order("updated_at", { ascending: false })
-          .limit(20),
-        supabase
-          .from("disputes")
-          .select("id,booking_id,provider_id,status,issue_type,created_at")
-          .order("created_at", { ascending: false })
           .limit(20),
         supabase
           .from("profiles")
@@ -82,11 +67,9 @@ export function OperationsDashboard() {
       ]);
 
       if (b.error) throw b.error;
-      if (d.error) throw d.error;
       if (p.error) throw p.error;
 
       setBookings((b.data ?? []) as BookingAuditRow[]);
-      setDisputes((d.data ?? []) as DisputeRow[]);
       setProviders((p.data ?? []) as ProviderOpsRow[]);
     } catch (err) {
       setMessage(err instanceof Error ? err.message : "Failed to load admin dashboard");
@@ -99,11 +82,6 @@ export function OperationsDashboard() {
     if (!isAdmin) return;
     void load();
   }, [isAdmin]);
-
-  const openDisputes = useMemo(
-    () => disputes.filter((d) => d.status === "open" || d.status === "under_review"),
-    [disputes]
-  );
 
   const approvePayout = async () => {
     if (!bookingIdInput.trim()) {
@@ -159,7 +137,7 @@ export function OperationsDashboard() {
           Admin Operations
         </h1>
         <p className="mt-1 text-sm" style={{ color: adminTheme.textSecondary }}>
-          Booking audit, disputes, payout approvals, and marketplace controls.
+          Booking audit, payout approvals, and marketplace controls.
         </p>
       </header>
 
@@ -211,65 +189,48 @@ export function OperationsDashboard() {
               </tr>
             </thead>
             <tbody>
-              {bookings.map((b) => {
-                const payoutState = b.payout_released
-                  ? "released"
-                  : b.payout_approved_at
-                    ? "approved"
-                    : "held";
-                return (
-                  <tr key={b.id} className="border-t border-slate-200">
-                    <td className="py-2">{b.id}</td>
-                    <td>{b.status}</td>
-                    <td>{b.check_in_at ?? "—"}</td>
-                    <td>{b.check_out_at ?? "—"}</td>
-                    <td>{payoutState}</td>
-                    <td>
-                      <Link
-                        to={`/admin/booking/${b.id}/messages`}
-                        className="text-xs underline"
-                        style={{ color: adminTheme.primary }}
-                      >
-                        View messages
-                      </Link>
-                    </td>
-                  </tr>
-                );
-              })}
+              {loading ? (
+                <tr>
+                  <td colSpan={6} className="py-4 text-sm text-slate-500">
+                    Loading bookings…
+                  </td>
+                </tr>
+              ) : bookings.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="py-4 text-sm text-slate-500">
+                    No bookings found.
+                  </td>
+                </tr>
+              ) : (
+                bookings.map((b) => {
+                  const payoutState = b.payout_released
+                    ? "released"
+                    : b.payout_approved_at
+                      ? "approved"
+                      : "held";
+                  return (
+                    <tr key={b.id} className="border-t border-slate-200">
+                      <td className="py-2">{b.id}</td>
+                      <td>{b.status}</td>
+                      <td>{b.check_in_at ?? "—"}</td>
+                      <td>{b.check_out_at ?? "—"}</td>
+                      <td>{payoutState}</td>
+                      <td>
+                        <Link
+                          to={`/admin/booking/${b.id}/messages`}
+                          className="text-xs underline"
+                          style={{ color: adminTheme.primary }}
+                        >
+                          View messages
+                        </Link>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>
-      </Section>
-
-      <Section title="Dispute Management">
-        <p className="mb-3 text-xs" style={{ color: adminTheme.textSecondary }}>
-          Disputes are review-only here until refund and payout resolutions are backed by explicit Stripe/payment lifecycle actions.
-        </p>
-        {loading ? (
-          <p className="text-sm text-slate-500">Loading disputes…</p>
-        ) : openDisputes.length === 0 ? (
-          <p className="text-sm text-slate-500">No open disputes.</p>
-        ) : (
-          <div className="space-y-3">
-            {openDisputes.map((d) => (
-              <div key={d.id} className="rounded-lg border border-slate-200 p-3">
-                <p className="text-sm font-medium">{d.booking_id}</p>
-                <p className="mt-1 text-xs text-slate-500">
-                  {d.issue_type} · {d.status}
-                </p>
-                <div className="mt-2">
-                  <Link
-                    to={`/admin/booking/${d.booking_id}/messages`}
-                    className="text-xs underline"
-                    style={{ color: adminTheme.primary }}
-                  >
-                    Review conversation
-                  </Link>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
       </Section>
 
       <Section title="Marketplace Access">
