@@ -47,10 +47,19 @@ function coverageReasonLabel(reason: TrustedServiceHandoffSummary["handoff"]["re
   }
 }
 
+function handoffStatusLabel(summary: TrustedServiceHandoffSummary): string {
+  const { handoff } = summary;
+  if (handoff.status === "active" && handoff.fulfillmentAppliedAt) return "backup assigned";
+  return handoff.status.replaceAll("_", " ");
+}
+
 function handoffStatusCopy(summary: TrustedServiceHandoffSummary): string {
   const { handoff, viewerRole } = summary;
+  if (handoff.status === "active" && handoff.fulfillmentAppliedAt) {
+    return "The backup CSP and household both agreed, and Cleanr formally reconciled the booking to the trusted backup. The residential service engine now owns fulfillment.";
+  }
   if (handoff.status === "active") {
-    return "The backup CSP and household both agreed. Cleanr has recorded an active trust transfer for this visit; the service engine remains authoritative for fulfillment.";
+    return "The backup CSP and household both agreed. The trust transfer is active, but formal booking assignment is still waiting on privileged Cleanr/Kinex operations reconciliation.";
   }
   if (viewerRole === "backup_provider") {
     if (handoff.backupAcceptedAt && !handoff.customerConfirmedAt) return "You agreed to cover this visit. Waiting for household approval.";
@@ -60,6 +69,17 @@ function handoffStatusCopy(summary: TrustedServiceHandoffSummary): string {
   if (handoff.backupAcceptedAt && !handoff.customerConfirmedAt) return "Your backup agreed. Waiting for household approval.";
   if (handoff.customerConfirmedAt && !handoff.backupAcceptedAt) return "The household approved your backup. Waiting for the backup CSP to accept.";
   return "You proposed a trusted backup. The handoff stays inactive until the backup CSP and household both agree.";
+}
+
+function handoffBoundaryCopy(summary: TrustedServiceHandoffSummary): string {
+  const { handoff } = summary;
+  if (handoff.fulfillmentAppliedAt) {
+    return "The booking is formally assigned to the trusted backup. From here, normal Jobs/service-engine rules own fulfillment and customer confirmation; the handoff itself cannot declare service complete.";
+  }
+  if (handoff.status === "active") {
+    return "Mutual consent does not itself reassign the booking. Only privileged Cleanr/Kinex operations can reconcile the trusted backup into the residential service engine.";
+  }
+  return "A coverage request records proposed consent and trust only. It does not reassign the booking or let either CSP declare fulfillment complete.";
 }
 
 export default function NetworkScreen() {
@@ -216,7 +236,7 @@ export default function NetworkScreen() {
                       <p className="text-sm font-medium">{viewerRole === "backup_provider" ? "Coverage request for you" : "Your trusted backup handoff"}</p>
                       <p className="mt-1 text-xs" style={{ color: CSP_TEXT_SECONDARY }}>{coverageReasonLabel(handoff.reason)}</p>
                     </div>
-                    <span className="text-xs capitalize" style={{ color: CSP_PRIMARY_BUTTON }}>{handoff.status.replaceAll("_", " ")}</span>
+                    <span className="text-xs capitalize" style={{ color: CSP_PRIMARY_BUTTON }}>{handoffStatusLabel(summary)}</span>
                   </div>
                   <p className="mt-2 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>{handoffStatusCopy(summary)}</p>
                   {handoff.reasonNote ? <p className="mt-2 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>{handoff.reasonNote}</p> : null}
@@ -229,7 +249,7 @@ export default function NetworkScreen() {
                     <button type="button" disabled={busyHandoffId === handoff.id} onClick={() => void respondToHandoff(handoff.id, "cancel")} className="mt-4 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold">Cancel handoff</button>
                   ) : null}
                   <p className="mt-3 text-[11px] leading-4" style={{ color: CSP_TEXT_SECONDARY }}>
-                    This records consent and trust transfer only. It does not reassign the booking or let either CSP declare fulfillment complete.
+                    {handoffBoundaryCopy(summary)}
                   </p>
                 </div>
               );
