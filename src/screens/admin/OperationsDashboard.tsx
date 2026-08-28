@@ -116,33 +116,20 @@ export function OperationsDashboard() {
     [disputes]
   );
 
-  const runBookingAction = async (rpc: string) => {
+  const approvePayout = async () => {
     if (!bookingIdInput.trim()) {
       setMessage("Enter a booking id first.");
       return;
     }
     setMessage(null);
-    const { error } = await supabase.rpc(rpc, { p_booking_id: bookingIdInput.trim() });
-    if (error) {
-      setMessage(error.message);
-      return;
-    }
-    setMessage(`Success: ${rpc}`);
-    await load();
-  };
-
-  const resolveDispute = async (disputeId: string, resolution: string) => {
-    setMessage(null);
-    const { error } = await supabase.rpc("admin_resolve_dispute", {
-      p_dispute_id: disputeId,
-      p_resolution: resolution,
-      p_partial_refund_cents: null,
+    const { error } = await supabase.rpc("admin_approve_payout", {
+      p_booking_id: bookingIdInput.trim(),
     });
     if (error) {
       setMessage(error.message);
       return;
     }
-    setMessage(`Resolved dispute ${disputeId} with ${resolution}`);
+    setMessage("Payout approved. Release still requires Stripe transfer truth.");
     await load();
   };
 
@@ -201,7 +188,7 @@ export function OperationsDashboard() {
         </div>
       )}
 
-      <Section title="Booking Audit View (Geo Logs)">
+      <Section title="Booking Audit & Payout Approval">
         <div className="flex flex-wrap gap-2">
           <input
             value={bookingIdInput}
@@ -211,21 +198,7 @@ export function OperationsDashboard() {
             style={{ borderColor: adminTheme.border, backgroundColor: adminTheme.surface }}
           />
           <button
-            onClick={() => void runBookingAction("admin_override_check_in")}
-            className="min-h-[52px] rounded-[14px] px-6 text-xs font-semibold text-white"
-            style={{ backgroundColor: adminTheme.primary }}
-          >
-            Override Check-In
-          </button>
-          <button
-            onClick={() => void runBookingAction("admin_override_check_out")}
-            className="min-h-[52px] rounded-[14px] px-6 text-xs font-semibold text-white"
-            style={{ backgroundColor: adminTheme.primary }}
-          >
-            Override Check-Out
-          </button>
-          <button
-            onClick={() => void runBookingAction("admin_approve_payout")}
+            onClick={() => void approvePayout()}
             className="min-h-[52px] rounded-[14px] px-6 text-xs font-semibold text-white"
             style={{ backgroundColor: adminTheme.primary }}
           >
@@ -234,7 +207,7 @@ export function OperationsDashboard() {
         </div>
 
         <p className="mt-2 text-xs" style={{ color: adminTheme.textSecondary }}>
-          Approval authorizes payout operations. A payout is shown as released only after Stripe transfer truth is recorded.
+          Check-in and check-out are CSP service evidence and are not editable from this dashboard. Payout approval authorizes operations; release is shown only after Stripe transfer truth is recorded.
         </p>
 
         <div className="mt-3 overflow-x-auto">
@@ -281,6 +254,9 @@ export function OperationsDashboard() {
       </Section>
 
       <Section title="Dispute Management">
+        <p className="mb-3 text-xs" style={{ color: adminTheme.textSecondary }}>
+          Disputes are review-only here until refund and payout resolutions are backed by explicit Stripe/payment lifecycle actions.
+        </p>
         {loading ? (
           <p className="text-sm text-slate-500">Loading disputes…</p>
         ) : openDisputes.length === 0 ? (
@@ -293,25 +269,14 @@ export function OperationsDashboard() {
                 <p className="mt-1 text-xs text-slate-500">
                   {d.issue_type} · {d.status}
                 </p>
-                <div className="mt-2 flex flex-wrap items-center gap-2">
+                <div className="mt-2">
                   <Link
                     to={`/admin/booking/${d.booking_id}/messages`}
                     className="text-xs underline"
                     style={{ color: adminTheme.primary }}
                   >
-                    View messages
+                    Review conversation
                   </Link>
-                  {["full_payout", "partial_refund", "full_refund", "reservice_required"].map(
-                    (r) => (
-                      <button
-                        key={r}
-                        onClick={() => void resolveDispute(d.id, r)}
-                        className="rounded-md border border-slate-300 px-2 py-1 text-xs"
-                      >
-                        {r}
-                      </button>
-                    )
-                  )}
                 </div>
               </div>
             ))}
