@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useNavigate, Navigate } from "react-router-dom";
 import { supabase } from "../../../lib/supabase";
 import { useCspFlowProfile } from "@/hooks/useCspFlowProfile";
@@ -9,7 +9,6 @@ import {
   clampServiceRadiusMiles,
   isValidServiceRadiusMiles,
 } from "../../../config/serviceArea";
-import { emitOnboardingCompleted } from "../../../lib/kinex/events";
 import { traceCspFlow } from "@/lib/cspFlowTrace";
 import { getCspFlowRedirectTarget } from "@/lib/providerFlow";
 import { mergeFlowProfileWithHandoffs, setOnboardingCompleteHandoff } from "@/lib/cspFlowHandoff";
@@ -52,7 +51,6 @@ export default function OnboardingWizard() {
   const [radius, setRadius] = useState<number>(15);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const hasEmittedOnboardingCompleted = useRef(false);
 
   useEffect(() => {
     setFullName(initial.full_name);
@@ -136,11 +134,8 @@ export default function OnboardingWizard() {
         waiver_accepted_at: profileFlow.waiver_accepted_at ?? null,
       });
 
-      if (!hasEmittedOnboardingCompleted.current) {
-        hasEmittedOnboardingCompleted.current = true;
-        emitOnboardingCompleted(userId);
-      }
-
+      // Durable onboarding_completed Kinex truth is emitted by the profile transition outbox trigger.
+      // This screen owns user input and navigation only.
       const preferencesUpsert = await supabase
         .from("provider_preferences")
         .upsert(

@@ -15,6 +15,7 @@ type TracePayload = {
   uid?: string | null;
   profileId?: string | null;
   provider_interest_submitted_at?: string | null;
+  provider_review_band?: string | null;
   interestSubmitted?: boolean;
   is_onboarded?: boolean;
   waiver_accepted_at?: string | null;

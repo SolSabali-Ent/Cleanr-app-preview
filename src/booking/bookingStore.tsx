@@ -22,8 +22,6 @@ export interface BookingState {
   date: string | null;
   time: string | null;
   contact: ContactInfo;
-  selectedProviderId: string | null;
-  selectedProviderName?: string | null;
 }
 
 export interface BookingContextType {
@@ -51,8 +49,6 @@ const initialState: BookingState = {
     email: "",
     phone: "",
   },
-  selectedProviderId: null,
-  selectedProviderName: undefined,
 };
 
 export const BookingContext = createContext<BookingContextType | null>(null);

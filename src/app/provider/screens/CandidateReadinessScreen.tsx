@@ -3,11 +3,9 @@ import { Navigate, useNavigate } from "react-router-dom";
 import { supabase } from "../../../lib/supabase";
 import { useCspFlowProfile } from "@/hooks/useCspFlowProfile";
 import {
-  computeProviderReviewBand,
   CLEANING_EXPERIENCE_BUCKETS,
   type CleaningExperienceBucket,
 } from "../../../lib/providerReadiness";
-import { emitProviderInterestSubmitted } from "../../../lib/kinex/events";
 import { traceCspFlow } from "@/lib/cspFlowTrace";
 import {
   getCspFlowRedirectTarget,
@@ -31,6 +29,13 @@ const EXPERIENCE_LABELS: Record<CleaningExperienceBucket, string> = {
   "1_3y": "1–3 years",
   "3_5y": "3–5 years",
   "5y_plus": "5+ years",
+};
+
+type ReadinessSubmissionResult = {
+  provider_id?: string;
+  scope?: string;
+  provider_review_band?: string;
+  submitted_at?: string;
 };
 
 export default function CandidateReadinessScreen() {
@@ -100,22 +105,21 @@ export default function CandidateReadinessScreen() {
 
   const handoffBefore = hasProviderInterestHandoff(uid);
   const flowForDecision = mergeFlowProfileWithHandoffs(profile, uid);
-
   const forwardTarget = getCspFlowRedirectTarget(CANDIDATE_PATH, flowForDecision);
 
   if (forwardTarget && forwardTarget !== CANDIDATE_PATH) {
     const dbInterest = hasProviderInterestSubmitted(profile);
-    if (forwardTarget === "/csp/dashboard/onboarding" && dbInterest && uid) {
-      setProviderInterestHandoff(uid);
+    if (forwardTarget === "/csp/dashboard/onboarding" && dbInterest) {
+      setProviderInterestHandoff(profile.id);
       traceCspFlow("candidate-readiness", {
         branch: "candidate.set-handoff.interest-exists",
         reason: "interest_from_db_before_onboarding_redirect",
         pathname: CANDIDATE_PATH,
-        uid,
+        uid: profile.id,
         profileId: profile.id,
         provider_interest_submitted_at: profile.provider_interest_submitted_at ?? null,
         handoffBefore,
-        handoffAfter: hasProviderInterestHandoff(uid),
+        handoffAfter: hasProviderInterestHandoff(profile.id),
         computedInterestSubmitted: hasProviderInterestSubmitted(flowForDecision),
         target: forwardTarget,
       });
@@ -128,11 +132,11 @@ export default function CandidateReadinessScreen() {
       branch: redirectBranch,
       reason: "flow_target",
       pathname: CANDIDATE_PATH,
-      uid,
+      uid: profile.id,
       profileId: profile.id,
       provider_interest_submitted_at: profile.provider_interest_submitted_at ?? null,
       handoffBefore,
-      handoffAfter: hasProviderInterestHandoff(uid),
+      handoffAfter: hasProviderInterestHandoff(profile.id),
       computedInterestSubmitted: hasProviderInterestSubmitted(flowForDecision),
       is_onboarded: profile.is_onboarded,
       application_status: profile.application_status,
@@ -159,15 +163,19 @@ export default function CandidateReadinessScreen() {
       return;
     }
 
-    const submittedAt = new Date().toISOString();
-
+    const providerId = profile.id;
     setSaving(true);
-    const interestPayload = { provider_interest_submitted_at: submittedAt };
-    const traceUpd = await traceProfileWriteStart({
-      source: "CandidateReadinessScreen.submitInterest",
-      operation: "update",
-      targetId: profile.id,
-      payload: interestPayload,
+    const rpcPayload = {
+      p_experience_bucket: bucket,
+      p_has_own_equipment: hasEquipment,
+      p_has_reliable_transportation: hasTransport,
+      p_scope: "residential",
+    };
+    const traceRpc = await traceProfileWriteStart({
+      source: "CandidateReadinessScreen.submitInterest:submit_provider_readiness",
+      operation: "rpc",
+      targetId: providerId,
+      payload: rpcPayload,
       pathname: CANDIDATE_PATH,
       cspFlowState: {
         provider_interest_submitted_at: profile.provider_interest_submitted_at,
@@ -175,63 +183,53 @@ export default function CandidateReadinessScreen() {
         application_status: profile.application_status,
       },
     });
-    const updateResult = await supabase.from("profiles").update(interestPayload).eq("id", profile.id);
-    traceProfileWriteResult(traceUpd, updateResult);
-    const { error: updateError } = updateResult;
+    const submitResult = await supabase.rpc("submit_provider_readiness", rpcPayload);
+    traceProfileWriteResult(traceRpc, submitResult);
 
-    if (updateError) {
-      setError(updateError.message);
+    if (submitResult.error) {
+      setError(submitResult.error.message);
       setSaving(false);
       return;
     }
 
+    const result = (submitResult.data ?? {}) as ReadinessSubmissionResult;
+    const submittedAt = result.submitted_at ?? new Date().toISOString();
+
     traceCspFlow("candidate-readiness", {
       branch: "candidate.write.interest",
-      reason: "profile_update_success",
+      reason: "readiness_rpc_success",
       pathname: CANDIDATE_PATH,
-      uid,
-      profileId: profile.id,
+      uid: providerId,
+      profileId: providerId,
       provider_interest_submitted_at: submittedAt,
+      provider_review_band: result.provider_review_band ?? null,
     });
 
-    const submitHandoffBefore = hasProviderInterestHandoff(uid);
-    if (uid) {
-      setProviderInterestHandoff(uid);
-      traceCspFlow("candidate-readiness", {
-        branch: "candidate.set-handoff.interest-after-submit",
-        reason: "submit_success",
-        pathname: CANDIDATE_PATH,
-        uid,
-        profileId: profile.id,
-        provider_interest_submitted_at: submittedAt,
-        handoffBefore: submitHandoffBefore,
-        handoffAfter: hasProviderInterestHandoff(uid),
-        target: "/csp/dashboard/onboarding",
-      });
-    }
+    const submitHandoffBefore = hasProviderInterestHandoff(providerId);
+    setProviderInterestHandoff(providerId);
+    traceCspFlow("candidate-readiness", {
+      branch: "candidate.set-handoff.interest-after-submit",
+      reason: "submit_success",
+      pathname: CANDIDATE_PATH,
+      uid: providerId,
+      profileId: providerId,
+      provider_interest_submitted_at: submittedAt,
+      handoffBefore: submitHandoffBefore,
+      handoffAfter: hasProviderInterestHandoff(providerId),
+      target: "/csp/dashboard/onboarding",
+    });
 
     await refreshFlowProfile();
-    emitProviderInterestSubmitted(profile.id, {
-      cleaning_experience_bucket: bucket,
-      has_own_equipment: hasEquipment,
-      has_reliable_transportation: hasTransport,
-      provider_review_band: computeProviderReviewBand({
-        cleaning_experience_bucket: bucket,
-        has_own_equipment: hasEquipment,
-        has_reliable_transportation: hasTransport,
-      }),
-      scope: "residential",
-    });
     setSaving(false);
     traceCspFlow("candidate-readiness", {
       branch: "candidate.submit.navigate-onboarding",
       reason: "submit_success",
       pathname: CANDIDATE_PATH,
-      uid,
-      profileId: profile.id,
+      uid: providerId,
+      profileId: providerId,
       provider_interest_submitted_at: submittedAt,
       handoffBefore: submitHandoffBefore,
-      handoffAfter: uid ? hasProviderInterestHandoff(uid) : false,
+      handoffAfter: hasProviderInterestHandoff(providerId),
       target: "/csp/dashboard/onboarding",
     });
     navigate("/csp/dashboard/onboarding", { replace: true });

@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../../../lib/supabase";
 import { track } from "../../../lib/analytics";
-import { emitAccountCreated } from "../../../lib/kinex/events";
 import { traceCspFlow } from "@/lib/cspFlowTrace";
 
 const CANDIDATE_READINESS_PATH = "/csp/dashboard/candidate-readiness";
@@ -53,7 +52,7 @@ export default function CSPSignup() {
           application_approved_at: null,
           marketplace_access: false,
         });
-        emitAccountCreated(data.user.id);
+        // Durable account_created Kinex truth is emitted by the CSP profile insert outbox trigger.
       }
       track("csp_signup_completed");
       if (data.session) {

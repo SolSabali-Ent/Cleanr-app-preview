@@ -1,9 +1,10 @@
 /**
- * booking_confirmed (Kinex) writer: this screen after getBooking succeeds + session idempotency.
- * Semantics: post-booking UI acknowledgment (see emitBookingConfirmed + confirmation_scope in kinex/events).
- * Not Stripe payment capture; see edge stripe-webhook booking_payment_captured when PI metadata is wired.
- * TODO(payment): when customer checkout is integrated, create PI/checkout before redirecting here
- * from StepReview and require PI metadata.booking_id so webhook can set durable payment truth.
+ * Post-checkout booking acknowledgment screen.
+ *
+ * This screen reads durable Stripe payment truth; it does not produce the canonical
+ * `booking_confirmed` Kinex event. The Stripe webhook owns payment capture and the
+ * corresponding durable Kinex/outbox events. `Booking.status === "confirmed"` is a
+ * later service-lifecycle state and must not be used as payment truth here.
  */
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
@@ -17,8 +18,8 @@ import { CheckCircle } from "lucide-react";
 import { InstallCTA } from "../components/InstallCTA";
 import { Button } from "../components/ui/Button";
 
-function bookingHasDurablePaymentTruth(booking: Booking): boolean {
-  return Boolean(booking.stripe_payment_intent_id) || booking.status === "confirmed";
+function bookingHasCapturedPaymentTruth(booking: Booking): boolean {
+  return Boolean(booking.stripe_payment_intent_id);
 }
 
 export default function BookingConfirmation() {
@@ -38,14 +39,14 @@ export default function BookingConfirmation() {
       setBooking(b);
       setLoading(false);
       if (b) {
-        const paymentConfirmed = bookingHasDurablePaymentTruth(b);
+        const paymentConfirmed = bookingHasCapturedPaymentTruth(b);
         track(paymentConfirmed ? "booking_confirmed" : "booking_request_received", { bookingId });
       }
     });
   }, [bookingId, navigate]);
 
   useEffect(() => {
-    if (!bookingId || !booking || bookingHasDurablePaymentTruth(booking)) return;
+    if (!bookingId || !booking || bookingHasCapturedPaymentTruth(booking)) return;
     let mounted = true;
     const intervalId = window.setInterval(() => {
       void getBooking(bookingId).then((latest) => {
@@ -107,7 +108,7 @@ export default function BookingConfirmation() {
   const whenLabel =
     booking.scheduled_start &&
     new Date(booking.scheduled_start).toLocaleDateString();
-  const paymentConfirmed = bookingHasDurablePaymentTruth(booking);
+  const paymentConfirmed = bookingHasCapturedPaymentTruth(booking);
 
   return (
     <div className="min-h-screen bg-[#F7F8FB] flex items-center justify-center px-4">
@@ -122,7 +123,7 @@ export default function BookingConfirmation() {
         </h1>
         <p className="text-[14px] font-medium text-[#667085] mb-6">
           {paymentConfirmed
-            ? "Your cleaning service is confirmed. We&apos;ll email a confirmation when your email is on file."
+            ? "Your service is confirmed. We&apos;ll email a confirmation when your email is on file."
             : paymentCancelled
               ? "Your booking request is saved, but payment was not completed. Complete payment to confirm this booking."
               : "Your booking request was created, but payment is still pending. We&apos;ll confirm your booking after payment is received."}
@@ -135,7 +136,7 @@ export default function BookingConfirmation() {
             <p className="text-[12px] mt-1 text-[#78350F]">
               {paymentCancelled
                 ? "Return to booking to complete checkout when you&apos;re ready."
-                : "Payment may still be processing. Booking confirmation is only sent after durable payment truth is recorded."}
+                : "Payment may still be processing. Booking confirmation appears only after Stripe payment success is recorded on this booking."}
             </p>
           </div>
         ) : null}
@@ -178,4 +179,3 @@ export default function BookingConfirmation() {
     </div>
   );
 }
-

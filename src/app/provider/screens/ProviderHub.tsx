@@ -13,11 +13,11 @@ export function ProviderHub() {
           className="h-36 w-36 sm:h-44 sm:w-44 md:h-52 md:w-52 object-contain mb-6"
         />
 
-        <h1 className="text-3xl font-bold text-slate-900">Cleanr for Cleaners</h1>
+        <h1 className="text-3xl font-bold text-slate-900">Cleanr for Service Providers</h1>
         <p className="mt-3 text-sm text-slate-600">
-          Manage jobs. Grow your income.
+          Build reliable residential service relationships.
           <br />
-          Work on your schedule.
+          Manage work, availability, and what comes next.
         </p>
 
         <div className="w-full mt-8 space-y-3">

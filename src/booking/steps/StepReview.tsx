@@ -1,11 +1,10 @@
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useBooking } from "../bookingStore";
-import { createBooking, createBookingCheckoutSession, getClientRef } from "../../lib/bookingApi";
+import { createBooking, createBookingCheckoutSession } from "../../lib/bookingApi";
 import { recordBookingProgressEvent, serviceOptionKeyFromBookingService } from "../../lib/bookingProgress";
-import { emitBookingAbandoned, emitBookingCreated } from "../../lib/kinex/events";
-import { customerFacingServiceLabel, kinexServiceFieldsFromStored } from "../../lib/serviceCatalog";
-import { normalizeBookingSchedule } from "../../lib/bookingSchedule";
+import { emitBookingAbandoned } from "../../lib/kinex/events";
+import { customerFacingServiceLabel } from "../../lib/serviceCatalog";
 import { Button } from "../../components/ui/Button";
 import { supabase } from "../../lib/supabase";
 
@@ -18,7 +17,6 @@ export function StepReview({ onBack }: StepReviewProps) {
   const { state } = useBooking();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const lastEmittedBookingId = useRef<string | null>(null);
 
   const handleConfirm = async () => {
     setSubmitError(null);
@@ -45,17 +43,8 @@ export function StepReview({ onBack }: StepReviewProps) {
         zip: state.zipcode ?? null,
         serviceOptionKey: serviceOptionKeyFromBookingService(state.serviceType),
       });
-      if (lastEmittedBookingId.current !== bookingId) {
-        lastEmittedBookingId.current = bookingId;
-        const normalizedSchedule = normalizeBookingSchedule(state.date, state.time);
-        const scheduledFor = normalizedSchedule?.scheduledStartIso ?? new Date().toISOString();
-        emitBookingCreated(getClientRef(), {
-          booking_id: bookingId,
-          market_region_id: "atlanta",
-          scheduled_for: scheduledFor,
-          ...kinexServiceFieldsFromStored(state.serviceType),
-        });
-      }
+      // Durable booking_created Kinex truth is emitted by the booking insert outbox trigger.
+      // This screen records funnel/navigation progress only; it does not author product truth.
       void recordBookingProgressEvent({
         eventType: "checkout_started_payment_not_completed",
         currentStep: "review",

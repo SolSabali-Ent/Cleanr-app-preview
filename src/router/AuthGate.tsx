@@ -44,24 +44,6 @@ export function AuthGate({ children }: { children?: ReactNode }) {
         return;
       }
 
-      if (profile.role !== "csp") {
-        const clientRef =
-          typeof localStorage !== "undefined" ? localStorage.getItem("cleanr_client_ref") : null;
-        if (clientRef) {
-          void (async () => {
-            try {
-              await supabase
-                .from("bookings")
-                .update({ customer_id: session.user.id, updated_at: new Date().toISOString() })
-                .is("customer_id", null)
-                .eq("client_ref", clientRef);
-            } catch {
-              // Non-blocking bridge: routing must continue even if ownership attach fails.
-            }
-          })();
-        }
-      }
-
       if (isMounted) {
         setRedirectPath(profile.role === "csp" ? "/csp/dashboard" : "/app");
         setProfileMissing(false);

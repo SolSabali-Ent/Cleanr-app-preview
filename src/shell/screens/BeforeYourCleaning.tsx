@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { getBooking, updateCustomerBookingAccess } from "../../lib/bookingApi";
+import { getBooking } from "../../lib/bookingApi";
+import { updateCustomerBookingAccess } from "../../lib/bookingAccessApi";
 import type { Booking } from "../../domain/booking";
 import { Button } from "../../components/ui/Button";
 import { CustomerTrustedHandoffCard } from "../components/CustomerTrustedHandoffCard";

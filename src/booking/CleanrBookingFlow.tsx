@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { track } from "../lib/analytics";
-import { getClientRef } from "../lib/bookingApi";
+import { startBookingAttemptRef } from "../lib/bookingAttemptRef";
 import { emitBookingStarted, emitBookingAbandoned } from "../lib/kinex/events";
 import { recordBookingProgressEvent } from "../lib/bookingProgress";
 import { supabase } from "../lib/supabase";
@@ -14,7 +14,6 @@ import { StepFrequency } from "./steps/StepFrequency";
 import { StepExtras } from "./steps/StepExtras";
 import { StepDateTime } from "./steps/StepDateTime";
 import { StepContact } from "./steps/StepContact";
-import { StepChooseProvider } from "./steps/StepChooseProvider";
 import { StepReview } from "./steps/StepReview";
 
 export type WizardStepId =
@@ -25,7 +24,6 @@ export type WizardStepId =
   | "extras"
   | "datetime"
   | "contact"
-  | "provider"
   | "review";
 
 const STEPS: { id: WizardStepId; title: string; subtitle?: string }[] = [
@@ -38,19 +36,19 @@ const STEPS: { id: WizardStepId; title: string; subtitle?: string }[] = [
     id: "service",
     title: "What do you need cleaned?",
     subtitle:
-      "Choose the option that best matches your home or space. You can adjust details later.",
+      "Choose the option that best matches your home. You can adjust details later.",
   },
   {
     id: "home",
     title: "Tell us about your home",
     subtitle:
-      "Bedrooms and bathrooms help us estimate time and match the right pro.",
+      "Bedrooms and bathrooms help us estimate time and match the right provider.",
   },
   {
     id: "frequency",
     title: "How often do you want cleaning?",
     subtitle:
-      "Save more when you book weekly or bi-weekly maintenance cleanings.",
+      "Choose the schedule that best fits your household and recurring cleaning needs.",
   },
   {
     id: "extras",
@@ -70,14 +68,9 @@ const STEPS: { id: WizardStepId; title: string; subtitle?: string }[] = [
       "We'll send updates and reminders about your booking to this contact.",
   },
   {
-    id: "provider",
-    title: "Choose your cleaner",
-    subtitle: "All providers are vetted, background-checked, and insured.",
-  },
-  {
     id: "review",
     title: "Review your booking",
-    subtitle: "Double-check everything before you confirm.",
+    subtitle: "Double-check everything before you continue to payment.",
   },
 ];
 
@@ -156,9 +149,6 @@ function CleanrBookingFlowInner() {
       case "contact":
         return <StepContact onNext={goNext} onBack={goBack} />;
 
-      case "provider":
-        return <StepChooseProvider onNext={goNext} onBack={goBack} />;
-
       case "review":
         return <StepReview onBack={goBack} />;
 
@@ -177,7 +167,7 @@ function CleanrBookingFlowInner() {
       onBack={goBack}
       bottomHint={
         current.id === "zip"
-          ? "Trusted by 5,000+ happy customers • Available in 50+ cities nationwide"
+          ? "Residential cleaning • Clear booking • Reliable support"
           : undefined
       }
     >
@@ -187,9 +177,12 @@ function CleanrBookingFlowInner() {
 }
 
 export function CleanrBookingFlow() {
-  useEffect(() => {
-    getClientRef();
-  }, []);
+  const hasStartedAttempt = useRef(false);
+  if (!hasStartedAttempt.current) {
+    startBookingAttemptRef();
+    hasStartedAttempt.current = true;
+  }
+
   return (
     <BookingProvider>
       <CleanrBookingFlowInner />
