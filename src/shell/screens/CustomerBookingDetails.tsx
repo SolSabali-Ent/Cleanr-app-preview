@@ -418,16 +418,12 @@ export function CustomerBookingDetails() {
               setReviewSubmitting(true);
               setReviewError(null);
               try {
-                const { error: insertError } = await supabase
-                  .from("reviews")
-                  .insert({
-                    booking_id: booking.id,
-                    provider_id: booking.provider_id,
-                    customer_id: customerUserId,
-                    rating: reviewRating,
-                    comment: reviewComment.trim() || null,
-                  });
-                if (insertError) throw insertError;
+                const { error: submitError } = await supabase.rpc("submit_booking_review", {
+                  p_booking_id: booking.id,
+                  p_rating: reviewRating,
+                  p_comment: reviewComment.trim() || null,
+                });
+                if (submitError) throw submitError;
                 setReviewSubmitted(true);
                 setReviewAlreadyExists(true);
                 setReviewComment("");
