@@ -7,7 +7,7 @@ import {
   listProviderEarningsBookings,
   providerEarningCentsFromRow,
   type ProviderEarningsBookingRow,
-} from "@/lib/bookingApi";
+} from "@/lib/providerEarningsApi";
 import {
   CSP_SURFACE,
   CSP_CARD_PADDING,

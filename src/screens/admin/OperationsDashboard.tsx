@@ -24,13 +24,6 @@ type DisputeRow = {
   created_at: string;
 };
 
-type InsuranceAlertRow = {
-  provider_id: string;
-  full_name: string | null;
-  insurance_expires_at: string | null;
-  insurance_status: "missing" | "expired" | "expiring_soon" | "valid";
-};
-
 type ProviderOpsRow = {
   id: string;
   full_name: string | null;
@@ -56,7 +49,6 @@ export function OperationsDashboard() {
   const { profile } = useProfile();
   const [bookings, setBookings] = useState<BookingAuditRow[]>([]);
   const [disputes, setDisputes] = useState<DisputeRow[]>([]);
-  const [alerts, setAlerts] = useState<InsuranceAlertRow[]>([]);
   const [providers, setProviders] = useState<ProviderOpsRow[]>([]);
   const [bookingIdInput, setBookingIdInput] = useState("");
   const [message, setMessage] = useState<string | null>(null);
@@ -68,7 +60,7 @@ export function OperationsDashboard() {
     setLoading(true);
     setMessage(null);
     try {
-      const [b, d, a, p] = await Promise.all([
+      const [b, d, p] = await Promise.all([
         supabase
           .from("bookings")
           .select(
@@ -81,7 +73,6 @@ export function OperationsDashboard() {
           .select("id,booking_id,provider_id,status,issue_type,created_at")
           .order("created_at", { ascending: false })
           .limit(20),
-        supabase.from("provider_insurance_expiration_alerts").select("*"),
         supabase
           .from("profiles")
           .select("id,full_name,marketplace_access,infrastructure_only")
@@ -92,12 +83,10 @@ export function OperationsDashboard() {
 
       if (b.error) throw b.error;
       if (d.error) throw d.error;
-      if (a.error) throw a.error;
       if (p.error) throw p.error;
 
       setBookings((b.data ?? []) as BookingAuditRow[]);
       setDisputes((d.data ?? []) as DisputeRow[]);
-      setAlerts((a.data ?? []) as InsuranceAlertRow[]);
       setProviders((p.data ?? []) as ProviderOpsRow[]);
     } catch (err) {
       setMessage(err instanceof Error ? err.message : "Failed to load admin dashboard");
@@ -170,7 +159,7 @@ export function OperationsDashboard() {
           Admin Operations
         </h1>
         <p className="mt-1 text-sm" style={{ color: adminTheme.textSecondary }}>
-          Booking audit, disputes, payout approvals, trust signals, and marketplace controls.
+          Booking audit, disputes, payout approvals, and marketplace controls.
         </p>
       </header>
 
@@ -281,21 +270,6 @@ export function OperationsDashboard() {
             ))}
           </div>
         )}
-      </Section>
-
-      <Section title="Insurance Expiration Alerts">
-        <p className="mb-2 text-xs" style={{ color: adminTheme.textSecondary }}>
-          Insurance is optional provider information and is not a marketplace eligibility requirement.
-        </p>
-        <div className="space-y-2 text-sm">
-          {alerts.map((a) => (
-            <div key={a.provider_id} className="rounded-lg border border-slate-200 p-2">
-              <span className="font-medium">{a.full_name ?? a.provider_id}</span>
-              <span className="ml-2 text-slate-500">{a.insurance_status}</span>
-              <span className="ml-2 text-slate-500">{a.insurance_expires_at ?? "no expiration"}</span>
-            </div>
-          ))}
-        </div>
       </Section>
 
       <Section title="Marketplace Access">
