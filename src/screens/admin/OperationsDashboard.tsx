@@ -135,10 +135,9 @@ export function OperationsDashboard() {
 
   const toggleMarketplace = async (provider: ProviderOpsRow) => {
     setMessage(null);
-    const { error } = await supabase.rpc("admin_toggle_marketplace_access", {
+    const { error } = await supabase.rpc("set_provider_marketplace_access", {
       p_provider_id: provider.id,
-      p_marketplace_access: !provider.marketplace_access,
-      p_infrastructure_only: provider.infrastructure_only,
+      p_enabled: !provider.marketplace_access,
     });
     if (error) {
       setMessage(error.message);
