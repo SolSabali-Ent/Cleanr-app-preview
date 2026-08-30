@@ -10,6 +10,8 @@ import {
 } from "@/theme/cspTheme";
 import { traceProfileWriteStart, traceProfileWriteResult } from "@/lib/debug/profileWriteTrace";
 
+const NEXT_STEP_PATH = "/csp/dashboard/application/transportation";
+
 function stepMode(status: string | null | undefined): "not_started" | "submitted" | "completed" {
   if (!status) return "not_started";
   const n = status.toLowerCase();
@@ -22,15 +24,19 @@ export default function ScreeningScreen() {
   const navigate = useNavigate();
   const { profile, refresh } = useProfile();
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const mode = stepMode(profile?.screening_status);
 
-  async function handleSubmitForReview() {
+  async function handleContinue() {
     if (!profile) return;
+
+    if (mode !== "not_started") {
+      navigate(NEXT_STEP_PATH, { replace: true });
+      return;
+    }
+
     setSaving(true);
     setError(null);
-    setMessage(null);
 
     const traceRpc = await traceProfileWriteStart({
       source: "ScreeningScreen.handleSubmitForReview:submit_screening_step",
@@ -46,72 +52,47 @@ export default function ScreeningScreen() {
       setSaving(false);
       return;
     }
-    await refresh();
+
+    try {
+      await refresh();
+    } catch {
+      // Non-blocking: the RPC already persisted the screening submission.
+    }
     setSaving(false);
-    navigate("/csp/dashboard/application/screening-submitted");
+    navigate(NEXT_STEP_PATH, { replace: true });
   }
 
   return (
     <div className="min-h-screen px-4 py-8" style={{ color: CSP_TEXT_PRIMARY }}>
       <header style={{ marginBottom: CSP_SECTION_GAP }}>
-        <h1 className="text-2xl font-semibold">Final screening</h1>
+        <p className="mb-2 text-xs font-semibold uppercase tracking-wide" style={{ color: CSP_TEXT_SECONDARY }}>
+          Provider setup · Screening
+        </p>
+        <h1 className="text-2xl font-semibold">Screening</h1>
         <p className="text-sm mt-2" style={{ color: CSP_TEXT_SECONDARY }}>
-          Complete screening to unlock jobs and payouts.
+          Submit your screening step for Cleanr review. You can keep moving through setup while the review is pending.
         </p>
       </header>
 
       {mode === "completed" && (
-        <div
-          className="mb-4 rounded-xl border px-4 py-3 text-sm"
-          style={{ borderColor: "rgba(52, 211, 153, 0.3)", backgroundColor: "rgba(52, 211, 153, 0.08)", color: "rgb(167, 243, 208)" }}
-        >
+        <div className="mb-4 rounded-xl border px-4 py-3 text-sm" style={{ borderColor: "rgba(52, 211, 153, 0.3)", backgroundColor: "rgba(52, 211, 153, 0.08)", color: "rgb(167, 243, 208)" }}>
           Screening complete. You’re all set for this step.
         </div>
       )}
       {mode === "submitted" && (
-        <div
-          className="mb-4 rounded-xl border px-4 py-3 text-sm"
-          style={{ borderColor: "rgba(245, 158, 11, 0.3)", backgroundColor: "rgba(245, 158, 11, 0.08)", color: "rgb(253, 224, 71)" }}
-        >
-          Submitted — under review. We’ll update you when screening is complete.
+        <div className="mb-4 rounded-xl border px-4 py-3 text-sm" style={{ borderColor: "rgba(245, 158, 11, 0.3)", backgroundColor: "rgba(245, 158, 11, 0.08)", color: "rgb(253, 224, 71)" }}>
+          Screening is submitted and awaiting review. You can continue with setup now.
         </div>
       )}
 
-      <p className="text-sm" style={{ color: CSP_TEXT_SECONDARY }}>
-        We currently review screening manually. Schedule placeholder is active until automation is enabled.
-      </p>
-
       {error ? <p className="mt-4 text-sm text-red-300">{error}</p> : null}
-      {message ? <p className="mt-4 text-sm text-emerald-300">{message}</p> : null}
 
       <div className="mt-6 grid gap-3">
-        {mode === "not_started" ? (
-          <button
-            type="button"
-            onClick={handleSubmitForReview}
-            disabled={saving}
-            className="w-full py-3 rounded-xl text-white text-sm font-semibold transition-opacity hover:opacity-90 disabled:opacity-60"
-            style={{ backgroundColor: CSP_PRIMARY_BUTTON }}
-          >
-            {saving ? "Saving..." : "Submit Screening"}
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={() => navigate("/csp/dashboard/application-status")}
-            className="w-full py-3 rounded-xl text-white text-sm font-semibold transition-opacity hover:opacity-90"
-            style={{ backgroundColor: CSP_PRIMARY_BUTTON }}
-          >
-            View Status
-          </button>
-        )}
-        <button
-          type="button"
-          onClick={() => navigate("/csp/dashboard/application")}
-          className="w-full py-3 rounded-xl text-sm font-medium border"
-          style={{ borderColor: "rgba(248, 250, 252, 0.12)", color: CSP_TEXT_SECONDARY }}
-        >
-          Back to Application
+        <button type="button" onClick={handleContinue} disabled={saving} className="w-full py-3 rounded-xl text-white text-sm font-semibold transition-opacity hover:opacity-90 disabled:opacity-60" style={{ backgroundColor: CSP_PRIMARY_BUTTON }}>
+          {saving ? "Saving..." : mode === "not_started" ? "Submit screening and continue" : "Continue to transportation"}
+        </button>
+        <button type="button" onClick={() => navigate("/csp/dashboard/application")} className="w-full py-3 rounded-xl text-sm font-medium border" style={{ borderColor: "rgba(248, 250, 252, 0.12)", color: CSP_TEXT_SECONDARY }}>
+          View application checklist
         </button>
       </div>
     </div>

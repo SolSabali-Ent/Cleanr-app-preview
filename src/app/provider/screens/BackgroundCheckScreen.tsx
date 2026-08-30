@@ -10,6 +10,8 @@ import {
 } from "@/theme/cspTheme";
 import { traceProfileWriteStart, traceProfileWriteResult } from "@/lib/debug/profileWriteTrace";
 
+const NEXT_STEP_PATH = "/csp/dashboard/application/screening";
+
 function stepMode(status: string | null | undefined): "not_started" | "submitted" | "completed" {
   if (!status) return "not_started";
   const n = status.toLowerCase();
@@ -22,7 +24,6 @@ export default function BackgroundCheckScreen() {
   const navigate = useNavigate();
   const { profile, refresh } = useProfile();
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const mode = stepMode(profile?.background_check_status);
 
@@ -30,7 +31,6 @@ export default function BackgroundCheckScreen() {
     if (!profile) return;
     setSaving(true);
     setError(null);
-    setMessage(null);
 
     const traceRpc = await traceProfileWriteStart({
       source: "BackgroundCheckScreen.handleSubmit:submit_background_check_step",
@@ -47,61 +47,50 @@ export default function BackgroundCheckScreen() {
       return;
     }
 
-    await refresh();
+    try {
+      await refresh();
+    } catch {
+      // Non-blocking: the RPC already persisted the submission state.
+    }
     setSaving(false);
-    setMessage("Submitted — pending review");
+    navigate(NEXT_STEP_PATH, { replace: true });
   }
 
   return (
     <div className="min-h-screen px-4 py-8" style={{ color: CSP_TEXT_PRIMARY }}>
       <header style={{ marginBottom: CSP_SECTION_GAP }}>
+        <p className="mb-2 text-xs font-semibold uppercase tracking-wide" style={{ color: CSP_TEXT_SECONDARY }}>
+          Provider setup · Background check
+        </p>
         <h1 className="text-2xl font-semibold">Background check</h1>
         <p className="text-sm mt-2" style={{ color: CSP_TEXT_SECONDARY }}>
-          Approval protects customers and protects you.
+          Submit this step for review. We’ll take you directly to screening when it’s saved.
         </p>
       </header>
 
       {mode === "completed" && (
-        <div
-          className="mb-4 rounded-xl border px-4 py-3 text-sm"
-          style={{ borderColor: "rgba(52, 211, 153, 0.3)", backgroundColor: "rgba(52, 211, 153, 0.08)", color: "rgb(167, 243, 208)" }}
-        >
+        <div className="mb-4 rounded-xl border px-4 py-3 text-sm" style={{ borderColor: "rgba(52, 211, 153, 0.3)", backgroundColor: "rgba(52, 211, 153, 0.08)", color: "rgb(167, 243, 208)" }}>
           Completed. Your background check has been approved.
         </div>
       )}
       {mode === "submitted" && (
-        <div
-          className="mb-4 rounded-xl border px-4 py-3 text-sm"
-          style={{ borderColor: "rgba(245, 158, 11, 0.3)", backgroundColor: "rgba(245, 158, 11, 0.08)", color: "rgb(253, 224, 71)" }}
-        >
-          Submitted — pending review. We’ll update you when review is complete.
+        <div className="mb-4 rounded-xl border px-4 py-3 text-sm" style={{ borderColor: "rgba(245, 158, 11, 0.3)", backgroundColor: "rgba(245, 158, 11, 0.08)", color: "rgb(253, 224, 71)" }}>
+          Already submitted. You can continue to screening.
         </div>
       )}
 
       <p className="text-sm" style={{ color: CSP_TEXT_SECONDARY }}>
-        Background checks are reviewed by admin. Submit this step to move your application forward.
+        Cleanr reviews the result separately. Submitting this step lets your application continue while that review is pending.
       </p>
 
       {error ? <p className="mt-4 text-sm text-red-300">{error}</p> : null}
-      {message ? <p className="mt-4 text-sm text-emerald-300">{message}</p> : null}
 
       <div className="mt-6 grid gap-3">
-        <button
-          type="button"
-          onClick={handleSubmit}
-          disabled={saving}
-          className="w-full py-3 rounded-xl text-white text-sm font-semibold transition-opacity hover:opacity-90 disabled:opacity-60"
-          style={{ backgroundColor: CSP_PRIMARY_BUTTON }}
-        >
-          {saving ? "Saving..." : mode !== "not_started" ? "Update Background Check" : "Submit Background Check"}
+        <button type="button" onClick={handleSubmit} disabled={saving} className="w-full py-3 rounded-xl text-white text-sm font-semibold transition-opacity hover:opacity-90 disabled:opacity-60" style={{ backgroundColor: CSP_PRIMARY_BUTTON }}>
+          {saving ? "Saving..." : mode === "not_started" ? "Submit background check and continue" : "Continue to screening"}
         </button>
-        <button
-          type="button"
-          onClick={() => navigate("/csp/dashboard/application")}
-          className="w-full py-3 rounded-xl text-sm font-medium border"
-          style={{ borderColor: "rgba(248, 250, 252, 0.12)", color: CSP_TEXT_SECONDARY }}
-        >
-          Back to Application
+        <button type="button" onClick={() => navigate("/csp/dashboard/application")} className="w-full py-3 rounded-xl text-sm font-medium border" style={{ borderColor: "rgba(248, 250, 252, 0.12)", color: CSP_TEXT_SECONDARY }}>
+          View application checklist
         </button>
       </div>
     </div>
