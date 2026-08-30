@@ -2,33 +2,34 @@ import { createClient } from '@supabase/supabase-js'
 
 const publicHostMode = import.meta.env.VITE_PUBLIC_HOST_MODE === '1'
 const configuredSupabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined
-const configuredSupabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined
+const configuredSupabasePublishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined
+const configuredLegacyAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined
+const configuredSupabaseKey = configuredSupabasePublishableKey ?? configuredLegacyAnonKey
 
 /**
- * The public preview must remain bootable while the production backend is unavailable.
- * - GitHub Pages uses VITE_PUBLIC_HOST_MODE=1.
- * - Local Vite dev also falls back offline when Supabase env vars are absent.
- * - If local dev has real env vars, it uses the real backend.
+ * GitHub Pages is allowed to use the live Cleanr backend when browser-safe Supabase
+ * configuration is supplied at build time. Offline mode is only a fallback for local/public
+ * UI previews that genuinely have no backend configuration.
  */
 export const isOfflinePreviewMode = Boolean(
-  publicHostMode || (import.meta.env.DEV && (!configuredSupabaseUrl || !configuredSupabaseAnonKey))
+  (publicHostMode || import.meta.env.DEV) && (!configuredSupabaseUrl || !configuredSupabaseKey)
 )
 
 const supabaseUrl =
   configuredSupabaseUrl ||
   (isOfflinePreviewMode ? 'https://offline.cleanr.invalid' : undefined)
 
-const supabaseAnonKey =
-  configuredSupabaseAnonKey ||
+const supabaseKey =
+  configuredSupabaseKey ||
   (isOfflinePreviewMode ? 'cleanr-preview-offline' : undefined)
 
-if (!supabaseUrl || !supabaseAnonKey) {
+if (!supabaseUrl || !supabaseKey) {
   throw new Error('Missing Supabase environment variables')
 }
 
 /**
  * Offline preview transport. It intercepts requests before they hit the network
- * so the real Cleanr UI can render with neutral empty product truth.
+ * so the UI can still render in explicit no-backend preview contexts.
  */
 async function offlineSupabaseFetch(
   input: RequestInfo | URL,
@@ -69,7 +70,7 @@ async function offlineSupabaseFetch(
   return jsonResponse(null)
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+export const supabase = createClient(supabaseUrl, supabaseKey, {
   ...(isOfflinePreviewMode
     ? {
         global: { fetch: offlineSupabaseFetch },
