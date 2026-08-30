@@ -47,9 +47,11 @@ export function StepZipCode({ onNext }: StepZipCodeProps) {
       leadCaptureReasonFromActivation(activationStatus.reason)
   );
 
-  const leadHeadline = activationStatus?.reason === "unsupported_zip"
-    ? "Cleanr is not open for booking in this ZIP yet."
-    : "Cleanr is not open for booking in this ZIP yet.";
+  const leadHeadline = activationStatus?.reason === "provider_supply_building"
+    ? "Cleanr serves this area, and we're building local provider capacity."
+    : activationStatus?.reason === "disabled_by_config"
+      ? "Cleanr serves this area, but booking is not open here yet."
+      : "Cleanr is not serving this ZIP yet.";
 
   const handleZipSubmit = async (e?: FormEvent) => {
     e?.preventDefault();
@@ -71,6 +73,11 @@ export function StepZipCode({ onNext }: StepZipCodeProps) {
     setActivationStatus(status);
     setLoading(false);
 
+    if (status.reason === "unknown") {
+      setError("Unable to confirm booking availability for this ZIP right now. Please try again.");
+      return;
+    }
+
     if (!status.serviceable || status.reason === "unsupported_zip") {
       void recordBookingProgressEvent({
         eventType: "zip_blocked_waitlist_offered",
@@ -79,10 +86,11 @@ export function StepZipCode({ onNext }: StepZipCodeProps) {
         activationReason: "unsupported_zip",
         metadata: { serviceable: false, booking_enabled: false },
       });
-      setError("Cleanr is not open for booking in this ZIP yet.");
-      setActivationHint("Join the early access list and we'll notify you when booking opens.");
+      setError("Cleanr is not serving this ZIP yet.");
+      setActivationHint("Join the early access list and we'll notify you when Cleanr reaches your area.");
       return;
     }
+
     if (!status.bookingEnabled) {
       if (status.reason === "provider_supply_building") {
         void recordBookingProgressEvent({
@@ -97,7 +105,7 @@ export function StepZipCode({ onNext }: StepZipCodeProps) {
           },
         });
         setActivationHint(
-          "Cleanr providers are being added in your area. Booking is not open here yet."
+          "Cleanr serves this area, and we're adding trusted local provider capacity before opening booking."
         );
         return;
       }
@@ -109,7 +117,7 @@ export function StepZipCode({ onNext }: StepZipCodeProps) {
           activationReason: "market_not_active",
           metadata: { serviceable: true, booking_enabled: false },
         });
-        setActivationHint("Cleanr is preparing this area. Booking is not open yet.");
+        setActivationHint("Cleanr serves this area, but booking is not open here yet.");
         return;
       }
       setError("Unable to confirm booking activation for this ZIP. Please try again.");
@@ -152,39 +160,52 @@ export function StepZipCode({ onNext }: StepZipCodeProps) {
   };
 
   return (
-    <form onSubmit={handleZipSubmit} className="space-y-4">
-      <div className="border border-[#E5E7EB] rounded-[14px] p-4 bg-white">
-        <div className="flex flex-col items-center text-center gap-2">
-          <div className="w-9 h-9 rounded-full bg-[#EEF2FF] flex items-center justify-center text-[#0000FE] text-lg">
-            📍
+    <div className="space-y-4">
+      <form onSubmit={handleZipSubmit} className="space-y-4">
+        <div className="border border-[#E5E7EB] rounded-[14px] p-4 bg-white">
+          <div className="flex flex-col items-center text-center gap-2">
+            <div className="w-9 h-9 rounded-full bg-[#EEF2FF] flex items-center justify-center text-[#0000FE] text-lg">
+              📍
+            </div>
+            <h2 className="text-[16px] font-bold text-[#0B1220]">
+              Let&apos;s get started
+            </h2>
+            <p className="text-[13px] font-medium text-[#667085]">
+              Enter your zip code to check availability.
+            </p>
           </div>
-          <h2 className="text-[16px] font-bold text-[#0B1220]">
-            Let&apos;s get started
-          </h2>
-          <p className="text-[13px] font-medium text-[#667085]">
-            Enter your zip code to check availability.
-          </p>
+
+          <div className="mt-4 space-y-3">
+            <input
+              type="tel"
+              inputMode="numeric"
+              maxLength={5}
+              value={zip}
+              onChange={(e) => setZip(e.target.value)}
+              placeholder="Enter zip code (e.g. 30024)"
+              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-base
+                placeholder-slate-400 text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0000FE]"
+            />
+            {error && <p className="text-[12px] font-medium text-red-500">{error}</p>}
+            {activationHint ? (
+              <p className="text-[12px] font-medium text-[#667085]">{activationHint}</p>
+            ) : null}
+          </div>
         </div>
 
-        <div className="mt-4 space-y-3">
-          <input
-            type="tel"
-            inputMode="numeric"
-            maxLength={5}
-            value={zip}
-            onChange={(e) => setZip(e.target.value)}
-            placeholder="Enter zip code (e.g. 30024)"
-            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-base
-              placeholder-slate-400 text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0000FE]"
-          />
-          {error && <p className="text-[12px] font-medium text-red-500">{error}</p>}
-          {activationHint ? (
-            <p className="text-[12px] font-medium text-[#667085]">{activationHint}</p>
-          ) : null}
-        </div>
-      </div>
+        <ProviderPresenceStrip zip={isValidZip(zip) ? zip.trim() : null} compact />
 
-      <ProviderPresenceStrip zip={isValidZip(zip) ? zip.trim() : null} compact />
+        <Button
+          type="submit"
+          disabled={loading || !isValidZip(zip)}
+          loading={loading}
+          variant="primaryBlue"
+          size="lg"
+          fullWidth
+        >
+          {loading ? "Checking..." : "Check Availability →"}
+        </Button>
+      </form>
 
       {shouldShowLeadCapture ? (
         <section className="rounded-2xl border border-[#E5E7EB] bg-white p-4 space-y-2" aria-live="polite">
@@ -238,17 +259,6 @@ export function StepZipCode({ onNext }: StepZipCodeProps) {
           )}
         </section>
       ) : null}
-
-      <Button
-        type="submit"
-        disabled={loading || !isValidZip(zip)}
-        loading={loading}
-        variant="primaryBlue"
-        size="lg"
-        fullWidth
-      >
-        {loading ? "Checking..." : "Check Availability →"}
-      </Button>
-    </form>
+    </div>
   );
 }

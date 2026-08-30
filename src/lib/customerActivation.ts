@@ -67,7 +67,7 @@ export async function getCustomerActivationStatus(zip: string): Promise<Customer
   const { data: serviceableData, error: serviceableError } = await supabase.rpc("validate_service_zip", {
     p_zip: normalizedZip,
   });
-  if (serviceableError || typeof serviceableData !== "boolean") {
+  if (serviceableError) {
     return {
       zip: normalizedZip,
       serviceable: false,
@@ -76,13 +76,22 @@ export async function getCustomerActivationStatus(zip: string): Promise<Customer
       reason: "unknown",
     };
   }
-  if (!serviceableData) {
+  if (serviceableData == null) {
     return {
       zip: normalizedZip,
       serviceable: false,
       activeProviderCount: 0,
       bookingEnabled: false,
       reason: "unsupported_zip",
+    };
+  }
+  if (typeof serviceableData !== "object" || Array.isArray(serviceableData)) {
+    return {
+      zip: normalizedZip,
+      serviceable: false,
+      activeProviderCount: 0,
+      bookingEnabled: false,
+      reason: "unknown",
     };
   }
 
