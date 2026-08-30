@@ -138,7 +138,7 @@ export default function Landing() {
           poster="/media/hero-cleaning-poster.jpg"
           aria-hidden="true"
           tabIndex={-1}
-          className="absolute inset-0 h-full w-full object-cover object-center"
+          className="absolute inset-0 h-full w-full object-cover object-top"
         >
           <source src="/media/cleanr-hero.mp4" type="video/mp4" />
         </video>
