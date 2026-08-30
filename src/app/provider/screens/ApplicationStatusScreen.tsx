@@ -26,6 +26,11 @@ function statusToDisplay(value: string | null | undefined): DisplayState {
   return "Not started";
 }
 
+function identityToDisplay(status: string | null | undefined, documentPath: string | null | undefined): DisplayState {
+  if (!documentPath?.trim()) return "Not started";
+  return statusToDisplay(status);
+}
+
 function applicationToDisplay(value: string | null | undefined): DisplayState {
   const status = normalize(value);
   if (status === "approved" || status === "waitlisted") return "Complete";
@@ -45,12 +50,8 @@ function chipClasses(status: DisplayState): string {
 function StatusRow({ label, status }: { label: string; status: DisplayState }) {
   return (
     <div className="flex items-center justify-between gap-4">
-      <span className="text-sm" style={{ color: CSP_TEXT_PRIMARY }}>
-        {label}
-      </span>
-      <span className={`shrink-0 rounded-full border px-2 py-0.5 text-xs font-medium ${chipClasses(status)}`}>
-        {status}
-      </span>
+      <span className="text-sm" style={{ color: CSP_TEXT_PRIMARY }}>{label}</span>
+      <span className={`shrink-0 rounded-full border px-2 py-0.5 text-xs font-medium ${chipClasses(status)}`}>{status}</span>
     </div>
   );
 }
@@ -70,7 +71,7 @@ export default function ApplicationStatusScreen() {
   const notStartedLike = appStatusNorm === "" || appStatusNorm === "not_started" || appStatusNorm === "draft";
 
   const termsStatus: DisplayState = profile.csp_terms_accepted_at ? "Complete" : "Not started";
-  const identityStatus = statusToDisplay(profile.identity_status);
+  const identityStatus = identityToDisplay(profile.identity_status, profile.identity_document_path);
   const backgroundStatus = statusToDisplay(profile.background_check_status);
   const screeningStatus = statusToDisplay(profile.screening_status);
   const transportationStatus = statusToDisplay(profile.travel_readiness_status);
@@ -96,32 +97,9 @@ export default function ApplicationStatusScreen() {
     is_onboarded: profile.is_onboarded,
   });
 
-  if (approvedLike) {
-    traceCspFlow("application-status", {
-      branch: "application.redirect.dashboard",
-      reason: "approved_like",
-      pathname: APPLICATION_STATUS_PATH,
-      uid,
-      profileId: profile.id,
-      application_status: profile.application_status ?? null,
-      marketplace_access: profile.marketplace_access,
-      target: DASHBOARD_PATH,
-    });
-    return <Navigate to={DASHBOARD_PATH} replace />;
-  }
+  if (approvedLike) return <Navigate to={DASHBOARD_PATH} replace />;
 
-  if (notStartedLike && !missingPersonOwnedSteps) {
-    traceCspFlow("application-status", {
-      branch: "application.redirect.verification",
-      reason: "not_started",
-      pathname: APPLICATION_STATUS_PATH,
-      uid,
-      profileId: profile.id,
-      application_status: profile.application_status ?? null,
-      target: VERIFICATION_PATH,
-    });
-    return <Navigate to={VERIFICATION_PATH} replace />;
-  }
+  if (notStartedLike && !missingPersonOwnedSteps) return <Navigate to={VERIFICATION_PATH} replace />;
 
   traceCspFlow("application-status", {
     branch: needsAction ? "application.render.needs-action" : "application.render.under-review",
@@ -155,21 +133,13 @@ export default function ApplicationStatusScreen() {
       </header>
 
       {profile.rejection_reason ? (
-        <section
-          className="mb-6 rounded-2xl border p-4"
-          style={{ backgroundColor: CSP_SURFACE, borderColor: "rgba(251, 113, 133, 0.28)" }}
-        >
+        <section className="mb-6 rounded-2xl border p-4" style={{ backgroundColor: CSP_SURFACE, borderColor: "rgba(251, 113, 133, 0.28)" }}>
           <p className="text-sm font-semibold text-rose-200">Review note</p>
-          <p className="mt-2 text-sm" style={{ color: CSP_TEXT_SECONDARY }}>
-            {profile.rejection_reason}
-          </p>
+          <p className="mt-2 text-sm" style={{ color: CSP_TEXT_SECONDARY }}>{profile.rejection_reason}</p>
         </section>
       ) : null}
 
-      <section
-        className="mb-6 space-y-3 rounded-2xl border p-4"
-        style={{ backgroundColor: CSP_SURFACE, borderColor: "rgba(248, 250, 252, 0.08)" }}
-      >
+      <section className="mb-6 space-y-3 rounded-2xl border p-4" style={{ backgroundColor: CSP_SURFACE, borderColor: "rgba(248, 250, 252, 0.08)" }}>
         <StatusRow label="CSP terms" status={termsStatus} />
         <StatusRow label="Identity verification" status={identityStatus} />
         <StatusRow label="Background check" status={backgroundStatus} />
@@ -181,9 +151,7 @@ export default function ApplicationStatusScreen() {
 
       {needsAction ? (
         <div className="space-y-3">
-          <button type="button" onClick={() => navigate(APPLICATION_PATH)} className={`w-full ${CSP_PRIMARY_BUTTON}`}>
-            Open application checklist
-          </button>
+          <button type="button" onClick={() => navigate(APPLICATION_PATH)} className={`w-full ${CSP_PRIMARY_BUTTON}`}>Open application checklist</button>
           <p className="text-sm" style={{ color: CSP_TEXT_SECONDARY }}>
             Cleanr review does not replace steps you still own. Submitted items can remain pending while you finish the rest.
           </p>

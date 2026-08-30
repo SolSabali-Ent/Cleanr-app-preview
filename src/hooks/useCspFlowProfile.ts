@@ -21,7 +21,7 @@ export type CspFlowProfile = ProviderFlowProfile & {
 };
 
 const FLOW_SELECT =
-  "id, role, full_name, phone, zip_code, service_radius_miles, provider_interest_submitted_at, is_onboarded, csp_terms_accepted_at, waiver_accepted_at, identity_status, readiness_status, background_check_status, screening_status, travel_readiness_status, application_status, application_submitted_at, application_approved_at, rejection_reason, stripe_connect_ready, stripe_connect_account_id, marketplace_access";
+  "id, role, full_name, phone, zip_code, service_radius_miles, provider_interest_submitted_at, is_onboarded, csp_terms_accepted_at, waiver_accepted_at, identity_status, identity_document_path, readiness_status, background_check_status, screening_status, travel_readiness_status, application_status, application_submitted_at, application_approved_at, rejection_reason, stripe_connect_ready, stripe_connect_account_id, marketplace_access";
 
 function map(row: Record<string, unknown>): CspFlowProfile {
   const radiusRaw = row.service_radius_miles;
@@ -44,6 +44,7 @@ function map(row: Record<string, unknown>): CspFlowProfile {
     csp_terms_accepted_at: (row.csp_terms_accepted_at as string | null) ?? null,
     waiver_accepted_at: (row.waiver_accepted_at as string | null) ?? null,
     identity_status: (row.identity_status as string | null) ?? null,
+    identity_document_path: (row.identity_document_path as string | null) ?? null,
     readiness_status: (row.readiness_status as string | null) ?? null,
     background_check_status: (row.background_check_status as string | null) ?? null,
     screening_status: (row.screening_status as string | null) ?? null,
@@ -82,12 +83,8 @@ export function useCspFlowProfile() {
     const mapped = map(data as Record<string, unknown>);
     setProfileFlow(mapped);
     setLoading(false);
-    if (hasProviderInterestSubmitted(mapped)) {
-      clearProviderInterestHandoff(uid);
-    }
-    if (dbConfirmsOnboardingComplete(mapped)) {
-      clearOnboardingCompleteHandoff(uid);
-    }
+    if (hasProviderInterestSubmitted(mapped)) clearProviderInterestHandoff(uid);
+    if (dbConfirmsOnboardingComplete(mapped)) clearOnboardingCompleteHandoff(uid);
   }, [uid]);
 
   useEffect(() => {
@@ -109,10 +106,5 @@ export function useCspFlowProfile() {
     void refreshFlowProfile();
   }, [sessionLoading, refreshFlowProfile, location.pathname]);
 
-  return {
-    uid,
-    loading: sessionLoading || loading,
-    profileFlow,
-    refreshFlowProfile,
-  };
+  return { uid, loading: sessionLoading || loading, profileFlow, refreshFlowProfile };
 }

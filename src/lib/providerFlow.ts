@@ -8,6 +8,7 @@ export type ProviderFlowProfile = {
   csp_terms_accepted_at?: string | null;
   waiver_accepted_at?: string | null;
   identity_status?: string | null;
+  identity_document_path?: string | null;
   readiness_status?: string | null;
   background_check_status?: string | null;
   screening_status?: string | null;
@@ -59,15 +60,21 @@ export function hasProviderInterestSubmitted(p: ProviderFlowProfile): boolean {
   return hasProviderInterestAtValue(p.provider_interest_submitted_at);
 }
 
+export function hasIdentityEvidence(p: ProviderFlowProfile): boolean {
+  return hasProviderInterestAtValue(p.identity_document_path);
+}
+
 export function hasRequiredApplicationSubmissions(p: ProviderFlowProfile): boolean {
-  const identitySubmitted = statusIn(p.identity_status, [
-    "submitted",
-    "under_review",
-    "pending",
-    "verified",
-    "approved",
-    "completed",
-  ]);
+  const identitySubmitted =
+    hasIdentityEvidence(p) &&
+    statusIn(p.identity_status, [
+      "submitted",
+      "under_review",
+      "pending",
+      "verified",
+      "approved",
+      "completed",
+    ]);
   const backgroundSubmitted = statusIn(p.background_check_status, [
     "submitted",
     "under_review",
@@ -105,7 +112,7 @@ export function verificationSubmitted(p: ProviderFlowProfile): boolean {
   if (["under_review", "approved", "waitlisted", "rejected", "needs_review"].includes(status)) return true;
   const id = norm(p.identity_status);
   const ready = norm(p.readiness_status);
-  return id === "submitted" && ready === "submitted";
+  return hasIdentityEvidence(p) && id === "submitted" && ready === "submitted";
 }
 
 export function isApplicationApprovedLike(p: ProviderFlowProfile): boolean {
@@ -127,6 +134,7 @@ export function profileToProviderFlow(p: Profile): ProviderFlowProfile {
     csp_terms_accepted_at: p.csp_terms_accepted_at,
     waiver_accepted_at: (p as unknown as { waiver_accepted_at?: string | null }).waiver_accepted_at ?? null,
     identity_status: p.identity_status,
+    identity_document_path: p.identity_document_path,
     readiness_status: (p as unknown as { readiness_status?: string | null }).readiness_status ?? null,
     background_check_status: p.background_check_status,
     screening_status: p.screening_status,
@@ -146,13 +154,10 @@ export function getCspFlowRedirectTarget(pathname: string, p: ProviderFlowProfil
   if (!hasProviderInterestSubmitted(p)) return pathname.startsWith(P.candidate) ? null : P.candidate;
   if (p.is_onboarded !== true) return pathname.startsWith(P.onboarding) ? null : P.onboarding;
 
-  // Terms are person-owned required setup truth and must outrank application-review state.
   if (!hasProviderInterestAtValue(p.csp_terms_accepted_at)) {
     return pathname.startsWith(P.terms) ? null : P.terms;
   }
 
-  // An application decision must never hide unfinished person-owned submissions. This also
-  // recovers partially migrated CSPs whose application was moved into review too early.
   if (!hasRequiredApplicationSubmissions(p)) {
     return pathname.startsWith(P.application) ? null : P.application;
   }

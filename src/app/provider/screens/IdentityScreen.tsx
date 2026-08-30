@@ -10,12 +10,12 @@ import {
 } from "@/theme/cspTheme";
 import { traceProfileWriteStart, traceProfileWriteResult } from "@/lib/debug/profileWriteTrace";
 
-function sanitizeFilename(name: string): string {
-  return name.replace(/[^a-zA-Z0-9._-]/g, "_");
-}
-
-function stepMode(status: string | null | undefined): "not_started" | "submitted" | "completed" {
-  if (!status) return "not_started";
+function stepMode(
+  status: string | null | undefined,
+  documentPath: string | null | undefined
+): "not_started" | "submitted" | "completed" {
+  const hasDocument = Boolean(documentPath?.trim());
+  if (!status || !hasDocument) return "not_started";
   const n = status.toLowerCase();
   if (["verified", "approved", "completed"].includes(n)) return "completed";
   if (["submitted", "under_review", "pending"].includes(n)) return "submitted";
@@ -29,7 +29,7 @@ export default function IdentityScreen() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const mode = stepMode(profile?.identity_status);
+  const mode = stepMode(profile?.identity_status, profile?.identity_document_path);
 
   async function handleUpload() {
     if (!profile || !file) {
@@ -40,12 +40,10 @@ export default function IdentityScreen() {
     setError(null);
     setMessage(null);
 
-    const safeName = sanitizeFilename(file.name);
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
     const path = `providers/${profile.id}/identity/${Date.now()}-${safeName}`;
 
-    const upload = await supabase.storage
-      .from("provider-documents")
-      .upload(path, file, { upsert: true });
+    const upload = await supabase.storage.from("provider-documents").upload(path, file, { upsert: true });
     if (upload.error) {
       setError(upload.error.message);
       setSaving(false);
@@ -83,48 +81,31 @@ export default function IdentityScreen() {
       </header>
 
       {mode === "completed" && (
-        <div
-          className="mb-4 rounded-xl border px-4 py-3 text-sm"
-          style={{ borderColor: "rgba(52, 211, 153, 0.3)", backgroundColor: "rgba(52, 211, 153, 0.08)", color: "rgb(167, 243, 208)" }}
-        >
+        <div className="mb-4 rounded-xl border px-4 py-3 text-sm" style={{ borderColor: "rgba(52, 211, 153, 0.3)", backgroundColor: "rgba(52, 211, 153, 0.08)", color: "rgb(167, 243, 208)" }}>
           Verified. Your ID has been approved.
         </div>
       )}
       {mode === "submitted" && (
-        <div
-          className="mb-4 rounded-xl border px-4 py-3 text-sm"
-          style={{ borderColor: "rgba(245, 158, 11, 0.3)", backgroundColor: "rgba(245, 158, 11, 0.08)", color: "rgb(253, 224, 71)" }}
-        >
+        <div className="mb-4 rounded-xl border px-4 py-3 text-sm" style={{ borderColor: "rgba(245, 158, 11, 0.3)", backgroundColor: "rgba(245, 158, 11, 0.08)", color: "rgb(253, 224, 71)" }}>
           Submitted — pending review. We’ll update you when verification is complete.
         </div>
       )}
+      {profile?.identity_status && mode === "not_started" ? (
+        <div className="mb-4 rounded-xl border px-4 py-3 text-sm" style={{ borderColor: "rgba(245, 158, 11, 0.3)", backgroundColor: "rgba(245, 158, 11, 0.08)", color: "rgb(253, 224, 71)" }}>
+          Your prior status does not include a stored ID document. Please upload your ID to complete this step.
+        </div>
+      ) : null}
 
-      <input
-        type="file"
-        onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-        className="block w-full text-sm"
-        aria-label="Choose ID document"
-      />
+      <input type="file" onChange={(e) => setFile(e.target.files?.[0] ?? null)} className="block w-full text-sm" aria-label="Choose ID document" />
 
       {error ? <p className="mt-4 text-sm text-red-300">{error}</p> : null}
       {message ? <p className="mt-4 text-sm text-emerald-300">{message}</p> : null}
 
       <div className="mt-6 grid gap-3">
-        <button
-          type="button"
-          onClick={handleUpload}
-          disabled={saving}
-          className="w-full py-3 rounded-xl text-white text-sm font-semibold transition-opacity hover:opacity-90 disabled:opacity-60"
-          style={{ backgroundColor: CSP_PRIMARY_BUTTON }}
-        >
+        <button type="button" onClick={handleUpload} disabled={saving} className="w-full py-3 rounded-xl text-white text-sm font-semibold transition-opacity hover:opacity-90 disabled:opacity-60" style={{ backgroundColor: CSP_PRIMARY_BUTTON }}>
           {saving ? "Uploading..." : mode !== "not_started" ? "Update ID" : "Upload ID"}
         </button>
-        <button
-          type="button"
-          onClick={() => navigate("/csp/dashboard/application")}
-          className="w-full py-3 rounded-xl text-sm font-medium border"
-          style={{ borderColor: "rgba(248, 250, 252, 0.12)", color: CSP_TEXT_SECONDARY }}
-        >
+        <button type="button" onClick={() => navigate("/csp/dashboard/application")} className="w-full py-3 rounded-xl text-sm font-medium border" style={{ borderColor: "rgba(248, 250, 252, 0.12)", color: CSP_TEXT_SECONDARY }}>
           Back to Application
         </button>
       </div>

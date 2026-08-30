@@ -15,6 +15,7 @@ export interface Profile {
   is_onboarded: boolean;
   marketplace_access: boolean;
   identity_status: string | null;
+  identity_document_path: string | null;
   background_check_status: string | null;
   insurance_status: string | null;
   insurance_coverage_cents: number | null;
