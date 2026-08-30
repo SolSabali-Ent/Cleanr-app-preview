@@ -3,7 +3,6 @@ import {
   ArrowRight,
   BadgeCheck,
   Bell,
-  CalendarCheck,
   CalendarDays,
   ClipboardList,
   Clock,
@@ -103,7 +102,7 @@ function HeroSecondaryLink({ to, children }: { to: string; children: ReactNode }
   return (
     <Link
       to={to}
-      className="flex min-h-[3rem] w-full items-center justify-center rounded-lg border border-white/30 bg-white/10 px-8 py-4 text-center font-medium text-white transition-colors hover:bg-white/15 sm:w-auto"
+      className="flex min-h-[3rem] w-full items-center justify-center rounded-lg border border-white/30 bg-white/10 px-8 py-4 text-center font-medium text-white backdrop-blur-sm transition-colors hover:bg-white/15 sm:w-auto"
     >
       {children}
     </Link>
@@ -129,22 +128,26 @@ export default function Landing() {
 
   return (
     <div className="min-h-screen bg-white">
-      <section
-        className="relative flex flex-col overflow-hidden text-white lg:min-h-dvh"
-        style={{ backgroundColor: c.heroBg }}
-      >
-        <div className="pointer-events-none absolute inset-0 opacity-10">
-          <div
-            className="absolute inset-0"
-            style={{
-              backgroundImage:
-                "repeating-linear-gradient(45deg, transparent, transparent 35px, rgba(255,255,255,.05) 35px, rgba(255,255,255,.05) 70px)",
-            }}
-          />
-        </div>
+      <section className="relative min-h-[100svh] overflow-hidden text-white" style={{ backgroundColor: c.heroBg }}>
+        <video
+          autoPlay
+          muted
+          loop
+          playsInline
+          preload="metadata"
+          poster="/media/hero-cleaning-poster.jpg"
+          aria-hidden="true"
+          tabIndex={-1}
+          className="absolute inset-0 h-full w-full object-cover object-center"
+        >
+          <source src="/media/cleanr-hero.mp4" type="video/mp4" />
+        </video>
 
-        <div className="relative mx-auto flex w-full max-w-7xl flex-col px-6 pb-12 pt-8 lg:flex-1 lg:pt-10">
-          <div className="mb-6 flex min-w-0 items-start justify-between gap-3 sm:mb-10 md:items-center md:gap-4 lg:mb-12">
+        <div className="pointer-events-none absolute inset-0 bg-[#071A2F]/45" />
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/20 via-[#071A2F]/20 to-[#071A2F]/65" />
+
+        <div className="relative z-10 mx-auto flex min-h-[100svh] w-full max-w-7xl flex-col px-6 pb-10 pt-8 sm:pb-12 lg:pt-10">
+          <div className="flex min-w-0 items-start justify-between gap-3 md:items-center md:gap-4">
             <Link to="/" className="block min-w-0 shrink sm:max-w-none" aria-label="Cleanr home">
               <img
                 src={LANDING_LOGO_HERO_SRC}
@@ -157,25 +160,25 @@ export default function Landing() {
               />
             </Link>
 
-            <nav className="mt-0.5 flex shrink-0 items-center justify-end gap-1.5 sm:gap-2" aria-label="Sign in">
+            <nav className="mt-0.5 flex shrink-0 items-center justify-end" aria-label="Sign in">
               <Link
                 to={LOGIN_PATH}
-                className="inline-flex min-h-11 min-w-[44px] items-center justify-center rounded-lg border border-white/40 bg-white/5 px-3 py-2 text-xs font-medium text-white shadow-sm backdrop-blur-sm transition-colors hover:border-white/60 hover:bg-white/10 sm:px-3.5 sm:text-sm"
+                className="inline-flex min-h-11 min-w-[44px] items-center justify-center rounded-lg border border-white/45 bg-black/10 px-3 py-2 text-xs font-medium text-white shadow-sm backdrop-blur-md transition-colors hover:border-white/65 hover:bg-black/20 sm:px-3.5 sm:text-sm"
               >
                 Log in
               </Link>
             </nav>
           </div>
 
-          <div className="grid grid-cols-1 items-start gap-8 lg:flex-1 lg:grid-cols-2 lg:items-center lg:gap-12">
-            <div>
-              <h1 className="text-[44px] font-bold leading-[0.98] text-white sm:text-5xl sm:leading-[0.95] lg:text-6xl lg:leading-[0.95]">
+          <div className="flex flex-1 items-center py-10 sm:py-14 lg:py-16">
+            <div className="max-w-3xl">
+              <h1 className="max-w-[12ch] text-[44px] font-bold leading-[0.98] text-white drop-shadow-lg sm:text-5xl sm:leading-[0.95] lg:text-7xl lg:leading-[0.93]">
                 A cleaner home,
                 <br />
                 without the back-and-forth.
               </h1>
 
-              <p className="mt-6 max-w-none text-xl leading-[1.55] text-white/90 md:mt-8 md:max-w-prose">
+              <p className="mt-6 max-w-2xl text-lg leading-[1.55] text-white/95 drop-shadow-md sm:text-xl md:mt-8 md:text-2xl">
                 Book trusted residential cleaning support with a clear, simple service experience.
               </p>
 
@@ -187,53 +190,9 @@ export default function Landing() {
                 <HeroSecondaryLink to={CSP_ENTRY_PATH}>Earn with Cleanr</HeroSecondaryLink>
               </div>
 
-              <p className="mt-6 text-sm text-white/75 sm:mt-8">
+              <p className="mt-6 text-sm font-medium text-white/80 drop-shadow-sm sm:mt-8">
                 Residential cleaning. Clear booking. Reliable support.
               </p>
-            </div>
-
-            <div className="relative mx-auto mt-10 w-full max-w-md lg:mx-0 lg:mt-0 lg:max-w-none">
-              <div className="rotate-1 transform rounded-2xl bg-white p-6 shadow-2xl">
-                <div className="mb-4 flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full" style={{ backgroundColor: c.iconBg, color: c.icon }}>
-                    <CalendarCheck className="h-6 w-6" />
-                  </div>
-                  <div>
-                    <div className="text-sm" style={{ color: c.inkMuted }}>Booking status</div>
-                    <div className="font-semibold" style={{ color: c.ink }}>Ready to schedule</div>
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  <div className="rounded-xl border p-4" style={{ borderColor: c.border, backgroundColor: c.surfaceMuted }}>
-                    <div className="flex items-center justify-between text-sm">
-                      <span style={{ color: c.inkMuted }}>Service</span>
-                      <span className="font-semibold" style={{ color: c.ink }}>Standard clean</span>
-                    </div>
-                  </div>
-                  <div className="rounded-xl border p-4" style={{ borderColor: c.border, backgroundColor: c.surfaceMuted }}>
-                    <div className="flex items-center justify-between text-sm">
-                      <span style={{ color: c.inkMuted }}>Next step</span>
-                      <span className="font-semibold" style={{ color: c.ink }}>Pick a time</span>
-                    </div>
-                  </div>
-                  <div className="rounded-xl border p-4" style={{ borderColor: c.border, backgroundColor: c.surfaceMuted }}>
-                    <div className="flex items-center justify-between text-sm">
-                      <span style={{ color: c.inkMuted }}>Home</span>
-                      <span className="font-semibold" style={{ color: c.ink }}>Details added</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="absolute -bottom-4 -left-4 max-w-[12rem] -rotate-2 transform rounded-2xl bg-white p-4 shadow-xl">
-                <div className="flex items-center gap-2">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full" style={{ backgroundColor: c.iconBg, color: c.icon }}>
-                    <Shield className="h-4 w-4" />
-                  </div>
-                  <div className="text-sm font-semibold" style={{ color: c.ink }}>Clear confirmation</div>
-                </div>
-              </div>
             </div>
           </div>
         </div>
