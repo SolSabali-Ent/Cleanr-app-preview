@@ -43,8 +43,6 @@ export default function ProviderVerificationScreen() {
   if (!uid) return <Navigate to="/csp/login" replace />;
   if (!profileFlow || profileFlow.role !== "csp") return <Navigate to={DASHBOARD_PATH} replace />;
 
-  // Bind the narrowed profile to this render. TypeScript does not preserve the nullable hook-value
-  // narrowing across the async submit closure, while this immutable render snapshot does.
   const currentProfileFlow = profileFlow;
   const merged = mergeFlowProfileWithHandoffs(currentProfileFlow, uid);
   const flowTarget = getCspFlowRedirectTarget(VERIFICATION_PATH, merged);
@@ -89,17 +87,8 @@ export default function ProviderVerificationScreen() {
   });
 
   async function submitVerification() {
-    if (!confirmedReady) {
-      traceCspFlow("verification", {
-        branch: "verification.submit.blocked_missing_confirmation",
-        reason: "missing_confirmation",
-        pathname: VERIFICATION_PATH,
-        uid,
-        profileId: uid,
-        target: null,
-      });
-      return;
-    }
+    if (!confirmedReady) return;
+
     setSaving(true);
     setError(null);
     const traceRpc = await traceProfileWriteStart({
@@ -137,41 +126,25 @@ export default function ProviderVerificationScreen() {
     });
     await refreshFlowProfile();
     setSaving(false);
-    traceCspFlow("verification", {
-      branch: "verification.submit.navigate-application-status",
-      reason: "submit_success",
-      pathname: VERIFICATION_PATH,
-      uid,
-      profileId: uid,
-      target: APPLICATION_STATUS_PATH,
-    });
     navigate(APPLICATION_STATUS_PATH, { replace: true });
   }
 
   return (
     <div className="min-h-screen px-4 py-8" style={{ color: CSP_TEXT_PRIMARY }}>
-      <h1 className="text-2xl font-semibold">Identity and readiness verification</h1>
+      <p className="mb-2 text-xs font-semibold uppercase tracking-wide" style={{ color: CSP_TEXT_SECONDARY }}>
+        Provider setup · Final review
+      </p>
+      <h1 className="text-2xl font-semibold">Review and submit your application</h1>
       <p className="text-sm mt-2" style={{ color: CSP_TEXT_SECONDARY }}>
-        Submit your verification package to move your application into review.
+        Your required setup is complete. Confirm that your information is accurate, then send the application to Cleanr for review.
       </p>
       {error ? <p className="text-sm text-red-300 mt-3">{error}</p> : null}
       <label className="mt-6 flex items-start gap-3 text-sm" style={{ color: CSP_TEXT_SECONDARY }}>
-        <input
-          type="checkbox"
-          checked={confirmedReady}
-          onChange={(e) => setConfirmedReady(e.target.checked)}
-          className="mt-0.5"
-        />
+        <input type="checkbox" checked={confirmedReady} onChange={(e) => setConfirmedReady(e.target.checked)} className="mt-0.5" />
         <span>I confirm this information is accurate and ready for Cleanr review.</span>
       </label>
-      <button
-        type="button"
-        disabled={saving || !confirmedReady}
-        onClick={() => void submitVerification()}
-        className="mt-5 w-full py-3 rounded-xl text-white text-sm font-semibold disabled:opacity-60"
-        style={{ backgroundColor: CSP_PRIMARY_BUTTON }}
-      >
-        {saving ? "Submitting..." : "Submit verification"}
+      <button type="button" disabled={saving || !confirmedReady} onClick={() => void submitVerification()} className="mt-5 w-full py-3 rounded-xl text-white text-sm font-semibold disabled:opacity-60" style={{ backgroundColor: CSP_PRIMARY_BUTTON }}>
+        {saving ? "Submitting..." : "Submit application for review"}
       </button>
     </div>
   );
