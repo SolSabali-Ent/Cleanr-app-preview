@@ -11,6 +11,7 @@ import {
 import { traceProfileWriteStart, traceProfileWriteResult } from "@/lib/debug/profileWriteTrace";
 
 const CSP_TERMS_VERSION = "v2";
+const NEXT_STEP_PATH = "/csp/dashboard/application/identity";
 
 export default function CSPTermsScreen() {
   const navigate = useNavigate();
@@ -50,8 +51,7 @@ export default function CSPTermsScreen() {
       return;
     }
 
-    const acceptedAt =
-      Array.isArray(data) ? data[0]?.csp_terms_accepted_at : data?.csp_terms_accepted_at;
+    const acceptedAt = Array.isArray(data) ? data[0]?.csp_terms_accepted_at : data?.csp_terms_accepted_at;
 
     if (!acceptedAt) {
       setError("Acceptance was saved, but confirmation did not complete. Please try again.");
@@ -64,19 +64,22 @@ export default function CSPTermsScreen() {
     try {
       await refresh();
     } catch {
-      // non-blocking
+      // Non-blocking: the durable RPC response already confirmed acceptance.
     }
 
     setSaving(false);
-    navigate("/csp/dashboard", { replace: true });
+    navigate(NEXT_STEP_PATH, { replace: true });
   }
 
   return (
     <div className="min-h-screen px-4 py-8" style={{ color: CSP_TEXT_PRIMARY }}>
       <header style={{ marginBottom: CSP_SECTION_GAP }}>
+        <p className="mb-2 text-xs font-semibold uppercase tracking-wide" style={{ color: CSP_TEXT_SECONDARY }}>
+          Provider setup · Terms
+        </p>
         <h1 className="text-2xl font-semibold">CSP Terms & Independent Contractor Agreement</h1>
         <p className="text-sm mt-2" style={{ color: CSP_TEXT_SECONDARY }}>
-          You must accept these terms to access the provider dashboard.
+          Review and accept the terms. Your application will continue automatically to ID verification.
         </p>
       </header>
 
@@ -87,97 +90,59 @@ export default function CSPTermsScreen() {
         <div className="text-sm space-y-4">
           <p>By proceeding, you acknowledge and agree to the following:</p>
 
-          <h2 className="font-semibold mt-4" style={{ color: CSP_TEXT_PRIMARY }}>
-            Independent Contractor Status
-          </h2>
+          <h2 className="font-semibold mt-4" style={{ color: CSP_TEXT_PRIMARY }}>Independent Contractor Status</h2>
           <p>
-            You are applying to use Cleanr as an independent contractor and independent business. You
-            are not an employee, partner, agent, joint venturer, or franchisee of Cleanr.
+            You are applying to use Cleanr as an independent contractor and independent business. You are not an employee, partner, agent, joint venturer, or franchisee of Cleanr.
           </p>
 
-          <h2 className="font-semibold mt-4" style={{ color: CSP_TEXT_PRIMARY }}>
-            Control of Work
-          </h2>
+          <h2 className="font-semibold mt-4" style={{ color: CSP_TEXT_PRIMARY }}>Control of Work</h2>
           <p>
-            Except for platform rules, customer experience requirements, safety requirements, and
-            service standards, you control the manner and means by which you perform services.
+            Except for platform rules, customer experience requirements, safety requirements, and service standards, you control the manner and means by which you perform services.
           </p>
 
-          <h2 className="font-semibold mt-4" style={{ color: CSP_TEXT_PRIMARY }}>
-            No Guarantee of Work
-          </h2>
+          <h2 className="font-semibold mt-4" style={{ color: CSP_TEXT_PRIMARY }}>No Guarantee of Work</h2>
           <p>
-            Cleanr does not guarantee any minimum number of bookings, income level, customer
-            requests, or marketplace activity.
+            Cleanr does not guarantee any minimum number of bookings, income level, customer requests, or marketplace activity.
           </p>
 
-          <h2 className="font-semibold mt-4" style={{ color: CSP_TEXT_PRIMARY }}>
-            Platform Rules
-          </h2>
+          <h2 className="font-semibold mt-4" style={{ color: CSP_TEXT_PRIMARY }}>Platform Rules</h2>
           <p>
-            You agree to follow Cleanr&apos;s platform rules, quality standards, safety requirements,
-            communication policies, and customer service expectations.
+            You agree to follow Cleanr&apos;s platform rules, quality standards, safety requirements, communication policies, and customer service expectations.
           </p>
 
-          <h2 className="font-semibold mt-4" style={{ color: CSP_TEXT_PRIMARY }}>
-            Cleanr Bookings and Relationships
-          </h2>
+          <h2 className="font-semibold mt-4" style={{ color: CSP_TEXT_PRIMARY }}>Cleanr Bookings and Relationships</h2>
           <p>
-            A booking you accept through Cleanr must be completed and paid through Cleanr so the
-            parties receive the scheduling, payment, support, dispute-resolution, and protection
-            services attached to that booking. Cleanr does not claim ownership of your ongoing
-            relationship with a customer outside an active Cleanr booking. If you and a customer
-            choose to continue working together, Cleanr earns its continued role by providing value
-            you both choose to use.
+            A booking you accept through Cleanr must be completed and paid through Cleanr so the parties receive the scheduling, payment, support, dispute-resolution, and protection services attached to that booking. Cleanr does not claim ownership of your ongoing relationship with a customer outside an active Cleanr booking. If you and a customer choose to continue working together, Cleanr earns its continued role by providing value you both choose to use.
           </p>
 
-          <h2 className="font-semibold mt-4" style={{ color: CSP_TEXT_PRIMARY }}>
-            Taxes and Business Obligations
-          </h2>
+          <h2 className="font-semibold mt-4" style={{ color: CSP_TEXT_PRIMARY }}>Taxes and Business Obligations</h2>
           <p>
-            You are responsible for your own taxes, business decisions, legal compliance, tools,
-            supplies, transportation, and operating expenses.
+            You are responsible for your own taxes, business decisions, legal compliance, tools, supplies, transportation, and operating expenses.
           </p>
 
-          <h2 className="font-semibold mt-4" style={{ color: CSP_TEXT_PRIMARY }}>
-            Cooperation
-          </h2>
+          <h2 className="font-semibold mt-4" style={{ color: CSP_TEXT_PRIMARY }}>Cooperation</h2>
           <p>
-            You agree to cooperate with Cleanr in connection with support matters, trust and safety
-            reviews, investigations, complaints, disputes, or platform policy enforcement.
+            You agree to cooperate with Cleanr in connection with support matters, trust and safety reviews, investigations, complaints, disputes, or platform policy enforcement.
           </p>
 
-          <h2 className="font-semibold mt-4" style={{ color: CSP_TEXT_PRIMARY }}>
-            Account Action
-          </h2>
+          <h2 className="font-semibold mt-4" style={{ color: CSP_TEXT_PRIMARY }}>Account Action</h2>
           <p>
-            Cleanr may suspend, restrict, or terminate access for fraud, false statements, safety
-            concerns, misuse of an active Cleanr booking, repeated service issues, failure to
-            cooperate, or violations of platform rules.
+            Cleanr may suspend, restrict, or terminate access for fraud, false statements, safety concerns, misuse of an active Cleanr booking, repeated service issues, failure to cooperate, or violations of platform rules.
           </p>
 
-          <h2 className="font-semibold mt-4" style={{ color: CSP_TEXT_PRIMARY }}>
-            Booking Protection
-          </h2>
+          <h2 className="font-semibold mt-4" style={{ color: CSP_TEXT_PRIMARY }}>Booking Protection</h2>
           <p>
-            For certain eligible customer bookings made and paid entirely through Cleanr, Cleanr may
-            offer limited Cleanr Booking Protection under separate terms and policies. That
-            protection does not change your status as an independent contractor.
+            For certain eligible customer bookings made and paid entirely through Cleanr, Cleanr may offer limited Cleanr Booking Protection under separate terms and policies. That protection does not change your status as an independent contractor.
           </p>
 
-          <h2 className="font-semibold mt-4" style={{ color: CSP_TEXT_PRIMARY }}>
-            Acceptance
-          </h2>
+          <h2 className="font-semibold mt-4" style={{ color: CSP_TEXT_PRIMARY }}>Acceptance</h2>
           <p>
-            By checking the box and continuing, you confirm that you have read and agree to these CSP
-            Terms & Independent Contractor conditions.
+            By checking the box and continuing, you confirm that you have read and agree to these CSP Terms & Independent Contractor conditions.
           </p>
         </div>
       </section>
 
-      {error ? (
-        <p className="mb-4 text-sm text-red-300">{error}</p>
-      ) : null}
+      {error ? <p className="mb-4 text-sm text-red-300">{error}</p> : null}
 
       <label className="flex items-start gap-3 mb-6 cursor-pointer">
         <input
@@ -198,7 +163,7 @@ export default function CSPTermsScreen() {
         className="w-full py-3 rounded-xl text-white text-sm font-semibold transition-opacity hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed"
         style={{ backgroundColor: CSP_PRIMARY_BUTTON }}
       >
-        {saving ? "Saving…" : "Accept and Continue"}
+        {saving ? "Saving…" : "Accept and continue"}
       </button>
     </div>
   );
