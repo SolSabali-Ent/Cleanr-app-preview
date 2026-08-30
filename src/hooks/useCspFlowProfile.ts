@@ -21,7 +21,7 @@ export type CspFlowProfile = ProviderFlowProfile & {
 };
 
 const FLOW_SELECT =
-  "id, role, full_name, phone, zip_code, service_radius_miles, provider_interest_submitted_at, is_onboarded, csp_terms_accepted_at, waiver_accepted_at, identity_status, readiness_status, application_status, application_submitted_at, application_approved_at, marketplace_access";
+  "id, role, full_name, phone, zip_code, service_radius_miles, provider_interest_submitted_at, is_onboarded, csp_terms_accepted_at, waiver_accepted_at, identity_status, readiness_status, background_check_status, screening_status, travel_readiness_status, application_status, application_submitted_at, application_approved_at, rejection_reason, stripe_connect_ready, stripe_connect_account_id, marketplace_access";
 
 function map(row: Record<string, unknown>): CspFlowProfile {
   const radiusRaw = row.service_radius_miles;
@@ -45,9 +45,15 @@ function map(row: Record<string, unknown>): CspFlowProfile {
     waiver_accepted_at: (row.waiver_accepted_at as string | null) ?? null,
     identity_status: (row.identity_status as string | null) ?? null,
     readiness_status: (row.readiness_status as string | null) ?? null,
+    background_check_status: (row.background_check_status as string | null) ?? null,
+    screening_status: (row.screening_status as string | null) ?? null,
+    travel_readiness_status: (row.travel_readiness_status as string | null) ?? null,
     application_status: (row.application_status as string | null) ?? null,
     application_submitted_at: (row.application_submitted_at as string | null) ?? null,
     application_approved_at: (row.application_approved_at as string | null) ?? null,
+    rejection_reason: (row.rejection_reason as string | null) ?? null,
+    stripe_connect_ready: row.stripe_connect_ready === true,
+    stripe_connect_account_id: (row.stripe_connect_account_id as string | null) ?? null,
     marketplace_access: row.marketplace_access === true,
   };
 }
