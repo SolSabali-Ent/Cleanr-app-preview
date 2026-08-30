@@ -5,7 +5,6 @@ import { Button } from "../../components/ui/Button";
 import { ProviderPresenceStrip } from "../../components/provider/ProviderPresenceStrip";
 import {
   getCustomerActivationStatus,
-  type CustomerActivationReason,
   type CustomerActivationStatus,
 } from "@/lib/customerActivation";
 import { createWaitlistLead } from "@/lib/waitlistLeads";
@@ -32,26 +31,14 @@ export function StepZipCode({ onNext }: StepZipCodeProps) {
   const isValidZip = (value: string) => /^\d{5}$/.test(value.trim());
   const isValidEmail = (value: string) => /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(value.trim());
 
-  const leadCaptureReasonFromActivation = (
-    reason: CustomerActivationReason
-  ): "unsupported_zip" | "provider_supply_building" | "market_not_active" | null => {
-    if (reason === "unsupported_zip") return "unsupported_zip";
-    if (reason === "provider_supply_building") return "provider_supply_building";
-    if (reason === "disabled_by_config") return "market_not_active";
-    return null;
-  };
-
+  // Early-access capture is for geographic expansion only. If Cleanr already serves the ZIP
+  // but local provider capacity or operator activation is not ready, show the status without
+  // asking the customer to join a geography waitlist.
   const shouldShowLeadCapture = Boolean(
     activationStatus &&
-      (!activationStatus.bookingEnabled || !activationStatus.serviceable) &&
-      leadCaptureReasonFromActivation(activationStatus.reason)
+      !activationStatus.serviceable &&
+      activationStatus.reason === "unsupported_zip"
   );
-
-  const leadHeadline = activationStatus?.reason === "provider_supply_building"
-    ? "Cleanr serves this area, and we're building local provider capacity."
-    : activationStatus?.reason === "disabled_by_config"
-      ? "Cleanr serves this area, but booking is not open here yet."
-      : "Cleanr is not serving this ZIP yet.";
 
   const handleZipSubmit = async (e?: FormEvent) => {
     e?.preventDefault();
@@ -94,7 +81,7 @@ export function StepZipCode({ onNext }: StepZipCodeProps) {
     if (!status.bookingEnabled) {
       if (status.reason === "provider_supply_building") {
         void recordBookingProgressEvent({
-          eventType: "zip_blocked_waitlist_offered",
+          eventType: "zip_blocked_provider_supply_building",
           currentStep: "zip",
           zip: zipTrimmed,
           activationReason: "provider_supply_building",
@@ -109,9 +96,10 @@ export function StepZipCode({ onNext }: StepZipCodeProps) {
         );
         return;
       }
+
       if (status.reason === "disabled_by_config") {
         void recordBookingProgressEvent({
-          eventType: "zip_blocked_waitlist_offered",
+          eventType: "zip_blocked_market_not_active",
           currentStep: "zip",
           zip: zipTrimmed,
           activationReason: "market_not_active",
@@ -120,6 +108,7 @@ export function StepZipCode({ onNext }: StepZipCodeProps) {
         setActivationHint("Cleanr serves this area, but booking is not open here yet.");
         return;
       }
+
       setError("Unable to confirm booking activation for this ZIP. Please try again.");
       return;
     }
@@ -132,8 +121,15 @@ export function StepZipCode({ onNext }: StepZipCodeProps) {
   const handleLeadSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setLeadError(null);
-    const reason = activationStatus ? leadCaptureReasonFromActivation(activationStatus.reason) : null;
-    if (!activationStatus || !reason) return;
+
+    if (
+      !activationStatus ||
+      activationStatus.serviceable ||
+      activationStatus.reason !== "unsupported_zip"
+    ) {
+      return;
+    }
+
     if (!isValidEmail(leadEmail)) {
       setLeadError("Please enter a valid email address.");
       return;
@@ -147,9 +143,9 @@ export function StepZipCode({ onNext }: StepZipCodeProps) {
         name: leadName || null,
         phone: leadPhone || null,
         source: "zip_activation_gate",
-        activationReason: reason,
-        serviceable: activationStatus.serviceable,
-        activeProviderCount: activationStatus.activeProviderCount,
+        activationReason: "unsupported_zip",
+        serviceable: false,
+        activeProviderCount: 0,
       });
       setLeadSuccess(true);
     } catch {
@@ -209,12 +205,14 @@ export function StepZipCode({ onNext }: StepZipCodeProps) {
 
       {shouldShowLeadCapture ? (
         <section className="rounded-2xl border border-[#E5E7EB] bg-white p-4 space-y-2" aria-live="polite">
-          <h3 className="text-[14px] font-semibold text-[#0B1220]">{leadHeadline}</h3>
+          <h3 className="text-[14px] font-semibold text-[#0B1220]">
+            Cleanr is not serving this ZIP yet.
+          </h3>
           <p className="text-[12px] text-[#667085]">
-            Join the early access list and we&apos;ll notify you when booking opens.
+            Join the early access list and we&apos;ll notify you when Cleanr reaches your area.
           </p>
           <p className="text-[12px] text-[#667085]">
-            Your ZIP helps us decide where to activate next.
+            Your ZIP helps us decide where to expand next.
           </p>
 
           {leadSuccess ? (

@@ -4,6 +4,8 @@ import { supabase } from "./supabase";
 export type BookingProgressEventType =
   | "pre_booking_zip_started"
   | "zip_blocked_waitlist_offered"
+  | "zip_blocked_provider_supply_building"
+  | "zip_blocked_market_not_active"
   | "booking_started_no_booking_id"
   | "booking_created_payment_not_started"
   | "checkout_started_payment_not_completed"
