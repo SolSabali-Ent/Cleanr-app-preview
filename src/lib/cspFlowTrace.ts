@@ -22,6 +22,9 @@ type TracePayload = {
   csp_terms_accepted_at?: string | null;
   identity_status?: string | null;
   readiness_status?: string | null;
+  background_check_status?: string | null;
+  screening_status?: string | null;
+  travel_readiness_status?: string | null;
   application_status?: string | null;
   application_submitted_at?: string | null;
   application_approved_at?: string | null;
