@@ -19,6 +19,7 @@ const DASH = "/csp/dashboard";
 const P = {
   candidate: `${DASH}/candidate-readiness`,
   onboarding: `${DASH}/onboarding`,
+  terms: `${DASH}/terms`,
   verification: `${DASH}/verification`,
   applicationStatus: `${DASH}/application-status`,
   index: DASH,
@@ -85,12 +86,21 @@ export function getCspFlowRedirectTarget(pathname: string, p: ProviderFlowProfil
   if (p.role !== "csp") return null;
   if (!hasProviderInterestSubmitted(p)) return pathname.startsWith(P.candidate) ? null : P.candidate;
   if (p.is_onboarded !== true) return pathname.startsWith(P.onboarding) ? null : P.onboarding;
+
+  // Terms are person-owned required setup truth and must outrank application-review state.
+  // This also gives partially migrated / previously submitted CSPs a recovery path instead of
+  // trapping them on "under review" while approval remains impossible because terms are missing.
+  if (!hasProviderInterestAtValue(p.csp_terms_accepted_at)) {
+    return pathname.startsWith(P.terms) ? null : P.terms;
+  }
+
   if (!verificationSubmitted(p)) return pathname.startsWith(P.verification) ? null : P.verification;
   if (isApplicationUnderReviewLike(p)) return pathname.startsWith(P.applicationStatus) ? null : P.applicationStatus;
   if (isApplicationApprovedLike(p)) {
     const onSetupFunnel =
       pathname.startsWith(P.candidate) ||
       pathname.startsWith(P.onboarding) ||
+      pathname.startsWith(P.terms) ||
       pathname.startsWith(P.verification) ||
       pathname.startsWith(P.applicationStatus);
     if (onSetupFunnel) return P.index;
