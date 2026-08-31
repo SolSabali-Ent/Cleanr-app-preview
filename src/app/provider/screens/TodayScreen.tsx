@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Compass } from "lucide-react";
+import { Compass, Handshake } from "lucide-react";
 import { findAvailableJobsForProvider, listMyJobsAsProvider, type AvailableJob } from "../../../lib/bookingApi";
 import type { Booking } from "../../../domain/booking";
 import { useStableSessionProfile } from "@/hooks/useStableSessionProfile";
@@ -116,6 +116,37 @@ export default function TodayScreen() {
     { label: "Jobs not available yet", badge: "Waiting" },
   ] as const;
 
+  const existingClientAction = (
+    <button
+      type="button"
+      onClick={() => navigate("/csp/dashboard/existing-clients")}
+      className="w-full rounded-2xl border text-left transition-opacity hover:opacity-90"
+      style={{
+        backgroundColor: "rgba(141, 204, 100, 0.08)",
+        borderColor: "rgba(141, 204, 100, 0.24)",
+        padding: CSP_CARD_PADDING,
+      }}
+    >
+      <div className="flex items-start gap-3">
+        <div
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
+          style={{ backgroundColor: `${CSP_PRIMARY_BUTTON}20` }}
+        >
+          <Handshake size={20} style={{ color: CSP_PRIMARY_BUTTON }} />
+        </div>
+        <div className="flex-1">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-sm font-semibold">Bring an existing client</p>
+            <span className="text-xs font-medium" style={{ color: CSP_PRIMARY_BUTTON }}>Start →</span>
+          </div>
+          <p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>
+            Already clean for a household you trust? Invite them to continue that real relationship through Cleanr. They choose whether to connect, and Cleanr preserves the relationship without inventing past bookings or locking either of you in.
+          </p>
+        </div>
+      </div>
+    </button>
+  );
+
   if (showInitialBlocking || !displayProfile) return null;
 
   return (
@@ -126,7 +157,7 @@ export default function TodayScreen() {
             <header style={{ marginBottom: CSP_SECTION_GAP }}>
               <h1 className="text-2xl font-semibold">Marketplace access pending</h1>
               <p className="text-sm mt-2" style={{ color: CSP_TEXT_SECONDARY }}>
-                Your provider application has been approved. We&apos;re preparing marketplace access in your service area and will notify you when jobs are available.
+                Your provider application has been approved. We&apos;re preparing marketplace access in your service area and will notify you when open-market jobs are available.
               </p>
             </header>
             <section className="space-y-3" style={{ marginBottom: CSP_SECTION_GAP }}>
@@ -139,7 +170,12 @@ export default function TodayScreen() {
                 </div>
               ))}
             </section>
-            <p className="text-sm" style={{ color: CSP_TEXT_SECONDARY }}>No action is needed right now.</p>
+            <section style={{ marginBottom: CSP_SECTION_GAP }}>
+              <p className="mb-3 text-sm" style={{ color: CSP_TEXT_SECONDARY }}>
+                You do not need open-market access to preserve a relationship you already created.
+              </p>
+              {existingClientAction}
+            </section>
           </>
         ) : (
           <>
@@ -169,6 +205,10 @@ export default function TodayScreen() {
               Build a reliable service practice, create repeat household relationships, and choose work that fits your life.
             </p>
           </header>
+
+          <section style={{ marginBottom: CSP_SECTION_GAP }}>
+            {existingClientAction}
+          </section>
 
           <section style={{ marginBottom: CSP_SECTION_GAP }}>
             <button type="button" onClick={() => navigate(CSP_GROWTH_ROUTES.home)} className="w-full rounded-2xl border text-left transition-opacity hover:opacity-90" style={{ backgroundColor: "rgba(141, 204, 100, 0.08)", borderColor: "rgba(141, 204, 100, 0.24)", padding: CSP_CARD_PADDING }}>
