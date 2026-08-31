@@ -17,9 +17,12 @@ type ProviderRow = {
   insurance_status: string | null;
 };
 
+type ExistingClientBucket = "none" | "1_2" | "3_5" | "6_plus" | "prefer_not_to_say";
+
 type ReadinessRow = {
   provider_id: string;
   submitted_at: string | null;
+  existing_client_household_bucket: ExistingClientBucket | null;
 };
 
 type ReferralRow = {
@@ -56,6 +59,7 @@ type ContributionRow = { person_id: string; beneficiary_person_id: string | null
 
 type ProviderSignal = ProviderRow & {
   readinessSubmitted: boolean;
+  existingClientBucket: ExistingClientBucket | null;
   invitesIssued: number;
   invitesAccepted: number;
   relationships: number;
@@ -68,6 +72,14 @@ type ProviderSignal = ProviderRow & {
   networkRelationships: number;
   contributions: number;
   foundingActivity: boolean;
+};
+
+const EXISTING_CLIENT_LABELS: Record<ExistingClientBucket, string> = {
+  none: "No existing households reported",
+  "1_2": "1–2 existing households",
+  "3_5": "3–5 existing households",
+  "6_plus": "6+ existing households",
+  prefer_not_to_say: "Existing households not shared",
 };
 
 function money(cents: number) {
@@ -99,6 +111,10 @@ function StatusPill({ ok, children }: { ok: boolean; children: string }) {
   );
 }
 
+function hasExistingHouseholds(bucket: ExistingClientBucket | null): boolean {
+  return bucket === "1_2" || bucket === "3_5" || bucket === "6_plus";
+}
+
 export function FoundingCircle() {
   const { isAdmin, loading: adminLoading } = useIsAdmin();
   const [providers, setProviders] = useState<ProviderRow[]>([]);
@@ -123,7 +139,9 @@ export function FoundingCircle() {
           .select("id,full_name,created_at,application_status,readiness_status,is_onboarded,marketplace_access,stripe_connect_ready,identity_status,background_check_status,insurance_status")
           .eq("role", "csp")
           .order("created_at", { ascending: true }),
-        supabase.from("provider_readiness_profiles").select("provider_id,submitted_at"),
+        supabase
+          .from("provider_readiness_profiles")
+          .select("provider_id,submitted_at,existing_client_household_bucket"),
         supabase
           .from("referrals")
           .select("id,referrer_id,referee_id,relationship_confirmed_at,created_at")
@@ -170,11 +188,12 @@ export function FoundingCircle() {
   }, [isAdmin]);
 
   const signals = useMemo<ProviderSignal[]>(() => {
-    const readinessIds = new Set(readiness.map((row) => row.provider_id));
+    const readinessByProvider = new Map(readiness.map((row) => [row.provider_id, row]));
     const northStarIds = new Set(northStars.map((row) => row.person_id));
     const relationshipProvider = new Map(relationships.map((row) => [row.id, row.provider_id]));
 
     return providers.map((provider) => {
+      const providerReadiness = readinessByProvider.get(provider.id);
       const providerInvites = referrals.filter((row) => row.referrer_id === provider.id);
       const providerRelationships = relationships.filter((row) => row.provider_id === provider.id);
       const relationshipIds = new Set(providerRelationships.map((row) => row.id));
@@ -189,7 +208,8 @@ export function FoundingCircle() {
 
       return {
         ...provider,
-        readinessSubmitted: readinessIds.has(provider.id),
+        readinessSubmitted: Boolean(providerReadiness),
+        existingClientBucket: providerReadiness?.existing_client_household_bucket ?? null,
         invitesIssued: providerInvites.length,
         invitesAccepted: providerInvites.filter((row) => Boolean(row.relationship_confirmed_at && row.referee_id)).length,
         relationships: providerRelationships.length,
@@ -226,6 +246,7 @@ export function FoundingCircle() {
     return {
       csp: signals.length,
       ready: signals.filter((row) => row.application_status === "approved" || row.marketplace_access).length,
+      existingHouseholdSignal: signals.filter((row) => hasExistingHouseholds(row.existingClientBucket)).length,
       foundingActive: signals.filter((row) => row.foundingActivity).length,
       invites: referrals.length,
       accepted: referrals.filter((row) => Boolean(row.relationship_confirmed_at && row.referee_id)).length,
@@ -250,7 +271,7 @@ export function FoundingCircle() {
           <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: adminTheme.primary }}>Living laboratory</p>
           <h1 className="mt-1 text-2xl font-semibold" style={{ color: adminTheme.textPrimary }}>Founding Circle</h1>
           <p className="mt-1 max-w-3xl text-sm" style={{ color: adminTheme.textSecondary }}>
-            Launch truth for the first CSPs: readiness → existing-client invitation → consented relationship → paid service → collective activity. This view measures durable facts; it does not route work or manufacture a cohort relationship.
+            Launch truth for the first CSPs: readiness → existing-client invitation → consented relationship → paid service → collective activity. Existing-household counts are recruitment context only; they do not change approval or marketplace eligibility.
           </p>
         </div>
         <button
@@ -267,8 +288,9 @@ export function FoundingCircle() {
         <div className="rounded-lg border px-3 py-2 text-sm" style={{ borderColor: adminTheme.border, color: "#b91c1c" }}>{error}</div>
       ) : null}
 
-      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <Metric label="CSP funnel" value={totals.csp} detail={`${totals.ready} approved or marketplace-enabled`} />
+        <Metric label="Existing-household signal" value={totals.existingHouseholdSignal} detail="Self-reported 1+ households; recruitment context only" />
         <Metric label="Founding activity" value={totals.foundingActive} detail="CSPs with an existing-client invite or relationship" />
         <Metric label="Existing clients" value={`${totals.accepted}/${totals.invites}`} detail={`${totals.relationships} provider-brought durable relationships`} />
         <Metric label="Paid relationship bookings" value={totals.paidBookings} detail={pilotRate == null ? "Pilot rate unavailable" : `${Math.round(pilotRate * 100)}% provider-brought platform rate`} />
@@ -285,7 +307,7 @@ export function FoundingCircle() {
         <div className="rounded-xl border p-4" style={{ borderColor: adminTheme.border, backgroundColor: adminTheme.card }}>
           <p className="text-sm font-semibold">Pilot interpretation</p>
           <p className="mt-2 text-xs leading-5" style={{ color: adminTheme.textSecondary }}>
-            “Founding activity” is behavioral, not a permanent tier. A CSP appears here because they are in the CSP funnel; activity becomes founding-circle evidence when real existing-client provenance enters Cleanr. That keeps the launch measurable without hard-coding a new identity or lock-in mechanism.
+            “Founding activity” is behavioral, not a permanent tier. Existing households tell us where relationship continuity can be tested quickly, but they are not a quality score. Approval, marketplace access, and payout readiness remain separate operational truths.
           </p>
         </div>
       </section>
@@ -305,6 +327,11 @@ export function FoundingCircle() {
                   <div className="flex flex-wrap items-center gap-2">
                     <p className="font-medium">{provider.full_name ?? "Unnamed CSP"}</p>
                     {provider.foundingActivity ? <StatusPill ok>Founding activity</StatusPill> : null}
+                    {provider.existingClientBucket ? (
+                      <StatusPill ok={hasExistingHouseholds(provider.existingClientBucket)}>
+                        {EXISTING_CLIENT_LABELS[provider.existingClientBucket]}
+                      </StatusPill>
+                    ) : null}
                   </div>
                   <p className="mt-1 text-[11px]" style={{ color: adminTheme.textSecondary }}>{provider.id}</p>
                 </div>
