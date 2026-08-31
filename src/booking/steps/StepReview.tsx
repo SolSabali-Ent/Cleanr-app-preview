@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useBooking } from "../bookingStore";
 import { createBooking, createBookingCheckoutSession } from "../../lib/bookingApi";
+import { setMyBookingServiceRelationshipContext } from "../../lib/bookingRelationshipApi";
 import { recordBookingProgressEvent, serviceOptionKeyFromBookingService } from "../../lib/bookingProgress";
 import { emitBookingAbandoned } from "../../lib/kinex/events";
 import { customerFacingServiceLabel } from "../../lib/serviceCatalog";
@@ -14,9 +15,11 @@ interface StepReviewProps {
 
 export function StepReview({ onBack }: StepReviewProps) {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { state } = useBooking();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const serviceRelationshipId = searchParams.get("relationship")?.trim() || null;
 
   const handleConfirm = async () => {
     setSubmitError(null);
@@ -36,12 +39,18 @@ export function StepReview({ onBack }: StepReviewProps) {
       }
 
       const bookingId = await createBooking(state);
+      if (serviceRelationshipId) {
+        await setMyBookingServiceRelationshipContext(bookingId, serviceRelationshipId);
+      }
       void recordBookingProgressEvent({
         eventType: "booking_created_payment_not_started",
         currentStep: "review",
         bookingId,
         zip: state.zipcode ?? null,
         serviceOptionKey: serviceOptionKeyFromBookingService(state.serviceType),
+        metadata: serviceRelationshipId
+          ? { relationship_context: "customer_selected_existing_relationship" }
+          : undefined,
       });
       // Durable booking_created Kinex truth is emitted by the booking insert outbox trigger.
       // This screen records funnel/navigation progress only; it does not author product truth.
@@ -51,7 +60,10 @@ export function StepReview({ onBack }: StepReviewProps) {
         bookingId,
         zip: state.zipcode ?? null,
         serviceOptionKey: serviceOptionKeyFromBookingService(state.serviceType),
-        metadata: { transport: "stripe_checkout_redirect" },
+        metadata: {
+          transport: "stripe_checkout_redirect",
+          ...(serviceRelationshipId ? { relationship_context: "customer_selected_existing_relationship" } : {}),
+        },
       });
       const { url } = await createBookingCheckoutSession(bookingId);
       window.location.assign(url);
@@ -86,6 +98,8 @@ export function StepReview({ onBack }: StepReviewProps) {
         setSubmitError("Booking is not open in this area yet. Check back soon.");
       } else if (message.includes("UNSUPPORTED_SERVICE_AREA")) {
         setSubmitError("Cleanr is not serving this ZIP yet.");
+      } else if (message.includes("invalid_service_relationship_context")) {
+        setSubmitError("This Cleanr relationship is no longer available for this booking. Choose a CSP again or continue without relationship context.");
       } else {
         setSubmitError(message);
       }
@@ -96,6 +110,15 @@ export function StepReview({ onBack }: StepReviewProps) {
 
   return (
     <div className="space-y-4">
+      {serviceRelationshipId ? (
+        <div className="rounded-[14px] border border-[#BBF7D0] bg-[#F0FDF4] p-4">
+          <p className="text-[13px] font-semibold text-[#166534]">Continuing an established Cleanr relationship</p>
+          <p className="mt-1 text-[12px] leading-5 text-[#3F6212]">
+            This booking will carry the relationship you selected into checkout. That context preserves provenance and continuity; it does not bypass Cleanr/Kinex fulfillment controls or create lock-in.
+          </p>
+        </div>
+      ) : null}
+
       <div className="rounded-[14px] border border-[#E5E7EB] bg-white p-4 space-y-3 text-sm">
         <div>
           <p className="text-[12px] font-medium text-[#667085] uppercase">

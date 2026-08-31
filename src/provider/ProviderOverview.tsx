@@ -256,6 +256,16 @@ export function ProviderOverview() {
       ) : null}
 
       <section className="mt-3 button-stack section">
+        {durableRelationship ? (
+          <Button
+            variant="primaryGreen"
+            size="lg"
+            fullWidth
+            onClick={() => navigate(`/book?relationship=${encodeURIComponent(durableRelationship.id)}`)}
+          >
+            Book another cleaning together
+          </Button>
+        ) : null}
         <Button
           variant="secondary"
           size="lg"

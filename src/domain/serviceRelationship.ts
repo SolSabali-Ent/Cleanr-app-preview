@@ -10,6 +10,7 @@ export type ServiceRelationshipStatus = "active" | "paused" | "ended";
 export type ServiceRelationshipOrigin =
   | "booking_history"
   | "customer_selection"
+  | "provider_brought"
   | "admin"
   | "system";
 
@@ -37,8 +38,8 @@ export interface ProviderHouseholdRelationshipSummary {
   householdLabel: string;
   relationship?: ServiceRelationship | null;
   completedServicesCount: number;
-  firstServedAt?: string | null;
-  lastServedAt?: string | null;
-  nextScheduledAt?: string | null;
+  firstServedAt: string | null;
+  lastServedAt: string | null;
+  nextScheduledAt: string | null;
   source: "durable_relationship" | "booking_history";
 }

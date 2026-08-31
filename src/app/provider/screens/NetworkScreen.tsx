@@ -37,6 +37,17 @@ function provenanceLabel(relationship: NetworkRelationship): string {
   }
 }
 
+function formatContinuityDate(value: string | null): string | null {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+}
+
+function continuitySourceLabel(summary: ProviderHouseholdRelationshipSummary): string {
+  return summary.source === "durable_relationship" ? "Relationship preserved" : "Booking history";
+}
+
 function coverageReasonLabel(reason: TrustedServiceHandoffSummary["handoff"]["reason"]): string {
   switch (reason) {
     case "time_off": return "Time off";
@@ -186,7 +197,7 @@ export default function NetworkScreen() {
                 <span className="text-xs" style={{ color: CSP_TEXT_SECONDARY }}>{isOfflinePreviewMode ? "Preview" : `${households.length} household${households.length === 1 ? "" : "s"}`}</span>
               </div>
               <p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>
-                A booking is a transaction. Repeated service creates familiarity. Cleanr is beginning to preserve that continuity so each visit can build on the last instead of starting over.
+                A booking is a transaction. Service together creates familiarity. Cleanr preserves the relationship separately so each visit can build on the last without turning household memory into a profile here.
               </p>
               {!isOfflinePreviewMode ? (
                 <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs" style={{ color: CSP_TEXT_SECONDARY }}>
@@ -194,11 +205,42 @@ export default function NetworkScreen() {
                   <span>{scheduledHouseholds.length} with a next visit</span>
                 </div>
               ) : (
-                <p className="mt-3 text-xs" style={{ color: CSP_TEXT_SECONDARY }}>Once live data is available, this will show real household continuity from booking history.</p>
+                <p className="mt-3 text-xs" style={{ color: CSP_TEXT_SECONDARY }}>Live continuity will use durable relationship truth first, with booking history only as fallback.</p>
               )}
             </div>
           </div>
         </div>
+
+        {!isOfflinePreviewMode && households.length > 0 ? (
+          <div className="mt-3 space-y-3">
+            {households.map((household, index) => {
+              const lastServed = formatContinuityDate(household.lastServedAt);
+              const nextVisit = formatContinuityDate(household.nextScheduledAt);
+              return (
+                <div key={`${household.customerId}-${index}`} className="rounded-2xl border" style={{ backgroundColor: CSP_SURFACE, borderColor: "rgba(248,250,252,.08)", padding: CSP_CARD_PADDING }}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-medium">{household.householdLabel}</p>
+                      <p className="mt-1 text-xs" style={{ color: CSP_TEXT_SECONDARY }}>
+                        {household.completedServicesCount} completed service{household.completedServicesCount === 1 ? "" : "s"} together
+                      </p>
+                    </div>
+                    <span className="text-[11px]" style={{ color: household.source === "durable_relationship" ? CSP_PRIMARY_BUTTON : CSP_TEXT_SECONDARY }}>
+                      {continuitySourceLabel(household)}
+                    </span>
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs" style={{ color: CSP_TEXT_SECONDARY }}>
+                    {lastServed ? <span>Last service: {lastServed}</span> : <span>No completed visit recorded yet</span>}
+                    {nextVisit ? <span>Next visit: {nextVisit}</span> : null}
+                  </div>
+                  <p className="mt-3 text-[11px] leading-4" style={{ color: CSP_TEXT_SECONDARY }}>
+                    This card shows relationship continuity only. Household preferences and memory stay purpose-limited to the service contexts that need them.
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        ) : null}
       </section>
 
       <section style={{ marginBottom: CSP_SECTION_GAP }}>
