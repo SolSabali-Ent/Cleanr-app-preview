@@ -142,11 +142,13 @@ export function ProviderOverview() {
 
   const relationshipLabel = durableRelationship?.customerPreferred
     ? "Your preferred CSP"
-    : relationshipSource === "customer_selection"
-      ? "CSP you're viewing"
-      : relationshipSource === "booking_history"
-        ? "Your recent CSP"
-        : "CSP you're viewing";
+    : relationshipSource === "durable_relationship"
+      ? "Your established CSP"
+      : relationshipSource === "customer_selection"
+        ? "CSP you're viewing"
+        : relationshipSource === "booking_history"
+          ? "Your recent CSP"
+          : "CSP you're viewing";
 
   return (
     <div className="text-[#0B1220] pb-4">
