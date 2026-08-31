@@ -63,9 +63,11 @@ export function ProviderOverview() {
     }) ?? null;
   }, [relationshipBookings]);
 
-  const completedTogether = relationshipBookings.filter((booking) =>
+  const bookingHistoryCompletedTogether = relationshipBookings.filter((booking) =>
     ["completed_by_provider", "confirmed"].includes(booking.status)
   ).length;
+  const completedTogether = durableRelationship?.completedServicesCount ?? bookingHistoryCompletedTogether;
+  const hasEstablishedHistory = Boolean(durableRelationship) || relationshipBookings.length > 0;
 
   useEffect(() => {
     if (!selectedProvider?.id || isOfflinePreviewMode) {
@@ -186,15 +188,19 @@ export function ProviderOverview() {
 
       <section className="provider-card mb-3">
         <p className="text-xs font-semibold text-[#166534] mb-2">Your history together</p>
-        {relationshipBookings.length > 0 ? (
+        {hasEstablishedHistory ? (
           <div className="space-y-1">
             <p className="text-sm font-medium">
-              {relationshipBookings.length} {relationshipBookings.length === 1 ? "cleaning" : "cleanings"} connected to this CSP
+              {completedTogether > 0
+                ? `${completedTogether} ${completedTogether === 1 ? "cleaning" : "cleanings"} completed together`
+                : "Your relationship is established"}
             </p>
             <p className="text-xs text-[#667085]">
               {completedTogether > 0
-                ? `${completedTogether} completed together. Cleanr keeps the service history connected so continuity does not start over each visit.`
-                : "This relationship is beginning. Cleanr keeps the service history connected as you work together."}
+                ? durableRelationship
+                  ? "Cleanr preserves this relationship as durable continuity, so the connection does not restart from zero with every booking."
+                  : "Cleanr keeps your shared booking history connected while durable relationship continuity catches up."
+                : "Cleanr keeps this connection available without treating either of you as locked in."}
             </p>
           </div>
         ) : (

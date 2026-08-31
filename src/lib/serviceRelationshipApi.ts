@@ -161,10 +161,20 @@ export async function getMyHouseholdContinuityForCustomer(customerId: string): P
 export async function getMyServiceRelationshipWithProvider(providerId: string): Promise<ServiceRelationship | null> {
   if (isOfflinePreviewMode) return null;
 
+  const normalizedProviderId = providerId.trim();
+  if (!normalizedProviderId) return null;
+
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  const customerId = session?.user?.id;
+  if (!customerId) return null;
+
   const { data, error } = await supabase
     .from("service_relationships")
     .select(SERVICE_RELATIONSHIP_SELECT)
-    .eq("provider_id", providerId)
+    .eq("customer_id", customerId)
+    .eq("provider_id", normalizedProviderId)
     .in("status", ["active", "paused"])
     .order("updated_at", { ascending: false })
     .limit(1)
