@@ -1,7 +1,7 @@
 import { type ReactNode, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
-import { useProfile } from "../../lib/useProfile";
+import { useIsAdmin } from "../../lib/useIsAdmin";
 import { adminTheme } from "../../theme/adminTheme";
 
 type BookingAuditRow = {
@@ -37,14 +37,12 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 }
 
 export function OperationsDashboard() {
-  const { profile } = useProfile();
+  const { isAdmin, loading: adminLoading } = useIsAdmin();
   const [bookings, setBookings] = useState<BookingAuditRow[]>([]);
   const [providers, setProviders] = useState<ProviderOpsRow[]>([]);
   const [bookingIdInput, setBookingIdInput] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-
-  const isAdmin = profile?.role === "admin";
 
   const load = async () => {
     setLoading(true);
@@ -114,7 +112,7 @@ export function OperationsDashboard() {
     await load();
   };
 
-  if (!profile) {
+  if (adminLoading) {
     return (
       <div className="text-sm" style={{ color: adminTheme.textSecondary }}>
         Loading admin session...

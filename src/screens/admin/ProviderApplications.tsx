@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { traceProfileWriteStart, traceProfileWriteResult } from "@/lib/debug/profileWriteTrace";
 import { supabase } from "../../lib/supabase";
-import { useProfile } from "../../lib/useProfile";
+import { useIsAdmin } from "../../lib/useIsAdmin";
 import { adminTheme } from "../../theme/adminTheme";
 
 type ProviderApplicationRow = {
@@ -41,6 +41,7 @@ function approvalReadiness(row: ProviderApplicationRow) {
   const checks = [
     { label: "Onboarding", pass: row.is_onboarded === true },
     { label: "CSP terms", pass: Boolean(row.csp_terms_accepted_at) },
+    { label: "Identity document", pass: Boolean(row.identity_document_path?.trim()) },
     { label: "Identity verified", pass: inSet(row.identity_status, ["verified", "approved", "completed"]) },
     { label: "Background cleared", pass: inSet(row.background_check_status, ["approved", "verified", "clear"]) },
     { label: "Screening ready", pass: inSet(row.screening_status, ["scheduled", "completed", "waived"]) },
@@ -55,13 +56,11 @@ function approvalReadiness(row: ProviderApplicationRow) {
 }
 
 export function ProviderApplications() {
-  const { profile } = useProfile();
+  const { isAdmin, loading: adminLoading } = useIsAdmin();
   const [rows, setRows] = useState<ProviderApplicationRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
   const [workingKey, setWorkingKey] = useState<string | null>(null);
-
-  const isAdmin = profile?.role === "admin";
 
   async function load() {
     setLoading(true);
@@ -182,7 +181,7 @@ export function ProviderApplications() {
     void load();
   }, [isAdmin]);
 
-  if (!profile) {
+  if (adminLoading) {
     return <div className="text-sm" style={{ color: adminTheme.textSecondary }}>Loading admin session...</div>;
   }
   if (!isAdmin) {
