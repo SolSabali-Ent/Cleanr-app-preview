@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Navigate } from "react-router-dom";
-import { isOfflinePreviewMode, supabase } from "@/lib/supabase";
+import { supabase, isOfflinePreviewMode } from "@/lib/supabase";
 import { attachRefereeByCode } from "@/lib/referralApi";
 import { getStoredReferralCode, clearStoredReferralCode } from "@/lib/referralRef";
 
@@ -9,7 +9,11 @@ export function CustomerGate({ children }: { children: ReactNode }) {
   const [redirectPath, setRedirectPath] = useState<string | null>(null);
 
   useEffect(() => {
-    if (isOfflinePreviewMode) return;
+    if (isOfflinePreviewMode) {
+      setRedirectPath(null);
+      setLoading(false);
+      return;
+    }
 
     let mounted = true;
 
@@ -40,9 +44,36 @@ export function CustomerGate({ children }: { children: ReactNode }) {
         return;
       }
 
+      const canAccessApp = profile.role === "customer" || profile.role === "admin";
+      if (!canAccessApp) {
+        if (mounted) {
+          setRedirectPath("/dashboard");
+          setLoading(false);
+        }
+        return;
+      }
+
+      // Resolve a stored invitation before mounting customer children. This is important for
+      // existing-client invitations because ProviderContext should see the durable relationship
+      // on its first read rather than briefly rendering booking-only/no-relationship state.
+      if (profile.role === "customer") {
+        const code = getStoredReferralCode();
+        if (code) {
+          try {
+            const result = await attachRefereeByCode(code);
+            // A completed or definitively invalid/consumed code should not replay. On transport
+            // or server errors, leave the code stored so the customer can retry on a later entry.
+            if (result.attached || result.attached === false) {
+              clearStoredReferralCode();
+            }
+          } catch {
+            // Preserve the code for a future retry; customer access itself should still work.
+          }
+        }
+      }
+
       if (mounted) {
-        const canAccessApp = profile.role === "customer" || profile.role === "admin";
-        setRedirectPath(canAccessApp ? null : "/dashboard");
+        setRedirectPath(null);
         setLoading(false);
       }
     }
@@ -54,17 +85,6 @@ export function CustomerGate({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  useEffect(() => {
-    if (isOfflinePreviewMode || loading || redirectPath !== null) return;
-    const code = getStoredReferralCode();
-    if (!code) return;
-    clearStoredReferralCode();
-    attachRefereeByCode(code).catch(() => {}).finally(() => {
-      clearStoredReferralCode();
-    });
-  }, [loading, redirectPath]);
-
-  if (isOfflinePreviewMode) return <>{children}</>;
   if (loading) return null;
   if (redirectPath) return <Navigate to={redirectPath} replace />;
 
