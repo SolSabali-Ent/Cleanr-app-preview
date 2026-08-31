@@ -209,17 +209,32 @@ export function FoundingCircle() {
     });
   }, [bookings, contributions, network, northStars, providers, readiness, referrals, relationships]);
 
-  const totals = useMemo(() => ({
-    csp: signals.length,
-    ready: signals.filter((row) => row.application_status === "approved" || row.marketplace_access).length,
-    foundingActive: signals.filter((row) => row.foundingActivity).length,
-    invites: referrals.length,
-    accepted: referrals.filter((row) => Boolean(row.relationship_confirmed_at && row.referee_id)).length,
-    relationships: relationships.length,
-    paidBookings: bookings.filter((row) => Boolean(row.stripe_payment_intent_id)).length,
-    contributions: contributions.length,
-    activeNetwork: network.filter((row) => row.status === "active").length,
-  }), [bookings, contributions, network, referrals, relationships, signals]);
+  const totals = useMemo(() => {
+    const providerIds = new Set(providers.map((row) => row.id));
+    const providerBroughtRelationshipIds = new Set(relationships.map((row) => row.id));
+    const paidProviderBroughtBookings = bookings.filter(
+      (row) => row.service_relationship_id != null &&
+        providerBroughtRelationshipIds.has(row.service_relationship_id) &&
+        Boolean(row.stripe_payment_intent_id)
+    );
+    const cspContributions = contributions.filter((row) => providerIds.has(row.person_id));
+    const cspNetwork = network.filter(
+      (row) => row.status === "active" &&
+        (providerIds.has(row.source_person_id) || providerIds.has(row.target_person_id))
+    );
+
+    return {
+      csp: signals.length,
+      ready: signals.filter((row) => row.application_status === "approved" || row.marketplace_access).length,
+      foundingActive: signals.filter((row) => row.foundingActivity).length,
+      invites: referrals.length,
+      accepted: referrals.filter((row) => Boolean(row.relationship_confirmed_at && row.referee_id)).length,
+      relationships: relationships.length,
+      paidBookings: paidProviderBroughtBookings.length,
+      contributions: cspContributions.length,
+      activeNetwork: cspNetwork.length,
+    };
+  }, [bookings, contributions, network, providers, referrals, relationships, signals]);
 
   if (adminLoading || loading) {
     return <p className="text-sm" style={{ color: adminTheme.textSecondary }}>Loading Founding Circle launch truth…</p>;
@@ -264,7 +279,7 @@ export function FoundingCircle() {
           <p className="text-sm font-semibold">Collective proof</p>
           <p className="mt-2 text-2xl font-semibold">{totals.contributions + totals.activeNetwork}</p>
           <p className="mt-1 text-xs" style={{ color: adminTheme.textSecondary }}>
-            {totals.contributions} contribution records · {totals.activeNetwork} active network relationships. The pilot needs at least one real coverage, referral, mentorship, knowledge-transfer, or other collective event—not just paid cleanings.
+            {totals.contributions} CSP contribution records · {totals.activeNetwork} active network relationships involving a CSP. The pilot needs at least one real coverage, referral, mentorship, knowledge-transfer, or other collective event—not just paid cleanings.
           </p>
         </div>
         <div className="rounded-xl border p-4" style={{ borderColor: adminTheme.border, backgroundColor: adminTheme.card }}>
