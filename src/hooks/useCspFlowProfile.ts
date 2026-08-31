@@ -59,6 +59,86 @@ function map(row: Record<string, unknown>): CspFlowProfile {
   };
 }
 
+function adminPreviewProfile(profile: CspFlowProfile, pathname: string): CspFlowProfile {
+  const stamp = profile.provider_interest_submitted_at ?? new Date(0).toISOString();
+  const accepted = profile.csp_terms_accepted_at ?? new Date(0).toISOString();
+  const base: CspFlowProfile = {
+    ...profile,
+    role: "csp",
+  };
+
+  if (pathname.includes("/candidate-readiness")) {
+    return {
+      ...base,
+      provider_interest_submitted_at: null,
+      is_onboarded: false,
+      csp_terms_accepted_at: null,
+      waiver_accepted_at: null,
+      application_status: "not_started",
+      marketplace_access: false,
+    };
+  }
+
+  if (pathname.includes("/onboarding")) {
+    return {
+      ...base,
+      provider_interest_submitted_at: stamp,
+      is_onboarded: false,
+      csp_terms_accepted_at: null,
+      waiver_accepted_at: null,
+      application_status: "not_started",
+      marketplace_access: false,
+    };
+  }
+
+  if (pathname.includes("/verification")) {
+    return {
+      ...base,
+      provider_interest_submitted_at: stamp,
+      is_onboarded: true,
+      waiver_accepted_at: accepted,
+      csp_terms_accepted_at: null,
+      application_status: "not_started",
+      marketplace_access: false,
+    };
+  }
+
+  if (pathname.includes("/application-status")) {
+    return {
+      ...base,
+      provider_interest_submitted_at: stamp,
+      is_onboarded: true,
+      waiver_accepted_at: accepted,
+      csp_terms_accepted_at: accepted,
+      application_status: "under_review",
+      marketplace_access: false,
+    };
+  }
+
+  if (pathname.endsWith("/terms")) {
+    return {
+      ...base,
+      provider_interest_submitted_at: stamp,
+      is_onboarded: true,
+      waiver_accepted_at: accepted,
+      csp_terms_accepted_at: null,
+      application_status: "not_started",
+      marketplace_access: false,
+    };
+  }
+
+  return {
+    ...base,
+    provider_interest_submitted_at: stamp,
+    is_onboarded: true,
+    waiver_accepted_at: accepted,
+    csp_terms_accepted_at: accepted,
+    application_status: profile.application_status ?? "approved",
+    application_approved_at: profile.application_approved_at ?? accepted,
+    marketplace_access: true,
+  };
+}
+
 export function useCspFlowProfile() {
   const location = useLocation();
   const { session, loading: sessionLoading } = useSession();
@@ -80,12 +160,18 @@ export function useCspFlowProfile() {
       setLoading(false);
       return;
     }
-    const mapped = map(data as Record<string, unknown>);
+    let mapped = map(data as Record<string, unknown>);
+
+    if (location.pathname.startsWith("/admin/full-app/csp")) {
+      const { data: admin } = await supabase.rpc("is_admin", { uid });
+      if (admin === true) mapped = adminPreviewProfile(mapped, location.pathname);
+    }
+
     setProfileFlow(mapped);
     setLoading(false);
     if (hasProviderInterestSubmitted(mapped)) clearProviderInterestHandoff(uid);
     if (dbConfirmsOnboardingComplete(mapped)) clearOnboardingCompleteHandoff(uid);
-  }, [uid]);
+  }, [uid, location.pathname]);
 
   useEffect(() => {
     if (sessionLoading) return;
