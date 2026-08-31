@@ -14,15 +14,29 @@ routes=(
   app
   app/bookings
   app/provider
+  app/provider/list
   app/profile
   app/payments
   book
   signin
   dashboard
   csp
+  csp/founding-circle
   csp/login
   csp/signup
   csp/dashboard
+  csp/dashboard/candidate-readiness
+  csp/dashboard/onboarding
+  csp/dashboard/verification
+  csp/dashboard/application-status
+  csp/dashboard/terms
+  csp/dashboard/application
+  csp/dashboard/jobs
+  csp/dashboard/calendar
+  csp/dashboard/earnings
+  csp/dashboard/existing-clients
+  csp/dashboard/availability
+  csp/dashboard/profile
   csp/growth
   csp/growth/milestones
   csp/growth/capabilities
@@ -37,6 +51,13 @@ routes=(
   csp/dashboard/growth/opportunities/fit
   csp/dashboard/growth/network
   csp/dashboard/growth/contributions
+  admin
+  admin/ops
+  admin/founding-circle
+  admin/providers
+  admin/access
+  admin/geo
+  admin/full-app
   trust-safety
   booking-confirmed
 )
