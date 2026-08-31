@@ -36,6 +36,7 @@ import GrowthOpportunitiesScreen from "../app/provider/screens/GrowthOpportuniti
 import ContributionsScreen from "../app/provider/screens/ContributionsScreen";
 import MilestonesScreen from "../app/provider/screens/MilestonesScreen";
 import NetworkScreen from "../app/provider/screens/NetworkScreen";
+import FoundingCircleJoin from "../app/provider/screens/FoundingCircleJoin";
 import { CSP_GROWTH_ROUTES } from "../app/provider/growthRoutes";
 import { AICheck } from "../screens/provider/AICheck";
 import { IncidentLog } from "../screens/provider/IncidentLog";
@@ -58,7 +59,7 @@ import { CustomerGate } from "./CustomerGate";
 
 export function AppRouter() {
   return <BrowserRouter><ScrollToTop /><div className="app-shell"><Routes>
-    <Route path="/" element={<Landing />} /><Route path="/signin" element={<CustomerLogin />} /><Route path="/dashboard" element={<AuthGate />} /><Route path="/csp" element={<ProviderHub />} /><Route path="/start-booking" element={<Navigate to="/book" replace />} /><Route path="/service" element={<Navigate to="/book" replace />} /><Route path="/booking-confirmed" element={<BookingConfirmation />} /><Route path="/trust-safety" element={<TrustSafety />} />
+    <Route path="/" element={<Landing />} /><Route path="/signin" element={<CustomerLogin />} /><Route path="/dashboard" element={<AuthGate />} /><Route path="/csp" element={<ProviderHub />} /><Route path="/csp/founding-circle" element={<FoundingCircleJoin />} /><Route path="/start-booking" element={<Navigate to="/book" replace />} /><Route path="/service" element={<Navigate to="/book" replace />} /><Route path="/booking-confirmed" element={<BookingConfirmation />} /><Route path="/trust-safety" element={<TrustSafety />} />
     <Route path="/book/*" element={<CustomerLayout />}><Route index element={<BookService />} /></Route>
     <Route path="/app" element={<CustomerGate><CustomerLayout /></CustomerGate>}><Route index element={<CustomerHome />} /><Route path="bookings" element={<Schedule />} /><Route path="bookings/:bookingId" element={<CustomerBookingDetails />} /><Route path="bookings/:bookingId/prep" element={<BeforeYourCleaning />} /><Route path="bookings/:bookingId/message" element={<CustomerBookingMessagePage />} /><Route path="provider" element={<ProviderOverview />} /><Route path="provider/list" element={<ProviderList />} /><Route path="provider/:providerId" element={<ProviderDetail />} /><Route path="profile" element={<CustomerProfile />} /><Route path="payments" element={<Payments />} /></Route>
     <Route path="/csp/login" element={<CSPLogin />} /><Route path="/csp/signup" element={<CSPSignup />} /><Route path="/onboarding" element={<Navigate to="/csp/dashboard" replace />} /><Route path="/csp/onboarding" element={<Navigate to="/csp/dashboard" replace />} />
