@@ -29,7 +29,7 @@ export default function FoundingCircleJoin() {
     <main className="min-h-screen bg-slate-50 px-5 py-10 text-slate-900">
       <div className="mx-auto max-w-2xl">
         <div className="flex items-center justify-between gap-4">
-          <img src="/cleanr-app@2x.png" alt="Cleanr" className="h-12 w-12 object-contain" />
+          <img src="/cleanr-app@2x.png" alt="Cleanr" className="h-[77px] w-[77px] object-contain" />
           <button type="button" onClick={() => navigate("/csp/login")} className="text-sm font-medium text-[#0A84FF]">
             Already a provider? Sign in
           </button>
