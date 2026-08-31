@@ -71,7 +71,7 @@ export function ProviderApplications() {
         "id,full_name,is_onboarded,application_status,identity_status,insurance_status,background_check_status,screening_status,travel_readiness_status,agreement_accepted_at,csp_terms_accepted_at,application_submitted_at,identity_document_path,insurance_document_path,rejection_reason,cleaning_experience_bucket,has_own_equipment,has_reliable_transportation,provider_review_band,provider_interest_submitted_at"
       )
       .eq("role", "csp")
-      .or("application_status.in.(submitted,under_review),not.cleaning_experience_bucket.is.null")
+      .or("application_status.in.(submitted,under_review),cleaning_experience_bucket.not.is.null")
       .order("provider_interest_submitted_at", { ascending: false, nullsFirst: false })
       .order("application_submitted_at", { ascending: false, nullsFirst: false });
     if (error) {
