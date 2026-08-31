@@ -31,6 +31,16 @@ const EXPERIENCE_LABELS: Record<CleaningExperienceBucket, string> = {
   "5y_plus": "5+ years",
 };
 
+type ExistingClientHouseholdBucket = "none" | "1_2" | "3_5" | "6_plus" | "prefer_not_to_say";
+
+const EXISTING_CLIENT_LABELS: Record<ExistingClientHouseholdBucket, string> = {
+  none: "No — not right now",
+  "1_2": "Yes — 1–2 households",
+  "3_5": "Yes — 3–5 households",
+  "6_plus": "Yes — 6+ households",
+  prefer_not_to_say: "Prefer not to say",
+};
+
 type ReadinessSubmissionResult = {
   provider_id?: string;
   scope?: string;
@@ -44,6 +54,7 @@ export default function CandidateReadinessScreen() {
   const [bucket, setBucket] = useState<CleaningExperienceBucket | "">("");
   const [hasEquipment, setHasEquipment] = useState<boolean | null>(null);
   const [hasTransport, setHasTransport] = useState<boolean | null>(null);
+  const [existingClients, setExistingClients] = useState<ExistingClientHouseholdBucket | "">("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -162,6 +173,10 @@ export default function CandidateReadinessScreen() {
       setError("Please answer whether you have reliable transportation.");
       return;
     }
+    if (!existingClients) {
+      setError("Please tell us whether you already serve residential households, or choose prefer not to say.");
+      return;
+    }
 
     const providerId = profile.id;
     setSaving(true);
@@ -192,6 +207,15 @@ export default function CandidateReadinessScreen() {
       return;
     }
 
+    const signalResult = await supabase.rpc("set_my_existing_client_readiness_signal", {
+      p_existing_client_household_bucket: existingClients,
+    });
+    if (signalResult.error) {
+      setError("Your readiness was saved, but we could not save the existing-client signal. Please try submitting once more.");
+      setSaving(false);
+      return;
+    }
+
     const result = (submitResult.data ?? {}) as ReadinessSubmissionResult;
     const submittedAt = result.submitted_at ?? new Date().toISOString();
 
@@ -203,6 +227,7 @@ export default function CandidateReadinessScreen() {
       profileId: providerId,
       provider_interest_submitted_at: submittedAt,
       provider_review_band: result.provider_review_band ?? null,
+      existing_client_household_bucket: existingClients,
     });
 
     const submitHandoffBefore = hasProviderInterestHandoff(providerId);
@@ -261,8 +286,8 @@ export default function CandidateReadinessScreen() {
       <header style={{ marginBottom: CSP_SECTION_GAP }}>
         <h1 className="text-2xl font-semibold">Residential provider interest</h1>
         <p className="text-sm mt-2" style={{ color: CSP_TEXT_SECONDARY }}>
-          Cleanr is building a residential cleaning provider pipeline in Metro Atlanta. Your answers help us prioritize
-          who we review first. This is not a job application outcome — we may reach out on a rolling basis.
+          Cleanr is building a residential cleaning provider pipeline in Metro Atlanta. Your answers help us understand
+          your current practice and readiness. This is not a job application outcome — we may reach out on a rolling basis.
         </p>
       </header>
 
@@ -278,7 +303,7 @@ export default function CandidateReadinessScreen() {
           <li>Submitting this form does not guarantee immediate activation on Cleanr.</li>
           <li>It does not guarantee immediate background screening or a background check order.</li>
           <li>It does not guarantee job placement or earnings.</li>
-          <li>Stronger readiness may mean earlier review, but we still review other candidates over time.</li>
+          <li>Existing clients help us understand your current practice; they do not improve your approval score or marketplace eligibility.</li>
         </ul>
       </section>
 
@@ -352,6 +377,29 @@ export default function CandidateReadinessScreen() {
               />
               <span>No</span>
             </label>
+          </div>
+        </div>
+
+        <div>
+          <p className="text-sm font-medium mb-1" style={{ color: CSP_TEXT_SECONDARY }}>
+            Do you already clean regularly for residential households outside Cleanr?
+          </p>
+          <p className="mb-3 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>
+            This helps us understand the practice you already built and whether Cleanr can support continuity for those relationships. It does not change your provider approval score.
+          </p>
+          <div className="space-y-2">
+            {(Object.keys(EXISTING_CLIENT_LABELS) as ExistingClientHouseholdBucket[]).map((value) => (
+              <label key={value} className="flex items-center gap-3 cursor-pointer" style={{ color: CSP_TEXT_PRIMARY }}>
+                <input
+                  type="radio"
+                  name="existing-clients"
+                  value={value}
+                  checked={existingClients === value}
+                  onChange={() => setExistingClients(value)}
+                />
+                <span>{EXISTING_CLIENT_LABELS[value]}</span>
+              </label>
+            ))}
           </div>
         </div>
 
