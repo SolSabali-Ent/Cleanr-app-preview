@@ -1,7 +1,8 @@
-import { useState } from "react";
-import { ArrowLeft, Copy, Link2, UsersRound } from "lucide-react";
+import { useEffect, useState } from "react";
+import { ArrowLeft, Copy, Link2, ReceiptText, UsersRound } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { createExistingClientInvite } from "@/lib/referralApi";
+import { supabase } from "@/lib/supabase";
 import {
   CSP_BACKGROUND,
   CSP_CARD_PADDING,
@@ -18,6 +19,34 @@ export default function ExistingClientsScreen() {
   const [inviteUrl, setInviteUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [feeRate, setFeeRate] = useState<number | null>(null);
+  const [feeLoading, setFeeLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadFeePolicy() {
+      setFeeLoading(true);
+      const { data, error: feeError } = await supabase
+        .from("platform_settings")
+        .select("value")
+        .eq("key", "provider_brought_platform_fee_rate")
+        .maybeSingle();
+
+      if (!active) return;
+
+      if (!feeError) {
+        const parsed = Number((data as { value?: string } | null)?.value);
+        if (Number.isFinite(parsed) && parsed >= 0 && parsed <= 1) setFeeRate(parsed);
+      }
+      setFeeLoading(false);
+    }
+
+    void loadFeePolicy();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   async function createInvite() {
     if (busy) return;
@@ -46,6 +75,8 @@ export default function ExistingClientsScreen() {
     }
   }
 
+  const feePercent = feeRate == null ? null : Math.round(feeRate * 1000) / 10;
+
   return (
     <div className="min-h-screen px-4 pt-6 pb-24" style={{ backgroundColor: CSP_BACKGROUND, color: CSP_TEXT_PRIMARY }}>
       <button
@@ -71,6 +102,30 @@ export default function ExistingClientsScreen() {
       <section style={{ marginBottom: CSP_SECTION_GAP }}>
         <div
           className="rounded-2xl border"
+          style={{ backgroundColor: "rgba(141,204,100,.08)", borderColor: "rgba(141,204,100,.22)", padding: CSP_CARD_PADDING }}
+        >
+          <div className="flex items-start gap-3">
+            <ReceiptText size={19} style={{ color: CSP_PRIMARY_BUTTON, marginTop: 2 }} />
+            <div>
+              <p className="text-sm font-medium">Relationship-origin pricing</p>
+              <p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>
+                {feeLoading
+                  ? "Loading the current provider-brought relationship fee…"
+                  : feePercent == null
+                    ? "The current provider-brought relationship fee could not be loaded. Do not create an invite until the policy is available."
+                    : `For a paid booking that continues this provider-brought relationship, Cleanr currently keeps ${feePercent}% of the service price as its platform fee. The customer pays the normal service price; the fee is snapshotted on that booking at checkout.`}
+              </p>
+              <p className="mt-2 text-[11px] leading-4" style={{ color: CSP_TEXT_SECONDARY }}>
+                This rate reflects that you created the relationship before Cleanr. It can evolve as the services Cleanr provides evolve, but the booking keeps the fee snapshot that applied at checkout.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section style={{ marginBottom: CSP_SECTION_GAP }}>
+        <div
+          className="rounded-2xl border"
           style={{ backgroundColor: CSP_SURFACE, borderColor: "rgba(248,250,252,.08)", padding: CSP_CARD_PADDING }}
         >
           <div className="flex items-start gap-3">
@@ -88,12 +143,12 @@ export default function ExistingClientsScreen() {
       <section style={{ marginBottom: CSP_SECTION_GAP }}>
         <button
           type="button"
-          disabled={busy}
+          disabled={busy || feeLoading || feePercent == null}
           onClick={() => void createInvite()}
           className="w-full rounded-xl px-4 py-3 text-sm font-semibold text-white disabled:opacity-60"
           style={{ backgroundColor: CSP_PRIMARY_BUTTON }}
         >
-          {busy ? "Creating link…" : "Create existing-client link"}
+          {busy ? "Creating link…" : feeLoading ? "Loading fee policy…" : "Create existing-client link"}
         </button>
       </section>
 
