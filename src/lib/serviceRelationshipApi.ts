@@ -26,6 +26,9 @@ type ServiceRelationshipRow = {
   updated_at: string;
 };
 
+const SERVICE_RELATIONSHIP_SELECT =
+  "id, customer_id, provider_id, relationship_kind, status, origin, customer_preferred, preferred_at, first_booking_id, latest_booking_id, completed_services_count, first_served_at, last_served_at, next_scheduled_at, created_at, updated_at";
+
 function mapServiceRelationship(row: ServiceRelationshipRow): ServiceRelationship {
   return {
     id: row.id,
@@ -53,8 +56,7 @@ function dateOrNull(value: string | null | undefined): Date | null {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
-export async function listMyHouseholdContinuity(): Promise<ProviderHouseholdRelationshipSummary[]> {
-  const bookings = await listMyJobsAsProvider();
+function bookingHistorySummaries(bookings: Booking[]): ProviderHouseholdRelationshipSummary[] {
   const byCustomer = new Map<string, Booking[]>();
 
   for (const booking of bookings) {
@@ -66,36 +68,87 @@ export async function listMyHouseholdContinuity(): Promise<ProviderHouseholdRela
   }
 
   const now = Date.now();
-  return Array.from(byCustomer.entries())
-    .map(([customerId, customerBookings]) => {
-      const completed = customerBookings.filter((booking) => COMPLETED_STATUSES.has(booking.status));
-      const scheduled = customerBookings
-        .filter((booking) => ACTIVE_STATUSES.has(booking.status))
-        .map((booking) => dateOrNull(booking.scheduled_start))
-        .filter((date): date is Date => Boolean(date))
-        .filter((date) => date.getTime() >= now)
-        .sort((a, b) => a.getTime() - b.getTime());
-      const servedDates = completed
-        .map((booking) => dateOrNull(booking.scheduled_start))
-        .filter((date): date is Date => Boolean(date))
-        .sort((a, b) => a.getTime() - b.getTime());
+  return Array.from(byCustomer.entries()).map(([customerId, customerBookings]) => {
+    const completed = customerBookings.filter((booking) => COMPLETED_STATUSES.has(booking.status));
+    const scheduled = customerBookings
+      .filter((booking) => ACTIVE_STATUSES.has(booking.status))
+      .map((booking) => dateOrNull(booking.scheduled_start))
+      .filter((date): date is Date => Boolean(date))
+      .filter((date) => date.getTime() >= now)
+      .sort((a, b) => a.getTime() - b.getTime());
+    const servedDates = completed
+      .map((booking) => dateOrNull(booking.scheduled_start))
+      .filter((date): date is Date => Boolean(date))
+      .sort((a, b) => a.getTime() - b.getTime());
 
-      return {
-        customerId,
-        householdLabel: "Cleanr household",
-        relationship: null,
-        completedServicesCount: completed.length,
-        firstServedAt: servedDates[0]?.toISOString() ?? null,
-        lastServedAt: servedDates.at(-1)?.toISOString() ?? null,
-        nextScheduledAt: scheduled[0]?.toISOString() ?? null,
-        source: "booking_history" as const,
-      };
-    })
-    .sort((a, b) => {
-      const aTime = dateOrNull(a.nextScheduledAt)?.getTime() ?? dateOrNull(a.lastServedAt)?.getTime() ?? 0;
-      const bTime = dateOrNull(b.nextScheduledAt)?.getTime() ?? dateOrNull(b.lastServedAt)?.getTime() ?? 0;
-      return bTime - aTime;
+    return {
+      customerId,
+      householdLabel: "Cleanr household",
+      relationship: null,
+      completedServicesCount: completed.length,
+      firstServedAt: servedDates[0]?.toISOString() ?? null,
+      lastServedAt: servedDates.at(-1)?.toISOString() ?? null,
+      nextScheduledAt: scheduled[0]?.toISOString() ?? null,
+      source: "booking_history" as const,
+    };
+  });
+}
+
+function continuitySortTime(summary: ProviderHouseholdRelationshipSummary): number {
+  return dateOrNull(summary.nextScheduledAt)?.getTime() ?? dateOrNull(summary.lastServedAt)?.getTime() ?? 0;
+}
+
+export async function listMyHouseholdContinuity(): Promise<ProviderHouseholdRelationshipSummary[]> {
+  const bookings = await listMyJobsAsProvider();
+  const fallbackSummaries = bookingHistorySummaries(bookings);
+
+  if (isOfflinePreviewMode) {
+    return fallbackSummaries.sort((a, b) => continuitySortTime(b) - continuitySortTime(a));
+  }
+
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  const providerId = session?.user?.id;
+  if (!providerId) return fallbackSummaries.sort((a, b) => continuitySortTime(b) - continuitySortTime(a));
+
+  const { data, error } = await supabase
+    .from("service_relationships")
+    .select(SERVICE_RELATIONSHIP_SELECT)
+    .eq("provider_id", providerId)
+    .in("status", ["active", "paused"])
+    .order("updated_at", { ascending: false });
+
+  if (isSupabaseFeatureUnavailable(error)) {
+    return fallbackSummaries.sort((a, b) => continuitySortTime(b) - continuitySortTime(a));
+  }
+  if (error) throw error;
+
+  const durableByCustomer = new Map<string, ProviderHouseholdRelationshipSummary>();
+  for (const row of (data ?? []) as ServiceRelationshipRow[]) {
+    if (durableByCustomer.has(row.customer_id)) continue;
+    const relationship = mapServiceRelationship(row);
+    durableByCustomer.set(row.customer_id, {
+      customerId: relationship.customerId,
+      householdLabel: "Cleanr household",
+      relationship,
+      completedServicesCount: relationship.completedServicesCount,
+      firstServedAt: relationship.firstServedAt ?? null,
+      lastServedAt: relationship.lastServedAt ?? null,
+      nextScheduledAt: relationship.nextScheduledAt ?? null,
+      source: "durable_relationship",
     });
+  }
+
+  for (const fallback of fallbackSummaries) {
+    if (!durableByCustomer.has(fallback.customerId)) {
+      durableByCustomer.set(fallback.customerId, fallback);
+    }
+  }
+
+  return Array.from(durableByCustomer.values()).sort(
+    (a, b) => continuitySortTime(b) - continuitySortTime(a)
+  );
 }
 
 export async function getMyHouseholdContinuityForCustomer(customerId: string): Promise<ProviderHouseholdRelationshipSummary | null> {
@@ -110,7 +163,7 @@ export async function getMyServiceRelationshipWithProvider(providerId: string): 
 
   const { data, error } = await supabase
     .from("service_relationships")
-    .select("id, customer_id, provider_id, relationship_kind, status, origin, customer_preferred, preferred_at, first_booking_id, latest_booking_id, completed_services_count, first_served_at, last_served_at, next_scheduled_at, created_at, updated_at")
+    .select(SERVICE_RELATIONSHIP_SELECT)
     .eq("provider_id", providerId)
     .in("status", ["active", "paused"])
     .order("updated_at", { ascending: false })
