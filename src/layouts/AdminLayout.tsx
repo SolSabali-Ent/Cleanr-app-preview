@@ -3,6 +3,7 @@ import { adminTheme } from "../theme/adminTheme";
 
 const navItems = [
   { to: "/admin/ops", label: "Operations" },
+  { to: "/admin/founding-circle", label: "Founding Circle" },
   { to: "/admin/providers", label: "Providers" },
   { to: "/admin/access", label: "Admin Access" },
   { to: "/admin/geo", label: "Geo Harness" },
