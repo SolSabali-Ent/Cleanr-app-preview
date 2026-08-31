@@ -86,46 +86,64 @@ export function OperationsDashboard() {
   const load = async () => {
     setLoading(true);
     setMessage(null);
-    try {
-      const [b, p, customers, admins, rels, ns, net, contrib] = await Promise.all([
-        supabase
-          .from("bookings")
-          .select(
-            "id,status,customer_id,provider_id,check_in_at,check_out_at,payout_approved_at,payout_released,stripe_payment_intent_id"
-          )
-          .order("updated_at", { ascending: false })
-          .limit(100),
-        supabase
-          .from("profiles")
-          .select("id,full_name,marketplace_access,infrastructure_only")
-          .eq("role", "csp")
-          .order("updated_at", { ascending: false })
-          .limit(100),
-        supabase.from("profiles").select("id", { count: "exact", head: true }).eq("role", "customer"),
-        supabase.from("platform_admin_memberships").select("user_id", { count: "exact", head: true }),
-        supabase.from("service_relationships").select("id,origin,status"),
-        supabase.from("north_stars").select("status"),
-        supabase.from("network_relationships").select("status"),
-        supabase.from("contributions").select("person_id"),
-      ]);
 
-      for (const result of [b, p, customers, admins, rels, ns, net, contrib]) {
-        if (result.error) throw result.error;
-      }
+    const [b, p, customers, admins, rels, ns, net, contrib] = await Promise.all([
+      supabase
+        .from("bookings")
+        .select(
+          "id,status,customer_id,provider_id,check_in_at,check_out_at,payout_approved_at,payout_released,stripe_payment_intent_id"
+        )
+        .order("updated_at", { ascending: false })
+        .limit(100),
+      supabase
+        .from("profiles")
+        .select("id,full_name,marketplace_access,infrastructure_only")
+        .eq("role", "csp")
+        .order("updated_at", { ascending: false })
+        .limit(100),
+      supabase.from("profiles").select("id", { count: "exact", head: true }).eq("role", "customer"),
+      supabase.from("platform_admin_memberships").select("user_id", { count: "exact", head: true }),
+      supabase.from("service_relationships").select("id,origin,status"),
+      supabase.from("north_stars").select("status"),
+      supabase.from("network_relationships").select("status"),
+      supabase.from("contributions").select("person_id"),
+    ]);
 
-      setBookings((b.data ?? []) as BookingAuditRow[]);
-      setProviders((p.data ?? []) as ProviderOpsRow[]);
-      setCustomerCount(customers.count ?? 0);
-      setAdminCount(admins.count ?? 0);
-      setRelationships((rels.data ?? []) as RelationshipRow[]);
-      setNorthStars((ns.data ?? []) as NorthStarRow[]);
-      setNetwork((net.data ?? []) as NetworkRow[]);
-      setContributions((contrib.data ?? []) as ContributionRow[]);
-    } catch (err) {
-      setMessage(err instanceof Error ? err.message : "Failed to load admin dashboard");
-    } finally {
-      setLoading(false);
-    }
+    const failures: string[] = [];
+    const noteFailure = (label: string, error: { message: string } | null) => {
+      if (error) failures.push(`${label}: ${error.message}`);
+    };
+
+    noteFailure("bookings", b.error);
+    if (!b.error) setBookings((b.data ?? []) as BookingAuditRow[]);
+
+    noteFailure("providers", p.error);
+    if (!p.error) setProviders((p.data ?? []) as ProviderOpsRow[]);
+
+    noteFailure("customers", customers.error);
+    if (!customers.error) setCustomerCount(customers.count ?? 0);
+
+    noteFailure("platform admins", admins.error);
+    if (!admins.error) setAdminCount(admins.count ?? 0);
+
+    noteFailure("service relationships", rels.error);
+    if (!rels.error) setRelationships((rels.data ?? []) as RelationshipRow[]);
+
+    noteFailure("North Stars", ns.error);
+    if (!ns.error) setNorthStars((ns.data ?? []) as NorthStarRow[]);
+
+    noteFailure("network relationships", net.error);
+    if (!net.error) setNetwork((net.data ?? []) as NetworkRow[]);
+
+    noteFailure("contributions", contrib.error);
+    if (!contrib.error) setContributions((contrib.data ?? []) as ContributionRow[]);
+
+    setMessage(
+      failures.length > 0
+        ? `Some admin metrics could not load. ${failures.join(" · ")}`
+        : null
+    );
+    setLoading(false);
   };
 
   useEffect(() => {
