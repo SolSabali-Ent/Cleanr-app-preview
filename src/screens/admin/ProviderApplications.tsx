@@ -56,7 +56,7 @@ function approvalReadiness(row: ProviderApplicationRow) {
 }
 
 export function ProviderApplications() {
-  const { isAdmin, loading: adminLoading } = useIsAdmin();
+  const { isAdmin, loading: adminLoading, userId } = useIsAdmin();
   const [rows, setRows] = useState<ProviderApplicationRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
@@ -95,6 +95,11 @@ export function ProviderApplications() {
   }
 
   async function reviewEvidence(providerId: string, reviewType: ReviewType, outcome: string) {
+    if (providerId === userId) {
+      setMessage("Independent reviewer required. Providers cannot review their own verification evidence.");
+      return;
+    }
+
     const note = window.prompt(`Optional review note for ${reviewType}`) ?? "";
     const working = `${providerId}:${reviewType}:${outcome}`;
     setWorkingKey(working);
@@ -127,6 +132,11 @@ export function ProviderApplications() {
   }
 
   async function updateStatus(providerId: string, status: "under_review" | "rejected") {
+    if (providerId === userId) {
+      setMessage("Independent reviewer required. Providers cannot change their own application review status.");
+      return;
+    }
+
     const reason = status === "rejected" ? window.prompt("Rejection reason") ?? "" : null;
     const rpcArgs = { p_provider_id: providerId, p_status: status, p_reason: reason };
     const traceRpc = await traceProfileWriteStart({
@@ -147,6 +157,11 @@ export function ProviderApplications() {
   }
 
   async function approveProvider(providerId: string) {
+    if (providerId === userId) {
+      setMessage("Independent reviewer required. Providers cannot approve their own application.");
+      return;
+    }
+
     const row = rows.find((candidate) => candidate.id === providerId);
     const readiness = row ? approvalReadiness(row) : null;
     if (!readiness?.ready) {
@@ -211,6 +226,10 @@ export function ProviderApplications() {
         <div className="space-y-3">
           {rows.map((row) => {
             const readiness = approvalReadiness(row);
+            const selfReview = Boolean(userId && row.id === userId);
+            const trustActionDisabled = workingKey !== null || selfReview;
+            const approvalDisabled = selfReview || !readiness.ready;
+
             return (
               <section key={row.id} className="rounded-xl border p-4" style={{ borderColor: adminTheme.border, backgroundColor: adminTheme.card }}>
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -230,6 +249,15 @@ export function ProviderApplications() {
                     <p className="text-xs text-slate-500">CSP terms: {row.csp_terms_accepted_at ? "accepted" : "pending"}</p>
                     <p className="text-xs text-slate-500">insurance (optional): {row.insurance_status ?? "not_started"}</p>
                     {row.rejection_reason ? <p className="text-xs text-red-600">review note: {row.rejection_reason}</p> : null}
+
+                    {selfReview ? (
+                      <div className="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-3">
+                        <p className="text-xs font-semibold text-amber-900">Independent reviewer required</p>
+                        <p className="mt-1 text-xs text-amber-800">
+                          You can inspect this application, but you cannot verify evidence, change its review decision, or approve your own CSP application.
+                        </p>
+                      </div>
+                    ) : null}
 
                     <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
                       <div className="flex items-center justify-between gap-3">
@@ -253,23 +281,23 @@ export function ProviderApplications() {
                         <div>
                           <p className="mb-1 text-xs text-slate-500">Identity</p>
                           <div className="flex flex-wrap gap-1.5">
-                            <button disabled={workingKey !== null} onClick={() => void reviewEvidence(row.id, "identity", "verified")} className="rounded-lg border border-emerald-300 px-2 py-1 text-xs text-emerald-700 disabled:opacity-40">Verify</button>
-                            <button disabled={workingKey !== null} onClick={() => void reviewEvidence(row.id, "identity", "rejected")} className="rounded-lg border border-red-300 px-2 py-1 text-xs text-red-700 disabled:opacity-40">Reject</button>
+                            <button disabled={trustActionDisabled} onClick={() => void reviewEvidence(row.id, "identity", "verified")} className="rounded-lg border border-emerald-300 px-2 py-1 text-xs text-emerald-700 disabled:cursor-not-allowed disabled:opacity-40">Verify</button>
+                            <button disabled={trustActionDisabled} onClick={() => void reviewEvidence(row.id, "identity", "rejected")} className="rounded-lg border border-red-300 px-2 py-1 text-xs text-red-700 disabled:cursor-not-allowed disabled:opacity-40">Reject</button>
                           </div>
                         </div>
                         <div>
                           <p className="mb-1 text-xs text-slate-500">Background</p>
                           <div className="flex flex-wrap gap-1.5">
-                            <button disabled={workingKey !== null} onClick={() => void reviewEvidence(row.id, "background", "clear")} className="rounded-lg border border-emerald-300 px-2 py-1 text-xs text-emerald-700 disabled:opacity-40">Clear</button>
-                            <button disabled={workingKey !== null} onClick={() => void reviewEvidence(row.id, "background", "rejected")} className="rounded-lg border border-red-300 px-2 py-1 text-xs text-red-700 disabled:opacity-40">Reject</button>
+                            <button disabled={trustActionDisabled} onClick={() => void reviewEvidence(row.id, "background", "clear")} className="rounded-lg border border-emerald-300 px-2 py-1 text-xs text-emerald-700 disabled:cursor-not-allowed disabled:opacity-40">Clear</button>
+                            <button disabled={trustActionDisabled} onClick={() => void reviewEvidence(row.id, "background", "rejected")} className="rounded-lg border border-red-300 px-2 py-1 text-xs text-red-700 disabled:cursor-not-allowed disabled:opacity-40">Reject</button>
                           </div>
                         </div>
                         <div>
                           <p className="mb-1 text-xs text-slate-500">Screening</p>
                           <div className="flex flex-wrap gap-1.5">
-                            <button disabled={workingKey !== null} onClick={() => void reviewEvidence(row.id, "screening", "completed")} className="rounded-lg border border-emerald-300 px-2 py-1 text-xs text-emerald-700 disabled:opacity-40">Complete</button>
-                            <button disabled={workingKey !== null} onClick={() => void reviewEvidence(row.id, "screening", "waived")} className="rounded-lg border border-slate-300 px-2 py-1 text-xs text-slate-700 disabled:opacity-40">Waive</button>
-                            <button disabled={workingKey !== null} onClick={() => void reviewEvidence(row.id, "screening", "rejected")} className="rounded-lg border border-red-300 px-2 py-1 text-xs text-red-700 disabled:opacity-40">Reject</button>
+                            <button disabled={trustActionDisabled} onClick={() => void reviewEvidence(row.id, "screening", "completed")} className="rounded-lg border border-emerald-300 px-2 py-1 text-xs text-emerald-700 disabled:cursor-not-allowed disabled:opacity-40">Complete</button>
+                            <button disabled={trustActionDisabled} onClick={() => void reviewEvidence(row.id, "screening", "waived")} className="rounded-lg border border-slate-300 px-2 py-1 text-xs text-slate-700 disabled:cursor-not-allowed disabled:opacity-40">Waive</button>
+                            <button disabled={trustActionDisabled} onClick={() => void reviewEvidence(row.id, "screening", "rejected")} className="rounded-lg border border-red-300 px-2 py-1 text-xs text-red-700 disabled:cursor-not-allowed disabled:opacity-40">Reject</button>
                           </div>
                         </div>
                       </div>
@@ -277,9 +305,9 @@ export function ProviderApplications() {
                   </div>
 
                   <div className="flex flex-wrap gap-2 lg:max-w-[19rem] lg:justify-end">
-                    <button onClick={() => void updateStatus(row.id, "under_review")} className="min-h-[52px] rounded-[14px] border border-slate-300 px-6 text-xs font-medium text-slate-700">Mark under review</button>
-                    <button onClick={() => void approveProvider(row.id)} disabled={!readiness.ready} className="min-h-[52px] rounded-[14px] px-6 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40" style={{ backgroundColor: adminTheme.success }} title={readiness.ready ? "Approve provider application" : `Missing: ${readiness.missing.join(", ")}`}>Approve</button>
-                    <button onClick={() => void updateStatus(row.id, "rejected")} className="min-h-[52px] rounded-[14px] px-6 text-xs font-semibold text-white" style={{ backgroundColor: adminTheme.danger }}>Reject</button>
+                    <button disabled={selfReview} onClick={() => void updateStatus(row.id, "under_review")} className="min-h-[52px] rounded-[14px] border border-slate-300 px-6 text-xs font-medium text-slate-700 disabled:cursor-not-allowed disabled:opacity-40">Mark under review</button>
+                    <button onClick={() => void approveProvider(row.id)} disabled={approvalDisabled} className="min-h-[52px] rounded-[14px] px-6 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40" style={{ backgroundColor: adminTheme.success }} title={selfReview ? "Independent reviewer required" : readiness.ready ? "Approve provider application" : `Missing: ${readiness.missing.join(", ")}`}>Approve</button>
+                    <button disabled={selfReview} onClick={() => void updateStatus(row.id, "rejected")} className="min-h-[52px] rounded-[14px] px-6 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40" style={{ backgroundColor: adminTheme.danger }}>Reject</button>
                   </div>
                 </div>
 
