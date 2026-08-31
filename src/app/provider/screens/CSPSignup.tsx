@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "../../../lib/supabase";
 import { track } from "../../../lib/analytics";
 import { traceCspFlow } from "@/lib/cspFlowTrace";
@@ -8,6 +8,8 @@ const CANDIDATE_READINESS_PATH = "/csp/dashboard/candidate-readiness";
 
 export default function CSPSignup() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const recruitmentSource = searchParams.get("source") === "founding_circle" ? "founding_circle" : null;
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -28,6 +30,7 @@ export default function CSPSignup() {
             role: "csp",
             full_name: "",
             phone: "",
+            ...(recruitmentSource ? { provider_recruitment_source: recruitmentSource } : {}),
           },
         },
       });
@@ -52,7 +55,6 @@ export default function CSPSignup() {
           application_approved_at: null,
           marketplace_access: false,
         });
-        // Durable account_created Kinex truth is emitted by the CSP profile insert outbox trigger.
       }
       track("csp_signup_completed");
       if (data.session) {
@@ -76,9 +78,13 @@ export default function CSPSignup() {
             alt="Cleanr"
             className="h-10 object-contain mx-auto mb-4"
           />
-          <h1 className="text-2xl font-bold text-slate-900">Cleanr Service Provider</h1>
+          <h1 className="text-2xl font-bold text-slate-900">
+            {recruitmentSource ? "Cleanr Founding Circle" : "Cleanr Service Provider"}
+          </h1>
           <p className="text-sm text-slate-600 mt-2">
-            Create an account to start managing jobs
+            {recruitmentSource
+              ? "Create your provider account. Founding Circle is recruitment provenance only and does not change approval standards."
+              : "Create an account to start managing jobs"}
           </p>
         </div>
 
@@ -130,7 +136,7 @@ export default function CSPSignup() {
               shadow-md shadow-[#0A84FF]/40 disabled:opacity-60 disabled:cursor-not-allowed
               active:scale-[0.99] transition"
           >
-            {isLoading ? "Creating account…" : "Sign Up"}
+            {isLoading ? "Creating account…" : recruitmentSource ? "Join the provider pilot" : "Sign Up"}
           </button>
         </form>
 
@@ -148,10 +154,10 @@ export default function CSPSignup() {
 
         <div className="mt-4 text-center">
           <button
-            onClick={() => navigate('/')}
+            onClick={() => navigate(recruitmentSource ? '/csp/founding-circle' : '/')}
             className="text-xs text-slate-500 underline"
           >
-            ← Back to customer app
+            {recruitmentSource ? "← Back to Founding Circle" : "← Back to customer app"}
           </button>
         </div>
       </div>

@@ -5,7 +5,7 @@ export function ProviderHub() {
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col items-center px-6">
-      <div className="flex-[0.5] min-h-0 w-full" aria-hidden />
+      <div className="flex-[0.35] min-h-0 w-full" aria-hidden />
       <div className="w-full max-w-md flex flex-col items-center text-center shrink-0">
         <img
           src="/cleanr-app@2x.png"
@@ -23,10 +23,10 @@ export function ProviderHub() {
         <div className="w-full mt-8 space-y-3">
           <button
             type="button"
-            onClick={() => navigate("/csp/login")}
+            onClick={() => navigate("/csp/founding-circle")}
             className="w-full min-h-[52px] rounded-2xl bg-[#0A84FF] py-4 px-6 text-base font-semibold text-white shadow-md shadow-[#0A84FF]/40 hover:opacity-95 active:scale-[0.99] transition"
           >
-            Sign In →
+            Explore the Founding Circle →
           </button>
 
           <button
@@ -36,9 +36,17 @@ export function ProviderHub() {
           >
             Apply to Join →
           </button>
+
+          <button
+            type="button"
+            onClick={() => navigate("/csp/login")}
+            className="w-full min-h-[48px] rounded-2xl py-3 px-6 text-sm font-medium text-slate-600 hover:bg-slate-100 active:scale-[0.99] transition"
+          >
+            Already a provider? Sign In
+          </button>
         </div>
       </div>
-      <div className="flex-[1.5] min-h-0 w-full" aria-hidden />
+      <div className="flex-[1.25] min-h-0 w-full" aria-hidden />
     </div>
   );
 }
