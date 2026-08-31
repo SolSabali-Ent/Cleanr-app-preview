@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ScrollToTop } from "./ScrollToTop";
+import { LegacyHostRedirect } from "./LegacyHostRedirect";
 import { CustomerLayout } from "../layouts/CustomerLayout";
 import { ProviderLayout } from "../layouts/ProviderLayout";
 import { AdminLayout } from "../layouts/AdminLayout";
@@ -64,6 +65,7 @@ import { CustomerGate } from "./CustomerGate";
 export function AppRouter() {
   return (
     <BrowserRouter>
+      <LegacyHostRedirect />
       <ScrollToTop />
       <div className="app-shell">
         <Routes>
