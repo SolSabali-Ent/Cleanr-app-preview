@@ -158,6 +158,27 @@ export async function getMyHouseholdContinuityForCustomer(customerId: string): P
   return households.find((household) => household.customerId === normalizedCustomerId) ?? null;
 }
 
+export async function listMyServiceRelationships(): Promise<ServiceRelationship[]> {
+  if (isOfflinePreviewMode) return [];
+
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  const customerId = session?.user?.id;
+  if (!customerId) return [];
+
+  const { data, error } = await supabase
+    .from("service_relationships")
+    .select(SERVICE_RELATIONSHIP_SELECT)
+    .eq("customer_id", customerId)
+    .in("status", ["active", "paused"])
+    .order("updated_at", { ascending: false });
+
+  if (isSupabaseFeatureUnavailable(error)) return [];
+  if (error) throw error;
+  return ((data ?? []) as ServiceRelationshipRow[]).map(mapServiceRelationship);
+}
+
 export async function getMyServiceRelationshipWithProvider(providerId: string): Promise<ServiceRelationship | null> {
   if (isOfflinePreviewMode) return null;
 

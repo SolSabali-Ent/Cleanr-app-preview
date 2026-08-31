@@ -3,9 +3,10 @@ import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { supabase } from "../lib/supabase";
 import { listBookingsForCustomer } from "../lib/bookingApi";
+import { listMyServiceRelationships } from "../lib/serviceRelationshipApi";
 import type { PublicProvider } from "./types";
 
-export type ProviderRelationshipSource = "booking_history" | "customer_selection" | null;
+export type ProviderRelationshipSource = "durable_relationship" | "booking_history" | "customer_selection" | null;
 
 interface ProviderContextValue {
   providers: PublicProvider[];
@@ -24,6 +25,7 @@ export function ProviderContextProvider({ children }: { children: ReactNode }) {
     if (typeof window === "undefined") return null;
     return localStorage.getItem(LOCAL_STORAGE_KEY);
   });
+  const [durableProviderId, setDurableProviderId] = useState<string | null>(null);
   const [bookingProviderId, setBookingProviderId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -40,6 +42,25 @@ export function ProviderContextProvider({ children }: { children: ReactNode }) {
       setProviders((data ?? []) as PublicProvider[]);
     }
     void loadProviders();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    async function loadDurableRelationship() {
+      try {
+        const relationships = await listMyServiceRelationships();
+        if (!active) return;
+        const preferred = relationships.find((relationship) => relationship.customerPreferred);
+        const selected = preferred ?? relationships[0] ?? null;
+        setDurableProviderId(selected?.providerId ?? null);
+      } catch {
+        if (active) setDurableProviderId(null);
+      }
+    }
+    void loadDurableRelationship();
     return () => {
       active = false;
     };
@@ -69,7 +90,7 @@ export function ProviderContextProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const selectedProviderId = explicitProviderId ?? bookingProviderId;
+  const selectedProviderId = explicitProviderId ?? durableProviderId ?? bookingProviderId;
 
   const selectedProvider = useMemo(
     () => providers.find((provider) => provider.id === selectedProviderId) ?? null,
@@ -78,9 +99,11 @@ export function ProviderContextProvider({ children }: { children: ReactNode }) {
 
   const relationshipSource: ProviderRelationshipSource = explicitProviderId
     ? "customer_selection"
-    : bookingProviderId
-      ? "booking_history"
-      : null;
+    : durableProviderId
+      ? "durable_relationship"
+      : bookingProviderId
+        ? "booking_history"
+        : null;
 
   const selectProvider = (id: string) => {
     setExplicitProviderId(id);
