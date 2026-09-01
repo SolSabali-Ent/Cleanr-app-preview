@@ -223,7 +223,7 @@ export function ProviderTrustedCoverageCard({ bookingId }: { bookingId: string }
       )}
 
       <p className="mt-3 text-[11px] leading-4 text-slate-500">
-        Requesting coverage never reassigns a booking by itself. Only after backup + household consent can a privileged Cleanr/Kinex operations path reconcile assignment to the trusted backup; fulfillment then stays inside the normal residential service engine.
+        Requesting coverage never reassigns a booking by itself. Only after the backup CSP and household both consent can Cleanr formally reconcile assignment to the trusted backup; fulfillment then stays inside the normal residential service engine.
       </p>
     </section>
   );
