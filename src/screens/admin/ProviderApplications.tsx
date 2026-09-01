@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { traceProfileWriteStart, traceProfileWriteResult } from "@/lib/debug/profileWriteTrace";
+import { getActivationChecks } from "../../lib/cspActivation";
 import { supabase } from "../../lib/supabase";
 import { useIsAdmin } from "../../lib/useIsAdmin";
 import { adminTheme } from "../../theme/adminTheme";
@@ -45,29 +46,32 @@ type ReviewerProfile = {
 
 type ReviewType = "identity" | "background" | "screening";
 
-function norm(value: string | null | undefined): string {
-  return (value ?? "").trim().toLowerCase();
-}
-
-function inSet(value: string | null | undefined, values: readonly string[]): boolean {
-  return values.includes(norm(value));
-}
-
-function approvalReadiness(row: ProviderApplicationRow) {
-  const checks = [
-    { label: "Onboarding", pass: row.is_onboarded === true },
-    { label: "CSP terms", pass: Boolean(row.csp_terms_accepted_at) },
-    { label: "Identity document", pass: Boolean(row.identity_document_path?.trim()) },
-    { label: "Identity verified", pass: inSet(row.identity_status, ["verified", "approved", "completed"]) },
-    { label: "Background cleared", pass: inSet(row.background_check_status, ["approved", "verified", "clear"]) },
-    { label: "Screening ready", pass: inSet(row.screening_status, ["scheduled", "completed", "waived"]) },
-    { label: "Transportation submitted", pass: inSet(row.travel_readiness_status, ["submitted", "completed"]) },
-  ];
+function approvalReadiness(row: ProviderApplicationRow, providerReviews: VerificationReviewRow[]) {
+  const checks = getActivationChecks(
+    {
+      role: "csp",
+      is_onboarded: row.is_onboarded,
+      csp_terms_accepted_at: row.csp_terms_accepted_at,
+      identity_document_path: row.identity_document_path,
+      identity_status: row.identity_status,
+      background_check_status: row.background_check_status,
+      screening_status: row.screening_status,
+      travel_readiness_status: row.travel_readiness_status,
+    },
+    {
+      identityVerifiedReview: providerReviews.some(
+        (review) => review.review_type === "identity" && review.outcome === "verified" && review.reviewed_by !== row.id
+      ),
+      backgroundClearReview: providerReviews.some(
+        (review) => review.review_type === "background" && review.outcome === "clear" && review.reviewed_by !== row.id
+      ),
+    }
+  );
 
   return {
     checks,
-    ready: checks.every((check) => check.pass),
-    missing: checks.filter((check) => !check.pass).map((check) => check.label),
+    ready: checks.length > 0 && checks.every((check) => check.passed),
+    missing: checks.filter((check) => !check.passed).map((check) => check.label),
   };
 }
 
@@ -242,7 +246,8 @@ export function ProviderApplications() {
     }
 
     const row = rows.find((candidate) => candidate.id === providerId);
-    const readiness = row ? approvalReadiness(row) : null;
+    const providerReviews = reviews.filter((review) => review.provider_id === providerId);
+    const readiness = row ? approvalReadiness(row, providerReviews) : null;
     if (!readiness?.ready) {
       setMessage(
         readiness?.missing.length
@@ -276,7 +281,8 @@ export function ProviderApplications() {
   }, [isAdmin, focusedProviderId]);
 
   const focusedRow = focusedProviderId ? rows.find((row) => row.id === focusedProviderId) ?? null : null;
-  const focusedReadiness = focusedRow ? approvalReadiness(focusedRow) : null;
+  const focusedReviews = focusedProviderId ? reviews.filter((review) => review.provider_id === focusedProviderId) : [];
+  const focusedReadiness = focusedRow ? approvalReadiness(focusedRow, focusedReviews) : null;
   const reviewerNameById = new Map(reviewerProfiles.map((profile) => [profile.id, profile.full_name]));
 
   if (adminLoading) {
@@ -306,7 +312,7 @@ export function ProviderApplications() {
               <p className="mt-1 text-xs leading-5 text-amber-900">
                 {focusedReadiness
                   ? focusedReadiness.ready
-                    ? "All durable prerequisites shown on this screen are satisfied. Approval still requires an independent reviewer to make the decision."
+                    ? "All canonical provider-approval prerequisites are satisfied. Approval still requires an independent admin decision; marketplace access remains separate."
                     : `Current approval blockers: ${focusedReadiness.missing.join(", ")}.`
                   : loading
                     ? "Loading the selected CSP’s review truth…"
@@ -333,12 +339,12 @@ export function ProviderApplications() {
       ) : (
         <div className="space-y-3">
           {rows.map((row) => {
-            const readiness = approvalReadiness(row);
             const selfReview = Boolean(userId && row.id === userId);
             const trustActionDisabled = workingKey !== null || selfReview;
-            const approvalDisabled = selfReview || !readiness.ready;
             const focused = focusedProviderId === row.id;
             const providerReviews = reviews.filter((review) => review.provider_id === row.id);
+            const readiness = approvalReadiness(row, providerReviews);
+            const approvalDisabled = selfReview || !readiness.ready;
 
             return (
               <section
@@ -381,15 +387,18 @@ export function ProviderApplications() {
 
                     <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
                       <div className="flex items-center justify-between gap-3">
-                        <p className="text-xs font-semibold text-slate-800">Approval readiness</p>
+                        <div>
+                          <p className="text-xs font-semibold text-slate-800">Canonical approval readiness</p>
+                          <p className="mt-0.5 text-[11px] text-slate-500">Shared app mirror of the database approval boundary. Successful durable reviews are required; profile statuses alone are insufficient.</p>
+                        </div>
                         <span className={`rounded-full px-2 py-1 text-[11px] font-semibold ${readiness.ready ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-800"}`}>
                           {readiness.ready ? "Ready for approval" : "Prerequisites missing"}
                         </span>
                       </div>
                       <div className="mt-2 grid gap-1 sm:grid-cols-2">
                         {readiness.checks.map((check) => (
-                          <p key={check.label} className={`text-xs ${check.pass ? "text-emerald-700" : "text-slate-500"}`}>
-                            {check.pass ? "✓" : "○"} {check.label}
+                          <p key={check.key} className={`text-xs ${check.passed ? "text-emerald-700" : "text-slate-500"}`}>
+                            {check.passed ? "✓" : "○"} {check.label}
                           </p>
                         ))}
                       </div>
