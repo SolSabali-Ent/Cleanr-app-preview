@@ -178,7 +178,7 @@ export default function GrowthOpportunitiesScreen() {
               <div>
                 <p className="text-sm font-medium">What fits my life</p>
                 <p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>
-                  Control whether matching is on, what interests you, and the practical constraints Kinex may use.
+                  Control whether matching is on, what interests you, and the practical constraints Cleanr can use to keep suggestions relevant.
                 </p>
               </div>
             </div>
@@ -190,7 +190,7 @@ export default function GrowthOpportunitiesScreen() {
               <div>
                 <p className="text-sm font-medium">Consider opportunities for me</p>
                 <p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>
-                  Turn this on when you want Kinex to use these Cleanr-owned preferences when deciding what may be relevant. Turning it off never affects Jobs, ranking, payouts, or marketplace access.
+                  Turn this on when you want Cleanr to consider these saved preferences when deciding what may fit. Turning it off never affects Jobs, ranking, payouts, or marketplace access.
                 </p>
               </div>
               <input type="checkbox" checked={matchingEnabled} disabled={isOfflinePreviewMode} onChange={(event) => { setMatchingEnabled(event.target.checked); markFitChanged(); }} className="mt-1 h-5 w-5" />
@@ -247,7 +247,7 @@ export default function GrowthOpportunitiesScreen() {
           <div className="rounded-2xl border" style={{ backgroundColor: CSP_SURFACE, borderColor: "rgba(248,250,252,.08)", padding: CSP_CARD_PADDING }}>
             <p className="text-sm font-medium">No matched opportunities yet.</p>
             <p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>
-              When you opt into matching, Kinex may use durable Cleanr truth such as your North Star, capabilities, selected interests, location, and practical constraints to decide what may be relevant. Cleanr stores the resulting match.
+              When you opt into matching, Cleanr can consider your North Star, capabilities, selected interests, location, and practical constraints to surface relevant opportunities. Your match remains durable Cleanr product truth.
             </p>
           </div>
         ) : (
@@ -279,7 +279,7 @@ export default function GrowthOpportunitiesScreen() {
 
                 {match.status === "interested" ? (
                   <p className="mt-3 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>
-                    Interest shared. Kinex or Cleanr operations can decide whether to offer the opportunity; you are not committed yet.
+                    Interest shared. Cleanr may determine whether to offer the opportunity; you are not committed yet.
                   </p>
                 ) : null}
                 {match.status === "accepted" ? (
