@@ -11,7 +11,7 @@ import { resetCspDashboardEntrySplash } from "./cspDashboardEntrySplash";
  * Pending referral/invitation intent is also intentionally preserved and handled by
  * the relationship/referral flow rather than being treated as generic auth state.
  */
-function clearEphemeralAuthState(userId: string | null) {
+export function clearEphemeralAuthState(userId: string | null) {
   if (typeof window !== "undefined") {
     try {
       sessionStorage.removeItem("csp_terms_accepted_pending");
