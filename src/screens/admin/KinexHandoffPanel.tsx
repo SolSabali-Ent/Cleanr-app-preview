@@ -37,7 +37,9 @@ export function KinexHandoffPanel() {
   const [outbox, setOutbox] = useState<OutboxRow[]>([]);
   const [relationshipDeliveryEnabled, setRelationshipDeliveryEnabled] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [draining, setDraining] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   async function load() {
     setLoading(true);
@@ -79,6 +81,29 @@ export function KinexHandoffPanel() {
     setLoading(false);
   }
 
+  async function drainOrdinaryEvents() {
+    if (draining) return;
+    setDraining(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const { data, error: invokeError } = await supabase.functions.invoke("admin-process-kinex-outbox", {
+        body: { batch_size: 10 },
+      });
+      if (invokeError) throw invokeError;
+      const result = data?.result ?? data;
+      const claimed = Number(result?.claimed ?? 0);
+      const sent = Number(result?.sent ?? 0);
+      const failed = Number(result?.failed ?? 0);
+      setNotice(`Kinex drain completed: ${claimed} claimed · ${sent} sent · ${failed} failed. Relationship-pending booking confirmations remain protected by the delivery gate.`);
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to drain the Kinex outbox.");
+    } finally {
+      setDraining(false);
+    }
+  }
+
   useEffect(() => {
     void load();
   }, []);
@@ -110,23 +135,40 @@ export function KinexHandoffPanel() {
             Kinex handoff attention
           </p>
           <p className="mt-1 max-w-3xl text-xs leading-5" style={{ color: adminTheme.textSecondary }}>
-            Read-only operational truth. Cleanr records payment and relationship context; Kinex owns orchestration; Cleanr only persists a provider after trusted reconciliation. This panel does not provide a manual assignment bypass.
+            Cleanr records payment and relationship context; Kinex owns orchestration; Cleanr only persists a provider after trusted reconciliation. Transport controls here cannot manually assign a provider or bypass Kinex relationship routing.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => void load()}
-          disabled={loading}
-          className="rounded-lg border px-3 py-2 text-xs font-semibold disabled:opacity-50"
-          style={{ borderColor: adminTheme.border, color: adminTheme.textPrimary }}
-        >
-          {loading ? "Refreshing…" : "Refresh"}
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => void drainOrdinaryEvents()}
+            disabled={draining}
+            className="rounded-lg px-3 py-2 text-xs font-semibold text-white disabled:opacity-50"
+            style={{ backgroundColor: adminTheme.primary }}
+          >
+            {draining ? "Draining…" : "Drain ordinary events"}
+          </button>
+          <button
+            type="button"
+            onClick={() => void load()}
+            disabled={loading}
+            className="rounded-lg border px-3 py-2 text-xs font-semibold disabled:opacity-50"
+            style={{ borderColor: adminTheme.border, color: adminTheme.textPrimary }}
+          >
+            {loading ? "Refreshing…" : "Refresh"}
+          </button>
+        </div>
       </div>
 
       {error ? (
         <div className="mt-3 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">
           {error}
+        </div>
+      ) : null}
+
+      {notice ? (
+        <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-900">
+          {notice}
         </div>
       ) : null}
 
@@ -137,7 +179,7 @@ export function KinexHandoffPanel() {
         <p className="mt-1 text-xs leading-5" style={{ color: adminTheme.textSecondary }}>
           {relationshipDeliveryEnabled
             ? "Cleanr may release relationship-pending booking_confirmed events to Kinex. Keep this enabled only after the Kinex routing migration and callback worker are verified live."
-            : "Cleanr continues to preserve relationship-pending booking_confirmed rows in the outbox without claiming them or consuming retry attempts. Ordinary Kinex lifecycle events are unaffected."}
+            : "Cleanr preserves relationship-pending booking_confirmed rows without claiming them or consuming retry attempts. The admin drain control can still move ordinary lifecycle events."}
         </p>
       </div>
 
@@ -198,7 +240,7 @@ export function KinexHandoffPanel() {
       <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3">
         <p className="text-xs font-semibold text-slate-800">Blocked Kinex database activation</p>
         <p className="mt-1 text-xs leading-5 text-slate-600">
-          The Kinex source migration for the Cleanr relationship-assignment routing rule is ready, but live Kinex database access is not currently available. Until that migration is confirmed live, the delivery gate remains off and this panel intentionally exposes no retry or manual assignment control.
+          The Kinex source migration for the Cleanr relationship-assignment routing rule is ready, but live Kinex database access is not currently available. Until that migration is confirmed live, the delivery gate remains off. Draining ordinary events does not release the held relationship assignment events.
         </p>
       </div>
     </section>
