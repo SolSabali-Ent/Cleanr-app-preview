@@ -1,13 +1,17 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "../../../lib/supabase";
 import { captureReferralCodeFromUrl } from "../../../lib/referralRef";
 import { resolveCspLoginNavigateTarget } from "../../../lib/cspPostLoginRedirect";
 
 export default function CSPLogin() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(searchParams.get("reset") === "success" ? "Password updated. Sign in with your new password." : null);
 
   useEffect(() => {
     captureReferralCodeFromUrl();
@@ -15,26 +19,29 @@ export default function CSPLogin() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
+    setNotice(null);
+    setIsLoading(true);
+    try {
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
 
-    const { data: authData, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+      if (signInError) {
+        setError(signInError.message);
+        return;
+      }
 
-    console.log("authData:", authData);
-
-    if (error) {
-      console.error(error);
-      return;
+      navigate(resolveCspLoginNavigateTarget(), { replace: true });
+    } finally {
+      setIsLoading(false);
     }
-
-    navigate(resolveCspLoginNavigateTarget(), { replace: true });
   };
 
   return (
     <div className="min-h-screen bg-slate-50 flex justify-center items-center px-4">
       <div className="w-full max-w-md">
-        {/* Logo */}
         <div className="text-center mb-8">
           <img
             src="/cleanr-app@2x.png"
@@ -47,7 +54,6 @@ export default function CSPLogin() {
           </p>
         </div>
 
-        {/* Login Form */}
         <form onSubmit={handleLogin} className="bg-white rounded-2xl shadow-md p-6 space-y-4">
           <div>
             <label htmlFor="email" className="block text-sm font-medium text-slate-700 mb-1">
@@ -59,6 +65,7 @@ export default function CSPLogin() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
+              autoComplete="email"
               className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-base
                 placeholder-slate-400 text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0A84FF]"
               placeholder="your@email.com"
@@ -75,24 +82,30 @@ export default function CSPLogin() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
+              autoComplete="current-password"
               className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-base
                 placeholder-slate-400 text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0A84FF]"
               placeholder="••••••••"
             />
           </div>
 
+          {error ? <p className="text-sm text-red-600">{error}</p> : null}
+          {notice ? <p className="text-sm text-emerald-700" role="status">{notice}</p> : null}
+
           <button
             type="submit"
+            disabled={isLoading}
             className="w-full rounded-2xl bg-[#0A84FF] py-3 text-sm font-semibold text-white
               shadow-md shadow-[#0A84FF]/40 disabled:opacity-60 disabled:cursor-not-allowed
               active:scale-[0.99] transition"
           >
-            Sign In
+            {isLoading ? "Signing in…" : "Sign In"}
           </button>
 
           <div className="text-center">
             <button
               type="button"
+              onClick={() => navigate(`/signin?mode=forgot&from=csp${email.trim() ? `&email=${encodeURIComponent(email.trim())}` : ""}`)}
               className="text-xs text-slate-500 underline"
             >
               Forgot password?
@@ -100,7 +113,6 @@ export default function CSPLogin() {
           </div>
         </form>
 
-        {/* Sign Up Link */}
         <div className="mt-6 text-center">
           <p className="text-sm text-slate-600">
             Don't have an account?{' '}
@@ -113,7 +125,6 @@ export default function CSPLogin() {
           </p>
         </div>
 
-        {/* Back to Customer App */}
         <div className="mt-4 text-center">
           <button
             onClick={() => navigate('/')}
@@ -126,4 +137,3 @@ export default function CSPLogin() {
     </div>
   );
 }
-
