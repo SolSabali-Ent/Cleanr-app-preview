@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Navigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 
@@ -7,6 +7,7 @@ export function AuthGate({ children }: { children?: ReactNode }) {
   const [redirectPath, setRedirectPath] = useState<string | null>(null);
   const [profileMissing, setProfileMissing] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
+  const hadSessionRef = useRef(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -23,11 +24,13 @@ export function AuthGate({ children }: { children?: ReactNode }) {
 
       if (!session?.user) {
         if (isMounted) {
-          setRedirectPath("/signin");
+          setRedirectPath(hadSessionRef.current ? "/signin?reason=session-ended" : "/signin");
           setLoading(false);
         }
         return;
       }
+
+      hadSessionRef.current = true;
 
       const { data: profile, error } = await supabase
         .from("profiles")
@@ -51,10 +54,17 @@ export function AuthGate({ children }: { children?: ReactNode }) {
       }
     }
 
-    checkSession();
+    void checkSession();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(() => {
+      void checkSession();
+    });
 
     return () => {
       isMounted = false;
+      subscription.unsubscribe();
     };
   }, [retryCount]);
 
@@ -64,7 +74,7 @@ export function AuthGate({ children }: { children?: ReactNode }) {
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
-    setRedirectPath("/signin");
+    setRedirectPath("/signin?reason=session-ended");
     setProfileMissing(false);
   };
 
@@ -72,7 +82,8 @@ export function AuthGate({ children }: { children?: ReactNode }) {
   if (profileMissing) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-3 px-4 text-center">
-        <p className="text-sm text-slate-700">Profile not found.</p>
+        <p className="text-sm text-slate-700">We couldn't load your Cleanr profile.</p>
+        <p className="max-w-sm text-xs text-slate-500">Retry the profile check. If the problem continues, sign out and sign back in.</p>
         <div className="flex items-center gap-2">
           <button
             type="button"
