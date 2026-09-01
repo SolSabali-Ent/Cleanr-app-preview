@@ -28,6 +28,21 @@ type ProviderApplicationRow = {
   provider_interest_submitted_at: string | null;
 };
 
+type VerificationReviewRow = {
+  id: string;
+  provider_id: string;
+  review_type: string;
+  outcome: string;
+  note: string | null;
+  reviewed_by: string;
+  reviewed_at: string;
+};
+
+type ReviewerProfile = {
+  id: string;
+  full_name: string | null;
+};
+
 type ReviewType = "identity" | "background" | "screening";
 
 function norm(value: string | null | undefined): string {
@@ -56,11 +71,22 @@ function approvalReadiness(row: ProviderApplicationRow) {
   };
 }
 
+function shortId(value: string) {
+  return value.length > 12 ? `${value.slice(0, 8)}…${value.slice(-4)}` : value;
+}
+
+function formatReviewTime(value: string) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
+}
+
 export function ProviderApplications() {
   const { isAdmin, loading: adminLoading, userId } = useIsAdmin();
   const [searchParams] = useSearchParams();
   const focusedProviderId = searchParams.get("provider")?.trim() || null;
   const [rows, setRows] = useState<ProviderApplicationRow[]>([]);
+  const [reviews, setReviews] = useState<VerificationReviewRow[]>([]);
+  const [reviewerProfiles, setReviewerProfiles] = useState<ReviewerProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
   const [workingKey, setWorkingKey] = useState<string | null>(null);
@@ -89,10 +115,51 @@ export function ProviderApplications() {
     if (error) {
       setMessage(error.message);
       setRows([]);
+      setReviews([]);
+      setReviewerProfiles([]);
       setLoading(false);
       return;
     }
-    setRows((data ?? []) as ProviderApplicationRow[]);
+
+    const providerRows = (data ?? []) as ProviderApplicationRow[];
+    setRows(providerRows);
+
+    const providerIds = providerRows.map((row) => row.id);
+    if (providerIds.length === 0) {
+      setReviews([]);
+      setReviewerProfiles([]);
+      setLoading(false);
+      return;
+    }
+
+    const { data: reviewData, error: reviewError } = await supabase
+      .from("provider_verification_reviews")
+      .select("id,provider_id,review_type,outcome,note,reviewed_by,reviewed_at")
+      .in("provider_id", providerIds)
+      .order("reviewed_at", { ascending: false });
+
+    if (reviewError) {
+      setMessage(`Provider applications loaded, but review history could not be read: ${reviewError.message}`);
+      setReviews([]);
+      setReviewerProfiles([]);
+      setLoading(false);
+      return;
+    }
+
+    const reviewRows = (reviewData ?? []) as VerificationReviewRow[];
+    setReviews(reviewRows);
+
+    const reviewerIds = [...new Set(reviewRows.map((review) => review.reviewed_by).filter(Boolean))];
+    if (reviewerIds.length > 0) {
+      const { data: reviewerData } = await supabase
+        .from("profiles")
+        .select("id,full_name")
+        .in("id", reviewerIds);
+      setReviewerProfiles((reviewerData ?? []) as ReviewerProfile[]);
+    } else {
+      setReviewerProfiles([]);
+    }
+
     setLoading(false);
   }
 
@@ -210,6 +277,7 @@ export function ProviderApplications() {
 
   const focusedRow = focusedProviderId ? rows.find((row) => row.id === focusedProviderId) ?? null : null;
   const focusedReadiness = focusedRow ? approvalReadiness(focusedRow) : null;
+  const reviewerNameById = new Map(reviewerProfiles.map((profile) => [profile.id, profile.full_name]));
 
   if (adminLoading) {
     return <div className="text-sm" style={{ color: adminTheme.textSecondary }}>Loading admin session...</div>;
@@ -270,6 +338,7 @@ export function ProviderApplications() {
             const trustActionDisabled = workingKey !== null || selfReview;
             const approvalDisabled = selfReview || !readiness.ready;
             const focused = focusedProviderId === row.id;
+            const providerReviews = reviews.filter((review) => review.provider_id === row.id);
 
             return (
               <section
@@ -352,6 +421,38 @@ export function ProviderApplications() {
                           </div>
                         </div>
                       </div>
+                    </div>
+
+                    <div className="mt-3 rounded-lg border border-slate-200 bg-white p-3">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                          <p className="text-xs font-semibold text-slate-800">Verification audit trail</p>
+                          <p className="mt-0.5 text-[11px] text-slate-500">Durable reviewer, outcome, note, and timestamp from provider_verification_reviews.</p>
+                        </div>
+                        <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-600">{providerReviews.length} recorded</span>
+                      </div>
+
+                      {providerReviews.length === 0 ? (
+                        <p className="mt-3 text-xs leading-5 text-slate-500">No independent verification review has been recorded yet. Current submitted statuses remain evidence awaiting review, not approval proof.</p>
+                      ) : (
+                        <div className="mt-3 space-y-2">
+                          {providerReviews.map((review) => {
+                            const reviewerName = reviewerNameById.get(review.reviewed_by) ?? null;
+                            return (
+                              <div key={review.id} className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                  <p className="text-xs font-semibold text-slate-800">{review.review_type} → {review.outcome}</p>
+                                  <p className="text-[11px] text-slate-500">{formatReviewTime(review.reviewed_at)}</p>
+                                </div>
+                                <p className="mt-1 text-[11px] text-slate-500" title={review.reviewed_by}>
+                                  reviewer: {reviewerName ?? shortId(review.reviewed_by)}
+                                </p>
+                                {review.note?.trim() ? <p className="mt-2 text-xs leading-5 text-slate-700">{review.note}</p> : <p className="mt-2 text-[11px] text-slate-400">No review note recorded.</p>}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   </div>
 
