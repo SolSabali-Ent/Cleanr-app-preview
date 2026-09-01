@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { LogOut, HelpCircle, CreditCard, MapPin, Phone, Share2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/lib/supabase";
 import { useProfile } from "@/lib/useProfile";
 import { useSession } from "@/lib/useSession";
+import { signOutCleanr } from "@/lib/authSession";
 import { Button } from "../../components/ui/Button";
 import { CustomerHouseholdMemoryCard } from "../components/CustomerHouseholdMemoryCard";
 import { createReferral } from "@/lib/referralApi";
@@ -13,6 +13,8 @@ export function CustomerProfile() {
   const { session } = useSession();
   const { profile, loading: profileLoading } = useProfile();
   const [inviteCopied, setInviteCopied] = useState(false);
+  const [logoutLoading, setLogoutLoading] = useState(false);
+  const [logoutError, setLogoutError] = useState<string | null>(null);
 
   const email = session?.user.email ?? null;
   const name = profile?.full_name?.trim() || email?.split("@")[0] || "Cleanr customer";
@@ -32,8 +34,16 @@ export function CustomerProfile() {
   };
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
-    navigate("/", { replace: true });
+    setLogoutError(null);
+    setLogoutLoading(true);
+    try {
+      await signOutCleanr();
+      navigate("/", { replace: true });
+    } catch (error) {
+      setLogoutError(error instanceof Error ? error.message : "Could not sign out. Please try again.");
+    } finally {
+      setLogoutLoading(false);
+    }
   };
 
   return (
@@ -111,6 +121,8 @@ export function CustomerProfile() {
         </div>
       </section>
 
+      {logoutError ? <p className="mb-2 text-sm text-red-600" role="alert">{logoutError}</p> : null}
+
       <Button
         className="mt-2"
         variant="secondary"
@@ -118,8 +130,10 @@ export function CustomerProfile() {
         fullWidth
         leftIcon={<LogOut className="w-3 h-3" />}
         onClick={handleLogout}
+        disabled={logoutLoading}
+        loading={logoutLoading}
       >
-        Log out
+        {logoutLoading ? "Signing out…" : "Log out"}
       </Button>
     </div>
   );
