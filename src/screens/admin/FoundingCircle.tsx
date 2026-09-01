@@ -404,7 +404,7 @@ export function FoundingCircle() {
         pilotStageOrder: guidance.stageOrder,
         blockers: guidance.blockers,
         nextAction: guidance.nextAction,
-        nextActionTo: guidance.nextActionTo,
+        nextActionTo: guidance.stage === "Application review" ? `${guidance.nextActionTo}?provider=${encodeURIComponent(provider.id)}` : guidance.nextActionTo,
       };
     });
   }, [bookings, contributions, network, northStars, providers, readiness, referrals, relationships]);
