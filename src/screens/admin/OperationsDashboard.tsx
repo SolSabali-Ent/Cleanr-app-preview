@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
 import { useIsAdmin } from "../../lib/useIsAdmin";
 import { adminTheme } from "../../theme/adminTheme";
+import { KinexHandoffPanel } from "./KinexHandoffPanel";
 
 type BookingAuditRow = {
   id: string;
@@ -277,6 +278,8 @@ export function OperationsDashboard() {
           <ControlMetric label="Marketplace-enabled CSPs" value={providers.filter((row) => row.marketplace_access).length} detail={`${providers.length} total CSP profiles`} to="/admin/providers" />
         </div>
       </section>
+
+      <KinexHandoffPanel />
 
       <section>
         <div className="mb-3">
