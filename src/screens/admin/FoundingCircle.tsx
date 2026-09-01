@@ -55,6 +55,14 @@ type BookingRow = {
   created_at: string;
 };
 
+type VerificationReviewRow = {
+  id: string;
+  provider_id: string;
+  review_type: string;
+  outcome: string;
+  reviewed_at: string;
+};
+
 type NorthStarRow = { person_id: string; status: string };
 type NetworkRow = { source_person_id: string; target_person_id: string; status: string };
 type ContributionRow = { person_id: string; beneficiary_person_id: string | null };
@@ -71,6 +79,10 @@ type ProviderSignal = ProviderRow & {
   readinessSubmitted: boolean;
   existingClientBucket: ExistingClientBucket | null;
   recruitmentSource: string | null;
+  verificationReviewCount: number;
+  identityReviewHistory: boolean;
+  backgroundReviewHistory: boolean;
+  latestVerificationReviewAt: string | null;
   invitesIssued: number;
   invitesAccepted: number;
   relationships: number;
@@ -171,12 +183,34 @@ function pilotGuidance(provider: Omit<ProviderSignal, "pilotStage" | "pilotStage
 
   if (provider.application_status !== "approved") {
     const blockers = [`Application: ${provider.application_status ?? "not submitted"}.`];
-    if (!isVerified(provider.identity_status)) blockers.push(`Identity: ${provider.identity_status ?? "not started"}.`);
-    if (!isVerified(provider.background_check_status)) blockers.push(`Background: ${provider.background_check_status ?? "not started"}.`);
+    const identityVerified = isVerified(provider.identity_status);
+    const backgroundVerified = isVerified(provider.background_check_status);
+
+    if (!identityVerified) blockers.push(`Identity status: ${provider.identity_status ?? "not started"}.`);
+    if (!provider.identityReviewHistory) {
+      blockers.push(
+        identityVerified
+          ? "Identity audit gap: status is verified, but no independent identity review history is recorded."
+          : "Identity: no independent review history recorded yet."
+      );
+    }
+
+    if (!backgroundVerified) blockers.push(`Background status: ${provider.background_check_status ?? "not started"}.`);
+    if (!provider.backgroundReviewHistory) {
+      blockers.push(
+        backgroundVerified
+          ? "Background audit gap: status is cleared, but no independent background review history is recorded."
+          : "Background: no independent review history recorded yet."
+      );
+    }
+
     return {
       stage: "Application review",
       stageOrder: 30,
-      nextAction: "Review application",
+      nextAction:
+        !provider.identityReviewHistory || !provider.backgroundReviewHistory
+          ? "Record independent review"
+          : "Complete application review",
       nextActionTo: "/admin/providers",
       blockers,
     };
@@ -289,6 +323,7 @@ export function FoundingCircle() {
   const { isAdmin, loading: adminLoading } = useIsAdmin();
   const [providers, setProviders] = useState<ProviderRow[]>([]);
   const [readiness, setReadiness] = useState<ReadinessRow[]>([]);
+  const [verificationReviews, setVerificationReviews] = useState<VerificationReviewRow[]>([]);
   const [referrals, setReferrals] = useState<ReferralRow[]>([]);
   const [relationships, setRelationships] = useState<RelationshipRow[]>([]);
   const [bookings, setBookings] = useState<BookingRow[]>([]);
@@ -303,7 +338,7 @@ export function FoundingCircle() {
     setLoading(true);
     setError(null);
     try {
-      const [p, ready, refs, rels, b, ns, net, contrib, rate] = await Promise.all([
+      const [p, ready, reviews, refs, rels, b, ns, net, contrib, rate] = await Promise.all([
         supabase
           .from("profiles")
           .select("id,full_name,created_at,application_status,readiness_status,is_onboarded,marketplace_access,stripe_connect_ready,identity_status,background_check_status,insurance_status")
@@ -312,6 +347,10 @@ export function FoundingCircle() {
         supabase
           .from("provider_readiness_profiles")
           .select("provider_id,submitted_at,existing_client_household_bucket,recruitment_source"),
+        supabase
+          .from("provider_verification_reviews")
+          .select("id,provider_id,review_type,outcome,reviewed_at")
+          .order("reviewed_at", { ascending: false }),
         supabase
           .from("referrals")
           .select("id,referrer_id,referee_id,relationship_confirmed_at,created_at")
@@ -330,12 +369,13 @@ export function FoundingCircle() {
         supabase.from("platform_settings").select("value").eq("key", "provider_brought_platform_fee_rate").maybeSingle(),
       ]);
 
-      for (const result of [p, ready, refs, rels, b, ns, net, contrib, rate]) {
+      for (const result of [p, ready, reviews, refs, rels, b, ns, net, contrib, rate]) {
         if (result.error) throw result.error;
       }
 
       setProviders((p.data ?? []) as ProviderRow[]);
       setReadiness((ready.data ?? []) as ReadinessRow[]);
+      setVerificationReviews((reviews.data ?? []) as VerificationReviewRow[]);
       setReferrals((refs.data ?? []) as ReferralRow[]);
       setRelationships((rels.data ?? []) as RelationshipRow[]);
       setBookings((b.data ?? []) as BookingRow[]);
@@ -364,6 +404,7 @@ export function FoundingCircle() {
 
     return providers.map((provider) => {
       const providerReadiness = readinessByProvider.get(provider.id);
+      const providerReviews = verificationReviews.filter((row) => row.provider_id === provider.id);
       const providerInvites = referrals.filter((row) => row.referrer_id === provider.id);
       const providerRelationships = relationships.filter((row) => row.provider_id === provider.id);
       const relationshipIds = new Set(providerRelationships.map((row) => row.id));
@@ -382,6 +423,10 @@ export function FoundingCircle() {
         readinessSubmitted: Boolean(providerReadiness),
         existingClientBucket: providerReadiness?.existing_client_household_bucket ?? null,
         recruitmentSource: providerReadiness?.recruitment_source ?? null,
+        verificationReviewCount: providerReviews.length,
+        identityReviewHistory: providerReviews.some((row) => row.review_type === "identity"),
+        backgroundReviewHistory: providerReviews.some((row) => row.review_type === "background"),
+        latestVerificationReviewAt: providerReviews[0]?.reviewed_at ?? null,
         invitesIssued: providerInvites.length,
         invitesAccepted: providerInvites.filter((row) => Boolean(row.relationship_confirmed_at && row.referee_id)).length,
         relationships: providerRelationships.length,
@@ -407,7 +452,7 @@ export function FoundingCircle() {
         nextActionTo: guidance.stage === "Application review" ? `${guidance.nextActionTo}?provider=${encodeURIComponent(provider.id)}` : guidance.nextActionTo,
       };
     });
-  }, [bookings, contributions, network, northStars, providers, readiness, referrals, relationships]);
+  }, [bookings, contributions, network, northStars, providers, readiness, referrals, relationships, verificationReviews]);
 
   const attentionQueue = useMemo(
     () => [...signals].sort((a, b) => a.pilotStageOrder - b.pilotStageOrder || a.created_at.localeCompare(b.created_at)),
@@ -427,6 +472,8 @@ export function FoundingCircle() {
       ready: signals.filter((row) => row.application_status === "approved" || row.marketplace_access).length,
       existingHouseholdSignal: signals.filter((row) => hasExistingHouseholds(row.existingClientBucket)).length,
       foundingActive: signals.filter((row) => row.foundingActivity).length,
+      providersWithReviewHistory: signals.filter((row) => row.verificationReviewCount > 0).length,
+      verificationReviews: verificationReviews.length,
       invites: referrals.length,
       accepted: referrals.filter((row) => Boolean(row.relationship_confirmed_at && row.referee_id)).length,
       relationships: relationships.length,
@@ -436,7 +483,7 @@ export function FoundingCircle() {
       contributions: cspContributions.length,
       activeNetwork: cspNetwork.length,
     };
-  }, [bookings, contributions, network, providers, referrals, relationships, signals]);
+  }, [bookings, contributions, network, providers, referrals, relationships, signals, verificationReviews]);
 
   if (adminLoading || loading) return <p className="text-sm" style={{ color: adminTheme.textSecondary }}>Loading Founding Circle launch truth…</p>;
   if (!isAdmin) return <p className="text-sm" style={{ color: adminTheme.textSecondary }}>Admin access required.</p>;
@@ -448,7 +495,7 @@ export function FoundingCircle() {
           <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: adminTheme.primary }}>Living laboratory</p>
           <h1 className="mt-1 text-2xl font-semibold" style={{ color: adminTheme.textPrimary }}>Founding Circle</h1>
           <p className="mt-1 max-w-3xl text-sm" style={{ color: adminTheme.textSecondary }}>
-            Launch truth for the first CSPs: recruitment → readiness → existing-client invitation → consented relationship → paid service → collective activity. Recruitment source is acquisition provenance only; it never changes approval, ranking, or marketplace eligibility.
+            Launch truth for the first CSPs: recruitment → readiness → independent review → existing-client invitation → consented relationship → paid service → collective activity. Recruitment source is acquisition provenance only; it never changes approval, ranking, or marketplace eligibility.
           </p>
         </div>
         <button type="button" onClick={() => void load()} className="rounded-lg px-4 py-2 text-xs font-semibold text-white" style={{ backgroundColor: adminTheme.primary }}>Refresh</button>
@@ -461,11 +508,11 @@ export function FoundingCircle() {
           <div>
             <h2 className="text-sm font-semibold">Pilot attention queue</h2>
             <p className="mt-1 max-w-3xl text-xs leading-5" style={{ color: adminTheme.textSecondary }}>
-              Ordered by the earliest real blocker. The queue is operational guidance only: it does not change CSP eligibility, route bookings, or manufacture relationship provenance.
+              Ordered by the earliest real blocker. Verification status and durable review history are separate signals: submitted evidence is not treated as independently reviewed. The queue does not change CSP eligibility, route bookings, or manufacture relationship provenance.
             </p>
           </div>
           <div className="rounded-lg border px-3 py-2 text-xs" style={{ borderColor: adminTheme.border, backgroundColor: adminTheme.surface }}>
-            <span className="font-semibold">{attentionQueue.filter((row) => row.blockers.length > 0).length}</span> need a next step · <span className="font-semibold">{totals.assignmentPending}</span> awaiting Kinex
+            <span className="font-semibold">{attentionQueue.filter((row) => row.blockers.length > 0).length}</span> need a next step · <span className="font-semibold">{totals.verificationReviews}</span> durable reviews · <span className="font-semibold">{totals.assignmentPending}</span> awaiting Kinex
           </div>
         </div>
 
@@ -482,6 +529,8 @@ export function FoundingCircle() {
                       <p className="font-medium">{provider.full_name ?? "Unnamed CSP"}</p>
                       <StagePill>{provider.pilotStage}</StagePill>
                       {provider.recruitmentSource === "founding_circle" ? <StatusPill ok>Founding recruit</StatusPill> : null}
+                      <StatusPill ok={provider.identityReviewHistory}>identity review history</StatusPill>
+                      <StatusPill ok={provider.backgroundReviewHistory}>background review history</StatusPill>
                     </div>
                     <p className="mt-1 text-[11px]" style={{ color: adminTheme.textSecondary }}>{provider.id}</p>
 
@@ -513,9 +562,9 @@ export function FoundingCircle() {
 
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
         <Metric label="CSP funnel" value={totals.csp} detail={`${totals.ready} approved or marketplace-enabled`} />
+        <Metric label="Independent review" value={`${totals.providersWithReviewHistory}/${totals.csp}`} detail={`${totals.verificationReviews} durable verification review records`} />
         <Metric label="Founding recruitment" value={totals.recruited} detail="Entered through the Founding Circle recruiting path" />
         <Metric label="Existing-household signal" value={totals.existingHouseholdSignal} detail="Self-reported 1+ households; recruitment context only" />
-        <Metric label="Founding activity" value={totals.foundingActive} detail="CSPs with an existing-client invite or relationship" />
         <Metric label="Existing clients" value={`${totals.accepted}/${totals.invites}`} detail={`${totals.relationships} provider-brought durable relationships`} />
         <Metric label="Paid relationship bookings" value={totals.paidBookings} detail={pilotRate == null ? "Pilot rate unavailable" : `${Math.round(pilotRate * 100)}% provider-brought platform rate`} />
       </section>
@@ -531,7 +580,7 @@ export function FoundingCircle() {
         <div className="rounded-xl border p-4" style={{ borderColor: adminTheme.border, backgroundColor: adminTheme.card }}>
           <p className="text-sm font-semibold">Pilot interpretation</p>
           <p className="mt-2 text-xs leading-5" style={{ color: adminTheme.textSecondary }}>
-            “Founding recruit” says how someone entered. “Founding activity” says what they actually did. Existing households indicate where relationship continuity can be tested quickly. None of those are quality scores or permanent tiers. A paid relationship that is still awaiting Kinex reconciliation remains visible as a handoff blocker rather than being treated as assigned.
+            “Founding recruit” says how someone entered. Verification status says the current profile state; review history proves an independent review action was durably recorded, but does not version a particular uploaded file. Existing households indicate where relationship continuity can be tested quickly. None of those are quality scores or permanent tiers.
           </p>
         </div>
       </section>
@@ -561,6 +610,8 @@ export function FoundingCircle() {
                 </div>
                 <div className="flex flex-wrap gap-1.5">
                   <StatusPill ok={provider.readinessSubmitted}>readiness</StatusPill>
+                  <StatusPill ok={provider.identityReviewHistory}>identity reviewed</StatusPill>
+                  <StatusPill ok={provider.backgroundReviewHistory}>background reviewed</StatusPill>
                   <StatusPill ok={provider.application_status === "approved"}>approved</StatusPill>
                   <StatusPill ok={Boolean(provider.stripe_connect_ready)}>payout-ready</StatusPill>
                   <StatusPill ok={Boolean(provider.marketplace_access)}>marketplace</StatusPill>
@@ -571,16 +622,16 @@ export function FoundingCircle() {
               </div>
 
               <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-6">
+                <Metric label="Review records" value={provider.verificationReviewCount} detail={provider.latestVerificationReviewAt ? `Latest ${new Date(provider.latestVerificationReviewAt).toLocaleString()}` : "No independent review history"} />
                 <Metric label="Invites" value={provider.invitesIssued} detail={`${provider.invitesAccepted} accepted`} />
                 <Metric label="Relationships" value={provider.relationships} detail="provider-brought" />
                 <Metric label="Paid bookings" value={provider.paidRelationshipBookings} detail={`${provider.relationshipAssignmentsPending} awaiting reconciliation · ${provider.completedRelationshipServices} completed together`} />
-                <Metric label="Gross service" value={money(provider.grossRelationshipCents)} detail={`${money(provider.platformFeeCents)} platform fee`} />
                 <Metric label="Network" value={provider.networkRelationships} detail="active recorded relationships" />
-                <Metric label="Contributions" value={provider.contributions} detail={`${provider.payoutReleasedCount} payouts released`} />
+                <Metric label="Contributions" value={provider.contributions} detail={`${provider.payoutReleasedCount} payouts released · ${money(provider.platformFeeCents)} platform fee`} />
               </div>
 
               <p className="mt-3 text-[11px]" style={{ color: adminTheme.textSecondary }}>
-                recruitment: {provider.recruitmentSource ?? "organic / legacy"} · application: {provider.application_status ?? "not submitted"} · readiness: {provider.readiness_status ?? "not set"} · identity: {provider.identity_status ?? "not set"} · background: {provider.background_check_status ?? "not set"} · insurance: {provider.insurance_status ?? "not set"}
+                recruitment: {provider.recruitmentSource ?? "organic / legacy"} · application: {provider.application_status ?? "not submitted"} · readiness: {provider.readiness_status ?? "not set"} · identity status: {provider.identity_status ?? "not set"} · background status: {provider.background_check_status ?? "not set"} · insurance: {provider.insurance_status ?? "not set"}
               </p>
             </article>
           ))}
