@@ -18,7 +18,7 @@ export default function CustomerLogin() {
   const requestedMode = modeFromSearch(searchParams.get("mode"));
   const [mode, setMode] = useState<AuthMode>(requestedMode);
   const [fullName, setFullName] = useState("");
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(searchParams.get("email")?.trim() ?? "");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -36,11 +36,13 @@ export default function CustomerLogin() {
   useEffect(() => {
     setMode(requestedMode);
     setError(null);
+    const queryEmail = searchParams.get("email")?.trim();
+    if (queryEmail) setEmail(queryEmail);
     if (requestedMode !== "reset") {
       setRecoveryChecked(false);
       setRecoveryReady(false);
     }
-  }, [requestedMode]);
+  }, [requestedMode, searchParams]);
 
   useEffect(() => {
     if (mode !== "reset") return;
@@ -224,11 +226,7 @@ export default function CustomerLogin() {
     <div className="min-h-screen bg-slate-50 flex justify-center items-center px-4 py-8">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <img
-            src="/cleanr-app@2x.png"
-            alt="Cleanr"
-            className="h-10 object-contain mx-auto mb-4"
-          />
+          <img src="/cleanr-app@2x.png" alt="Cleanr" className="h-10 object-contain mx-auto mb-4" />
           <h1 className="text-2xl font-bold text-slate-900">{heading}</h1>
           <p className="text-sm text-slate-600 mt-2">{description}</p>
         </div>
@@ -244,20 +242,8 @@ export default function CustomerLogin() {
 
         {showStandardTabs ? (
           <div className="mb-4 grid grid-cols-2 rounded-xl bg-slate-200 p-1 text-sm">
-            <button
-              type="button"
-              onClick={() => switchMode("signin")}
-              className={`rounded-lg px-3 py-2 font-medium ${mode === "signin" ? "bg-white text-slate-900 shadow-sm" : "text-slate-600"}`}
-            >
-              Sign in
-            </button>
-            <button
-              type="button"
-              onClick={() => switchMode("signup")}
-              className={`rounded-lg px-3 py-2 font-medium ${mode === "signup" ? "bg-white text-slate-900 shadow-sm" : "text-slate-600"}`}
-            >
-              Create account
-            </button>
+            <button type="button" onClick={() => switchMode("signin")} className={`rounded-lg px-3 py-2 font-medium ${mode === "signin" ? "bg-white text-slate-900 shadow-sm" : "text-slate-600"}`}>Sign in</button>
+            <button type="button" onClick={() => switchMode("signup")} className={`rounded-lg px-3 py-2 font-medium ${mode === "signup" ? "bg-white text-slate-900 shadow-sm" : "text-slate-600"}`}>Create account</button>
           </div>
         ) : null}
 
@@ -265,47 +251,21 @@ export default function CustomerLogin() {
           {mode === "signup" ? (
             <div>
               <label htmlFor="fullName" className="block text-sm font-medium text-slate-700 mb-1">Name</label>
-              <input
-                id="fullName"
-                type="text"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-base placeholder-slate-400 text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0A84FF]"
-                placeholder="Your name"
-              />
+              <input id="fullName" type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-base placeholder-slate-400 text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0A84FF]" placeholder="Your name" />
             </div>
           ) : null}
 
           {mode !== "reset" ? (
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-slate-700 mb-1">Email</label>
-              <input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                autoComplete="email"
-                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-base placeholder-slate-400 text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0A84FF]"
-                placeholder="your@email.com"
-              />
+              <input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-base placeholder-slate-400 text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0A84FF]" placeholder="your@email.com" />
             </div>
           ) : null}
 
           {mode === "signin" || mode === "signup" ? (
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-slate-700 mb-1">Password</label>
-              <input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                minLength={6}
-                autoComplete={mode === "signup" ? "new-password" : "current-password"}
-                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-base placeholder-slate-400 text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0A84FF]"
-                placeholder="••••••••"
-              />
+              <input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6} autoComplete={mode === "signup" ? "new-password" : "current-password"} className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-base placeholder-slate-400 text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0A84FF]" placeholder="••••••••" />
             </div>
           ) : null}
 
@@ -322,31 +282,11 @@ export default function CustomerLogin() {
                 <>
                   <div>
                     <label htmlFor="password" className="block text-sm font-medium text-slate-700 mb-1">New password</label>
-                    <input
-                      id="password"
-                      type="password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      required
-                      minLength={6}
-                      autoComplete="new-password"
-                      className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-base placeholder-slate-400 text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0A84FF]"
-                      placeholder="••••••••"
-                    />
+                    <input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6} autoComplete="new-password" className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-base placeholder-slate-400 text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0A84FF]" placeholder="••••••••" />
                   </div>
                   <div>
                     <label htmlFor="confirmPassword" className="block text-sm font-medium text-slate-700 mb-1">Confirm new password</label>
-                    <input
-                      id="confirmPassword"
-                      type="password"
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      required
-                      minLength={6}
-                      autoComplete="new-password"
-                      className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-base placeholder-slate-400 text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0A84FF]"
-                      placeholder="••••••••"
-                    />
+                    <input id="confirmPassword" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required minLength={6} autoComplete="new-password" className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-base placeholder-slate-400 text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0A84FF]" placeholder="••••••••" />
                   </div>
                 </>
               )}
@@ -357,11 +297,7 @@ export default function CustomerLogin() {
           {notice ? <p className="text-sm text-emerald-700" role="status">{notice}</p> : null}
 
           {mode !== "reset" || recoveryReady ? (
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full rounded-2xl bg-[#0A84FF] py-3 text-sm font-semibold text-white shadow-md shadow-[#0A84FF]/40 disabled:opacity-60 disabled:cursor-not-allowed active:scale-[0.99] transition"
-            >
+            <button type="submit" disabled={isLoading} className="w-full rounded-2xl bg-[#0A84FF] py-3 text-sm font-semibold text-white shadow-md shadow-[#0A84FF]/40 disabled:opacity-60 disabled:cursor-not-allowed active:scale-[0.99] transition">
               {isLoading
                 ? mode === "signup"
                   ? "Creating account..."
@@ -381,9 +317,7 @@ export default function CustomerLogin() {
           ) : null}
 
           {mode === "signin" ? (
-            <button type="button" onClick={() => switchMode("forgot")} className="w-full text-center text-xs font-medium text-slate-500 underline">
-              Forgot password?
-            </button>
+            <button type="button" onClick={() => switchMode("forgot")} className="w-full text-center text-xs font-medium text-slate-500 underline">Forgot password?</button>
           ) : null}
 
           {mode === "forgot" || (mode === "reset" && recoveryChecked && !recoveryReady) ? (
@@ -402,10 +336,7 @@ export default function CustomerLogin() {
         </form>
 
         <div className="mt-4 text-center">
-          <button
-            onClick={() => navigate(returnSurface === "csp" ? "/csp/login" : "/")}
-            className="text-xs text-slate-500 underline"
-          >
+          <button onClick={() => navigate(returnSurface === "csp" ? "/csp/login" : "/")} className="text-xs text-slate-500 underline">
             {returnSurface === "csp" ? "← Back to CSP sign in" : "← Back to home"}
           </button>
         </div>
