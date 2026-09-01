@@ -11,6 +11,13 @@ function modeFromSearch(value: string | null): AuthMode {
   return "signin";
 }
 
+function initialAuthNotice(searchParams: URLSearchParams): string | null {
+  if (searchParams.get("reset") === "success") return "Password updated. Sign in with your new password.";
+  if (searchParams.get("reason") === "session-ended") return "Your Cleanr session ended. Sign in again to continue.";
+  if (searchParams.get("reason") === "profile-unavailable") return "We couldn't load your Cleanr profile. Sign in again to retry.";
+  return null;
+}
+
 export default function CustomerLogin() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -23,7 +30,7 @@ export default function CustomerLogin() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(searchParams.get("reset") === "success" ? "Password updated. Sign in with your new password." : null);
+  const [notice, setNotice] = useState<string | null>(() => initialAuthNotice(searchParams));
   const [hasReferral, setHasReferral] = useState(false);
   const [recoveryChecked, setRecoveryChecked] = useState(false);
   const [recoveryReady, setRecoveryReady] = useState(false);
@@ -38,6 +45,8 @@ export default function CustomerLogin() {
     setError(null);
     const queryEmail = searchParams.get("email")?.trim();
     if (queryEmail) setEmail(queryEmail);
+    const queryNotice = initialAuthNotice(searchParams);
+    if (queryNotice) setNotice(queryNotice);
     if (requestedMode !== "reset") {
       setRecoveryChecked(false);
       setRecoveryReady(false);
