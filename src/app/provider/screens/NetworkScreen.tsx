@@ -33,7 +33,7 @@ function provenanceLabel(relationship: NetworkRelationship): string {
     case "booking": return "Introduced through service history";
     case "referral": return "Introduced through a referral";
     case "admin": return "Introduced by Cleanr";
-    default: return relationship.origin === "kinex" ? "Suggested by Kinex" : "Introduced by Cleanr";
+    default: return relationship.origin === "kinex" ? "Suggested by Cleanr" : "Introduced by Cleanr";
   }
 }
 
@@ -70,7 +70,7 @@ function handoffStatusCopy(summary: TrustedServiceHandoffSummary): string {
     return "The backup CSP and household both agreed, and Cleanr formally reconciled the booking to the trusted backup. The residential service engine now owns fulfillment.";
   }
   if (handoff.status === "active") {
-    return "The backup CSP and household both agreed. The trust transfer is active, but formal booking assignment is still waiting on privileged Cleanr/Kinex operations reconciliation.";
+    return "The backup CSP and household both agreed. The trust transfer is active, but formal booking assignment is still waiting on Cleanr operations reconciliation.";
   }
   if (viewerRole === "backup_provider") {
     if (handoff.backupAcceptedAt && !handoff.customerConfirmedAt) return "You agreed to cover this visit. Waiting for household approval.";
@@ -88,7 +88,7 @@ function handoffBoundaryCopy(summary: TrustedServiceHandoffSummary): string {
     return "The booking is formally assigned to the trusted backup. From here, normal Jobs/service-engine rules own fulfillment and customer confirmation; the handoff itself cannot declare service complete.";
   }
   if (handoff.status === "active") {
-    return "Mutual consent does not itself reassign the booking. Only privileged Cleanr/Kinex operations can reconcile the trusted backup into the residential service engine.";
+    return "Mutual consent does not itself reassign the booking. Only Cleanr operations can reconcile the trusted backup into the residential service engine.";
   }
   return "A coverage request records proposed consent and trust only. It does not reassign the booking or let either CSP declare fulfillment complete.";
 }
@@ -311,7 +311,7 @@ export default function NetworkScreen() {
               <div>
                 <p className="text-sm font-medium">No suggested connections right now.</p>
                 <p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>
-                  If you opt into introductions, Kinex can surface someone when a real reason exists for the connection. Cleanr records the introduction and activates the relationship only after both people consent.
+                  If you opt into introductions, Cleanr can surface someone when a real reason exists for the connection. Cleanr records the introduction and activates the relationship only after both people consent.
                 </p>
               </div>
             </div>
