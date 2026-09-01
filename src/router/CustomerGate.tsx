@@ -1,12 +1,16 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Navigate } from "react-router-dom";
 import { supabase, isOfflinePreviewMode } from "@/lib/supabase";
+import { useSession } from "@/lib/useSession";
 import { attachRefereeByCode } from "@/lib/referralApi";
 import { getStoredReferralCode, clearStoredReferralCode } from "@/lib/referralRef";
 
 export function CustomerGate({ children }: { children: ReactNode }) {
+  const { session, loading: sessionLoading } = useSession();
   const [loading, setLoading] = useState(!isOfflinePreviewMode);
   const [redirectPath, setRedirectPath] = useState<string | null>(null);
+  const hadAuthenticatedSessionRef = useRef(false);
+  const accessSeqRef = useRef(0);
 
   useEffect(() => {
     if (isOfflinePreviewMode) {
@@ -15,41 +19,44 @@ export function CustomerGate({ children }: { children: ReactNode }) {
       return;
     }
 
+    if (sessionLoading) return;
+
     let mounted = true;
+    const seq = ++accessSeqRef.current;
 
     async function checkCustomerAccess() {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+      const user = session?.user ?? null;
 
-      if (!session?.user) {
-        if (mounted) {
-          setRedirectPath("/signin");
+      if (!user) {
+        if (mounted && seq === accessSeqRef.current) {
+          setRedirectPath(hadAuthenticatedSessionRef.current ? "/signin?reason=session-ended" : "/signin");
           setLoading(false);
         }
         return;
       }
 
+      hadAuthenticatedSessionRef.current = true;
+      setLoading(true);
+      setRedirectPath(null);
+
       const { data: profile, error } = await supabase
         .from("profiles")
         .select("role")
-        .eq("id", session.user.id)
+        .eq("id", user.id)
         .single();
 
+      if (!mounted || seq !== accessSeqRef.current) return;
+
       if (error || !profile) {
-        if (mounted) {
-          setRedirectPath("/signin");
-          setLoading(false);
-        }
+        setRedirectPath("/signin?reason=profile-unavailable");
+        setLoading(false);
         return;
       }
 
       const canAccessApp = profile.role === "customer" || profile.role === "admin";
       if (!canAccessApp) {
-        if (mounted) {
-          setRedirectPath("/dashboard");
-          setLoading(false);
-        }
+        setRedirectPath("/dashboard");
+        setLoading(false);
         return;
       }
 
@@ -72,10 +79,9 @@ export function CustomerGate({ children }: { children: ReactNode }) {
         }
       }
 
-      if (mounted) {
-        setRedirectPath(null);
-        setLoading(false);
-      }
+      if (!mounted || seq !== accessSeqRef.current) return;
+      setRedirectPath(null);
+      setLoading(false);
     }
 
     void checkCustomerAccess();
@@ -83,9 +89,9 @@ export function CustomerGate({ children }: { children: ReactNode }) {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [session?.user?.id, sessionLoading]);
 
-  if (loading) return null;
+  if (loading || sessionLoading) return null;
   if (redirectPath) return <Navigate to={redirectPath} replace />;
 
   return <>{children}</>;
