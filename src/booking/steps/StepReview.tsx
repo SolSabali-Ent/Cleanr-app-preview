@@ -114,7 +114,7 @@ export function StepReview({ onBack }: StepReviewProps) {
         <div className="rounded-[14px] border border-[#BBF7D0] bg-[#F0FDF4] p-4">
           <p className="text-[13px] font-semibold text-[#166534]">Continuing an established Cleanr relationship</p>
           <p className="mt-1 text-[12px] leading-5 text-[#3F6212]">
-            This booking will carry the relationship you selected into checkout. That context preserves provenance and continuity; it does not bypass Cleanr/Kinex fulfillment controls or create lock-in.
+            This booking will carry the relationship you selected into checkout. That context preserves provenance and continuity; it does not bypass Cleanr fulfillment safeguards or create lock-in.
           </p>
         </div>
       ) : null}
