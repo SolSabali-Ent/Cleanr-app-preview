@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { traceProfileWriteStart, traceProfileWriteResult } from "@/lib/debug/profileWriteTrace";
 import { supabase } from "../../lib/supabase";
 import { useIsAdmin } from "../../lib/useIsAdmin";
@@ -57,6 +58,8 @@ function approvalReadiness(row: ProviderApplicationRow) {
 
 export function ProviderApplications() {
   const { isAdmin, loading: adminLoading, userId } = useIsAdmin();
+  const [searchParams] = useSearchParams();
+  const focusedProviderId = searchParams.get("provider")?.trim() || null;
   const [rows, setRows] = useState<ProviderApplicationRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
@@ -65,15 +68,24 @@ export function ProviderApplications() {
   async function load() {
     setLoading(true);
     setMessage(null);
-    const { data, error } = await supabase
+
+    let query = supabase
       .from("profiles")
       .select(
         "id,full_name,is_onboarded,application_status,identity_status,insurance_status,background_check_status,screening_status,travel_readiness_status,agreement_accepted_at,csp_terms_accepted_at,application_submitted_at,identity_document_path,insurance_document_path,rejection_reason,cleaning_experience_bucket,has_own_equipment,has_reliable_transportation,provider_review_band,provider_interest_submitted_at"
       )
-      .eq("role", "csp")
-      .or("application_status.in.(submitted,under_review),cleaning_experience_bucket.not.is.null")
+      .eq("role", "csp");
+
+    if (focusedProviderId) {
+      query = query.eq("id", focusedProviderId);
+    } else {
+      query = query.or("application_status.in.(submitted,under_review),cleaning_experience_bucket.not.is.null");
+    }
+
+    const { data, error } = await query
       .order("provider_interest_submitted_at", { ascending: false, nullsFirst: false })
       .order("application_submitted_at", { ascending: false, nullsFirst: false });
+
     if (error) {
       setMessage(error.message);
       setRows([]);
@@ -194,7 +206,10 @@ export function ProviderApplications() {
   useEffect(() => {
     if (!isAdmin) return;
     void load();
-  }, [isAdmin]);
+  }, [isAdmin, focusedProviderId]);
+
+  const focusedRow = focusedProviderId ? rows.find((row) => row.id === focusedProviderId) ?? null : null;
+  const focusedReadiness = focusedRow ? approvalReadiness(focusedRow) : null;
 
   if (adminLoading) {
     return <div className="text-sm" style={{ color: adminTheme.textSecondary }}>Loading admin session...</div>;
@@ -212,6 +227,31 @@ export function ProviderApplications() {
         </p>
       </header>
 
+      {focusedProviderId ? (
+        <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-amber-800">Focused from pilot queue</p>
+              <p className="mt-1 text-sm font-semibold text-amber-950">
+                {focusedRow?.full_name ?? "Selected CSP"}
+              </p>
+              <p className="mt-1 text-xs leading-5 text-amber-900">
+                {focusedReadiness
+                  ? focusedReadiness.ready
+                    ? "All durable prerequisites shown on this screen are satisfied. Approval still requires an independent reviewer to make the decision."
+                    : `Current approval blockers: ${focusedReadiness.missing.join(", ")}.`
+                  : loading
+                    ? "Loading the selected CSP’s review truth…"
+                    : "The selected CSP could not be loaded from the current admin-visible profile set."}
+              </p>
+            </div>
+            <Link to="/admin/founding-circle" className="text-xs font-semibold text-amber-900 underline">
+              Back to Founding Circle
+            </Link>
+          </div>
+        </div>
+      ) : null}
+
       {message ? (
         <div className="mb-4 rounded-lg border px-3 py-2 text-sm" style={{ borderColor: adminTheme.border, backgroundColor: adminTheme.surface, color: adminTheme.textPrimary }}>
           {message}
@@ -221,7 +261,7 @@ export function ProviderApplications() {
       {loading ? (
         <p className="text-sm text-slate-500">Loading applications...</p>
       ) : rows.length === 0 ? (
-        <p className="text-sm text-slate-500">No matching providers in the queue.</p>
+        <p className="text-sm text-slate-500">{focusedProviderId ? "The selected provider is not available in this admin view." : "No matching providers in the queue."}</p>
       ) : (
         <div className="space-y-3">
           {rows.map((row) => {
@@ -229,12 +269,23 @@ export function ProviderApplications() {
             const selfReview = Boolean(userId && row.id === userId);
             const trustActionDisabled = workingKey !== null || selfReview;
             const approvalDisabled = selfReview || !readiness.ready;
+            const focused = focusedProviderId === row.id;
 
             return (
-              <section key={row.id} className="rounded-xl border p-4" style={{ borderColor: adminTheme.border, backgroundColor: adminTheme.card }}>
+              <section
+                key={row.id}
+                className="rounded-xl border p-4"
+                style={{
+                  borderColor: focused ? "#F2D38A" : adminTheme.border,
+                  backgroundColor: focused ? "#FFFDF5" : adminTheme.card,
+                }}
+              >
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold text-slate-900">{row.full_name ?? row.id}</p>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-sm font-semibold text-slate-900">{row.full_name ?? row.id}</p>
+                      {focused ? <span className="rounded-full bg-amber-100 px-2 py-1 text-[11px] font-semibold text-amber-800">pilot focus</span> : null}
+                    </div>
                     <p className="mt-1 text-xs text-slate-500">status: {row.application_status ?? "draft"}</p>
                     <p className="text-xs text-slate-500">
                       review band: {row.provider_review_band ?? "—"} · interest at: {row.provider_interest_submitted_at ? new Date(row.provider_interest_submitted_at).toLocaleString() : "—"}
