@@ -59,6 +59,14 @@ type NorthStarRow = { person_id: string; status: string };
 type NetworkRow = { source_person_id: string; target_person_id: string; status: string };
 type ContributionRow = { person_id: string; beneficiary_person_id: string | null };
 
+type PilotGuidance = {
+  stage: string;
+  stageOrder: number;
+  nextAction: string;
+  nextActionTo: string;
+  blockers: string[];
+};
+
 type ProviderSignal = ProviderRow & {
   readinessSubmitted: boolean;
   existingClientBucket: ExistingClientBucket | null;
@@ -67,6 +75,7 @@ type ProviderSignal = ProviderRow & {
   invitesAccepted: number;
   relationships: number;
   paidRelationshipBookings: number;
+  relationshipAssignmentsPending: number;
   completedRelationshipServices: number;
   grossRelationshipCents: number;
   platformFeeCents: number;
@@ -74,7 +83,11 @@ type ProviderSignal = ProviderRow & {
   hasNorthStar: boolean;
   networkRelationships: number;
   contributions: number;
+  collectiveProof: boolean;
   foundingActivity: boolean;
+  pilotStage: string;
+  pilotStageOrder: number;
+  blockers: string[];
   nextAction: string;
   nextActionTo: string;
 };
@@ -116,21 +129,160 @@ function StatusPill({ ok, children }: { ok: boolean; children: string }) {
   );
 }
 
+function StagePill({ children }: { children: string }) {
+  return (
+    <span
+      className="rounded-full border px-2 py-1 text-[11px] font-semibold"
+      style={{ borderColor: "rgba(234,179,8,.35)", backgroundColor: "rgba(234,179,8,.09)", color: "#854d0e" }}
+    >
+      {children}
+    </span>
+  );
+}
+
 function hasExistingHouseholds(bucket: ExistingClientBucket | null): boolean {
   return bucket === "1_2" || bucket === "3_5" || bucket === "6_plus";
 }
 
-function nextPilotAction(provider: Omit<ProviderSignal, "nextAction" | "nextActionTo">) {
-  if (!provider.readinessSubmitted) return { label: "Complete readiness", to: "/admin/full-app/csp/candidate-readiness" };
-  if (!provider.is_onboarded) return { label: "Complete onboarding", to: "/admin/full-app/csp/onboarding" };
-  if (provider.application_status !== "approved") return { label: "Review application", to: "/admin/providers" };
-  if (!provider.stripe_connect_ready) return { label: "Finish payout setup", to: "/admin/full-app/csp/application" };
-  if (provider.invitesIssued === 0 && hasExistingHouseholds(provider.existingClientBucket)) return { label: "Invite existing client", to: "/admin/full-app/csp/existing-clients" };
-  if (provider.invitesIssued > provider.invitesAccepted) return { label: "Get client acceptance", to: "/admin/full-app/csp/existing-clients" };
-  if (provider.relationships > 0 && provider.paidRelationshipBookings === 0) return { label: "Book first relationship service", to: "/admin/full-app/csp" };
-  if (!provider.hasNorthStar) return { label: "Capture North Star", to: "/admin/full-app/csp/growth/milestones" };
-  if (provider.networkRelationships === 0 && provider.contributions === 0) return { label: "Create collective proof", to: "/admin/full-app/csp/growth/network" };
-  return { label: "Inspect relationship health", to: "/admin/full-app" };
+function isVerified(value: string | null): boolean {
+  return ["verified", "approved", "clear", "complete", "completed"].includes((value ?? "").trim().toLowerCase());
+}
+
+function pilotGuidance(provider: Omit<ProviderSignal, "pilotStage" | "pilotStageOrder" | "blockers" | "nextAction" | "nextActionTo">): PilotGuidance {
+  if (!provider.readinessSubmitted) {
+    return {
+      stage: "Readiness",
+      stageOrder: 10,
+      nextAction: "Complete readiness",
+      nextActionTo: "/admin/full-app/csp/candidate-readiness",
+      blockers: ["Candidate readiness has not been submitted."],
+    };
+  }
+
+  if (!provider.is_onboarded) {
+    return {
+      stage: "Onboarding",
+      stageOrder: 20,
+      nextAction: "Complete onboarding",
+      nextActionTo: "/admin/full-app/csp/onboarding",
+      blockers: ["CSP onboarding is not complete."],
+    };
+  }
+
+  if (provider.application_status !== "approved") {
+    const blockers = [`Application: ${provider.application_status ?? "not submitted"}.`];
+    if (!isVerified(provider.identity_status)) blockers.push(`Identity: ${provider.identity_status ?? "not started"}.`);
+    if (!isVerified(provider.background_check_status)) blockers.push(`Background: ${provider.background_check_status ?? "not started"}.`);
+    return {
+      stage: "Application review",
+      stageOrder: 30,
+      nextAction: "Review application",
+      nextActionTo: "/admin/providers",
+      blockers,
+    };
+  }
+
+  if (!provider.stripe_connect_ready) {
+    return {
+      stage: "Payout setup",
+      stageOrder: 40,
+      nextAction: "Finish payout setup",
+      nextActionTo: "/admin/full-app/csp/application",
+      blockers: ["Stripe Connect payout readiness is not complete."],
+    };
+  }
+
+  if (provider.invitesIssued === 0 && hasExistingHouseholds(provider.existingClientBucket)) {
+    return {
+      stage: "Relationship activation",
+      stageOrder: 50,
+      nextAction: "Invite existing client",
+      nextActionTo: "/admin/full-app/csp/existing-clients",
+      blockers: ["Existing households were reported, but no existing-client invitation has been issued."],
+    };
+  }
+
+  if (provider.invitesIssued > provider.invitesAccepted) {
+    return {
+      stage: "Customer acceptance",
+      stageOrder: 60,
+      nextAction: "Get client acceptance",
+      nextActionTo: "/admin/full-app/csp/existing-clients",
+      blockers: [`${provider.invitesIssued - provider.invitesAccepted} existing-client invitation${provider.invitesIssued - provider.invitesAccepted === 1 ? " is" : "s are"} still awaiting customer confirmation.`],
+    };
+  }
+
+  if (provider.relationships === 0) {
+    return {
+      stage: "First relationship",
+      stageOrder: 70,
+      nextAction: hasExistingHouseholds(provider.existingClientBucket) ? "Confirm first relationship" : "Choose first relationship path",
+      nextActionTo: hasExistingHouseholds(provider.existingClientBucket) ? "/admin/full-app/csp/existing-clients" : "/admin/full-app/csp",
+      blockers: [
+        hasExistingHouseholds(provider.existingClientBucket)
+          ? "No durable provider-brought relationship exists yet."
+          : "No durable relationship exists yet. Existing clients are optional; choose the first legitimate relationship path without manufacturing provenance.",
+      ],
+    };
+  }
+
+  if (provider.paidRelationshipBookings === 0) {
+    return {
+      stage: "First paid relationship",
+      stageOrder: 80,
+      nextAction: "Book first relationship service",
+      nextActionTo: "/admin/full-app/csp",
+      blockers: ["A durable relationship exists, but it has not produced a paid Cleanr booking yet."],
+    };
+  }
+
+  if (provider.relationshipAssignmentsPending > 0) {
+    return {
+      stage: "Kinex reconciliation",
+      stageOrder: 90,
+      nextAction: "Watch Kinex handoff",
+      nextActionTo: "/admin/ops",
+      blockers: [`${provider.relationshipAssignmentsPending} paid relationship booking${provider.relationshipAssignmentsPending === 1 ? " is" : "s are"} awaiting formal Kinex assignment reconciliation.`],
+    };
+  }
+
+  if (provider.completedRelationshipServices === 0) {
+    return {
+      stage: "First completed service",
+      stageOrder: 100,
+      nextAction: "Complete first relationship visit",
+      nextActionTo: "/admin/full-app/csp/jobs",
+      blockers: ["The relationship has paid booking history but no confirmed completed service yet."],
+    };
+  }
+
+  if (!provider.hasNorthStar) {
+    return {
+      stage: "North Star",
+      stageOrder: 110,
+      nextAction: "Capture North Star",
+      nextActionTo: "/admin/full-app/csp/growth/milestones",
+      blockers: ["No persistent North Star has been recorded yet."],
+    };
+  }
+
+  if (!provider.collectiveProof) {
+    return {
+      stage: "Collective proof",
+      stageOrder: 120,
+      nextAction: "Create collective proof",
+      nextActionTo: "/admin/full-app/csp/growth/network",
+      blockers: ["The pilot still needs a real network tie or contribution showing value created beyond the individual transaction."],
+    };
+  }
+
+  return {
+    stage: "Pilot active",
+    stageOrder: 200,
+    nextAction: "Inspect relationship health",
+    nextActionTo: "/admin/full-app",
+    blockers: [],
+  };
 }
 
 export function FoundingCircle() {
@@ -219,8 +371,9 @@ export function FoundingCircle() {
         (row) => row.service_relationship_id != null && relationshipIds.has(row.service_relationship_id)
       );
       const paidBookings = relationshipBookings.filter((row) => Boolean(row.stripe_payment_intent_id));
+      const pendingAssignments = paidBookings.filter((row) => !row.provider_id && row.status === "created").length;
       const networkRelationships = network.filter(
-        (row) => row.source_person_id === provider.id || row.target_person_id === provider.id
+        (row) => row.status === "active" && (row.source_person_id === provider.id || row.target_person_id === provider.id)
       ).length;
       const providerContributions = contributions.filter((row) => row.person_id === provider.id).length;
 
@@ -233,6 +386,7 @@ export function FoundingCircle() {
         invitesAccepted: providerInvites.filter((row) => Boolean(row.relationship_confirmed_at && row.referee_id)).length,
         relationships: providerRelationships.length,
         paidRelationshipBookings: paidBookings.length,
+        relationshipAssignmentsPending: pendingAssignments,
         completedRelationshipServices: providerRelationships.reduce((sum, row) => sum + (row.completed_services_count ?? 0), 0),
         grossRelationshipCents: paidBookings.reduce((sum, row) => sum + (row.price_cents ?? 0), 0),
         platformFeeCents: paidBookings.reduce((sum, row) => sum + (row.platform_fee_cents ?? 0), 0),
@@ -240,12 +394,25 @@ export function FoundingCircle() {
         hasNorthStar: northStarIds.has(provider.id),
         networkRelationships,
         contributions: providerContributions,
+        collectiveProof: networkRelationships > 0 || providerContributions > 0,
         foundingActivity: providerInvites.length > 0 || providerRelationships.length > 0 || bookings.some((row) => row.service_relationship_id && relationshipProvider.get(row.service_relationship_id) === provider.id),
       };
-      const next = nextPilotAction(base);
-      return { ...base, nextAction: next.label, nextActionTo: next.to };
+      const guidance = pilotGuidance(base);
+      return {
+        ...base,
+        pilotStage: guidance.stage,
+        pilotStageOrder: guidance.stageOrder,
+        blockers: guidance.blockers,
+        nextAction: guidance.nextAction,
+        nextActionTo: guidance.nextActionTo,
+      };
     });
   }, [bookings, contributions, network, northStars, providers, readiness, referrals, relationships]);
+
+  const attentionQueue = useMemo(
+    () => [...signals].sort((a, b) => a.pilotStageOrder - b.pilotStageOrder || a.created_at.localeCompare(b.created_at)),
+    [signals]
+  );
 
   const totals = useMemo(() => {
     const providerIds = new Set(providers.map((row) => row.id));
@@ -264,6 +431,8 @@ export function FoundingCircle() {
       accepted: referrals.filter((row) => Boolean(row.relationship_confirmed_at && row.referee_id)).length,
       relationships: relationships.length,
       paidBookings: paidProviderBroughtBookings.length,
+      assignmentPending: signals.reduce((sum, row) => sum + row.relationshipAssignmentsPending, 0),
+      collectiveProofProviders: signals.filter((row) => row.collectiveProof).length,
       contributions: cspContributions.length,
       activeNetwork: cspNetwork.length,
     };
@@ -287,6 +456,61 @@ export function FoundingCircle() {
 
       {error ? <div className="rounded-lg border px-3 py-2 text-sm" style={{ borderColor: adminTheme.border, color: "#b91c1c" }}>{error}</div> : null}
 
+      <section className="rounded-xl border" style={{ borderColor: adminTheme.border, backgroundColor: adminTheme.card }}>
+        <div className="flex flex-wrap items-start justify-between gap-3 border-b p-4" style={{ borderColor: adminTheme.border }}>
+          <div>
+            <h2 className="text-sm font-semibold">Pilot attention queue</h2>
+            <p className="mt-1 max-w-3xl text-xs leading-5" style={{ color: adminTheme.textSecondary }}>
+              Ordered by the earliest real blocker. The queue is operational guidance only: it does not change CSP eligibility, route bookings, or manufacture relationship provenance.
+            </p>
+          </div>
+          <div className="rounded-lg border px-3 py-2 text-xs" style={{ borderColor: adminTheme.border, backgroundColor: adminTheme.surface }}>
+            <span className="font-semibold">{attentionQueue.filter((row) => row.blockers.length > 0).length}</span> need a next step · <span className="font-semibold">{totals.assignmentPending}</span> awaiting Kinex
+          </div>
+        </div>
+
+        <div className="divide-y" style={{ borderColor: adminTheme.border }}>
+          {attentionQueue.length === 0 ? (
+            <p className="p-4 text-sm" style={{ color: adminTheme.textSecondary }}>No CSP profiles yet.</p>
+          ) : (
+            attentionQueue.map((provider, index) => (
+              <article key={provider.id} className="p-4">
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-xs font-semibold" style={{ color: adminTheme.textSecondary }}>#{index + 1}</span>
+                      <p className="font-medium">{provider.full_name ?? "Unnamed CSP"}</p>
+                      <StagePill>{provider.pilotStage}</StagePill>
+                      {provider.recruitmentSource === "founding_circle" ? <StatusPill ok>Founding recruit</StatusPill> : null}
+                    </div>
+                    <p className="mt-1 text-[11px]" style={{ color: adminTheme.textSecondary }}>{provider.id}</p>
+
+                    {provider.blockers.length > 0 ? (
+                      <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
+                        <p className="text-xs font-semibold text-amber-900">Current blocker{provider.blockers.length === 1 ? "" : "s"}</p>
+                        <ul className="mt-1 space-y-1 text-xs leading-5 text-amber-900">
+                          {provider.blockers.map((blocker) => <li key={blocker}>• {blocker}</li>)}
+                        </ul>
+                      </div>
+                    ) : (
+                      <p className="mt-3 text-xs text-emerald-700">No launch blocker detected. Continue monitoring relationship health and value circulation.</p>
+                    )}
+                  </div>
+
+                  <div className="w-full rounded-lg border p-3 sm:w-64" style={{ borderColor: adminTheme.border, backgroundColor: adminTheme.surface }}>
+                    <p className="text-[11px] font-medium" style={{ color: adminTheme.textSecondary }}>Next action</p>
+                    <p className="mt-1 text-sm font-semibold" style={{ color: adminTheme.textPrimary }}>{provider.nextAction}</p>
+                    <Link to={provider.nextActionTo} className="mt-2 inline-block text-xs font-semibold underline" style={{ color: adminTheme.primary }}>
+                      Open the right surface →
+                    </Link>
+                  </div>
+                </div>
+              </article>
+            ))
+          )}
+        </div>
+      </section>
+
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
         <Metric label="CSP funnel" value={totals.csp} detail={`${totals.ready} approved or marketplace-enabled`} />
         <Metric label="Founding recruitment" value={totals.recruited} detail="Entered through the Founding Circle recruiting path" />
@@ -301,13 +525,13 @@ export function FoundingCircle() {
           <p className="text-sm font-semibold">Collective proof</p>
           <p className="mt-2 text-2xl font-semibold">{totals.contributions + totals.activeNetwork}</p>
           <p className="mt-1 text-xs" style={{ color: adminTheme.textSecondary }}>
-            {totals.contributions} CSP contribution records · {totals.activeNetwork} active network relationships involving a CSP. The pilot needs at least one real coverage, referral, mentorship, knowledge-transfer, or other collective event—not just paid cleanings.
+            {totals.contributions} CSP contribution records · {totals.activeNetwork} active network relationships involving a CSP · {totals.collectiveProofProviders} CSPs with at least one collective signal. The pilot needs at least one real coverage, referral, mentorship, knowledge-transfer, or other collective event—not just paid cleanings.
           </p>
         </div>
         <div className="rounded-xl border p-4" style={{ borderColor: adminTheme.border, backgroundColor: adminTheme.card }}>
           <p className="text-sm font-semibold">Pilot interpretation</p>
           <p className="mt-2 text-xs leading-5" style={{ color: adminTheme.textSecondary }}>
-            “Founding recruit” says how someone entered. “Founding activity” says what they actually did. Existing households indicate where relationship continuity can be tested quickly. None of those are quality scores or permanent tiers.
+            “Founding recruit” says how someone entered. “Founding activity” says what they actually did. Existing households indicate where relationship continuity can be tested quickly. None of those are quality scores or permanent tiers. A paid relationship that is still awaiting Kinex reconciliation remains visible as a handoff blocker rather than being treated as assigned.
           </p>
         </div>
       </section>
@@ -324,6 +548,7 @@ export function FoundingCircle() {
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
                     <p className="font-medium">{provider.full_name ?? "Unnamed CSP"}</p>
+                    <StagePill>{provider.pilotStage}</StagePill>
                     {provider.recruitmentSource === "founding_circle" ? <StatusPill ok>Founding recruit</StatusPill> : null}
                     {provider.foundingActivity ? <StatusPill ok>Founding activity</StatusPill> : null}
                     {provider.existingClientBucket ? <StatusPill ok={hasExistingHouseholds(provider.existingClientBucket)}>{EXISTING_CLIENT_LABELS[provider.existingClientBucket]}</StatusPill> : null}
@@ -339,16 +564,18 @@ export function FoundingCircle() {
                   <StatusPill ok={provider.application_status === "approved"}>approved</StatusPill>
                   <StatusPill ok={Boolean(provider.stripe_connect_ready)}>payout-ready</StatusPill>
                   <StatusPill ok={Boolean(provider.marketplace_access)}>marketplace</StatusPill>
+                  <StatusPill ok={provider.relationshipAssignmentsPending === 0}>Kinex clear</StatusPill>
                   <StatusPill ok={provider.hasNorthStar}>North Star</StatusPill>
+                  <StatusPill ok={provider.collectiveProof}>collective proof</StatusPill>
                 </div>
               </div>
 
               <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-6">
                 <Metric label="Invites" value={provider.invitesIssued} detail={`${provider.invitesAccepted} accepted`} />
                 <Metric label="Relationships" value={provider.relationships} detail="provider-brought" />
-                <Metric label="Paid bookings" value={provider.paidRelationshipBookings} detail={`${provider.completedRelationshipServices} completed together`} />
+                <Metric label="Paid bookings" value={provider.paidRelationshipBookings} detail={`${provider.relationshipAssignmentsPending} awaiting reconciliation · ${provider.completedRelationshipServices} completed together`} />
                 <Metric label="Gross service" value={money(provider.grossRelationshipCents)} detail={`${money(provider.platformFeeCents)} platform fee`} />
-                <Metric label="Network" value={provider.networkRelationships} detail="recorded relationships" />
+                <Metric label="Network" value={provider.networkRelationships} detail="active recorded relationships" />
                 <Metric label="Contributions" value={provider.contributions} detail={`${provider.payoutReleasedCount} payouts released`} />
               </div>
 
