@@ -4,6 +4,12 @@ import { supabase } from "../../../lib/supabase";
 import { captureReferralCodeFromUrl } from "../../../lib/referralRef";
 import { resolveCspLoginNavigateTarget } from "../../../lib/cspPostLoginRedirect";
 
+function initialNotice(searchParams: URLSearchParams): string | null {
+  if (searchParams.get("reset") === "success") return "Password updated. Sign in with your new password.";
+  if (searchParams.get("reason") === "session-ended") return "Your Cleanr session ended. Sign in again to continue.";
+  return null;
+}
+
 export default function CSPLogin() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -11,11 +17,16 @@ export default function CSPLogin() {
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(searchParams.get("reset") === "success" ? "Password updated. Sign in with your new password." : null);
+  const [notice, setNotice] = useState<string | null>(() => initialNotice(searchParams));
 
   useEffect(() => {
     captureReferralCodeFromUrl();
   }, []);
+
+  useEffect(() => {
+    const nextNotice = initialNotice(searchParams);
+    if (nextNotice) setNotice(nextNotice);
+  }, [searchParams]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
