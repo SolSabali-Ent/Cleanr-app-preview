@@ -323,8 +323,8 @@ export default function Landing() {
             />
             <FeatureCard
               icon={<Shield className="h-6 w-6" />}
-              title="Cleanr + Kinex lifecycle support"
-              description="Account, booking, and service events can flow to Kinex for operational visibility across the residential lifecycle."
+              title="Behind-the-scenes coordination"
+              description="Cleanr keeps booking, reminders, service updates, and support connected behind the scenes so households and providers can focus on the relationship."
             />
           </div>
         </div>
