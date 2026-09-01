@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
 import { adminTheme } from "../../theme/adminTheme";
+import { KinexDrainAuditCard } from "./KinexDrainAuditCard";
 
 type PendingBookingRow = {
   id: string;
@@ -95,7 +96,8 @@ export function KinexHandoffPanel() {
       const claimed = Number(result?.claimed ?? 0);
       const sent = Number(result?.sent ?? 0);
       const failed = Number(result?.failed ?? 0);
-      setNotice(`Kinex drain completed: ${claimed} claimed · ${sent} sent · ${failed} failed. Relationship-pending booking confirmations remain protected by the delivery gate.`);
+      const runId = data?.run_id ? String(data.run_id) : null;
+      setNotice(`Kinex drain completed: ${claimed} claimed · ${sent} sent · ${failed} failed.${runId ? ` Audit run ${runId}.` : ""} Relationship-pending booking confirmations remain protected by the delivery gate.`);
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to drain the Kinex outbox.");
@@ -171,6 +173,8 @@ export function KinexHandoffPanel() {
           {notice}
         </div>
       ) : null}
+
+      <KinexDrainAuditCard />
 
       <div className="mt-4 rounded-lg border px-3 py-3" style={{ borderColor: relationshipDeliveryEnabled ? "#B7E0A4" : "#F2D38A", backgroundColor: relationshipDeliveryEnabled ? "#F5FBF2" : "#FFF9E8" }}>
         <p className="text-xs font-semibold" style={{ color: adminTheme.textPrimary }}>
