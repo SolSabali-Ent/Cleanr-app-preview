@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { CustomerHouseholdMemorySuggestionsCard } from "../../components/relationship/CustomerHouseholdMemorySuggestionsCard";
+import { RelationshipAssignmentPendingCard } from "../../components/relationship/RelationshipAssignmentPendingCard";
 import type { Booking } from "../../domain/booking";
 import { supabase } from "../../lib/supabase";
 import { CustomerBookingDetails } from "../../shell/screens/CustomerBookingDetails";
@@ -51,6 +52,7 @@ export function BookingDetails() {
   return (
     <>
       <CustomerBookingDetails />
+      {bookingId ? <RelationshipAssignmentPendingCard bookingId={bookingId} /> : null}
       {confirmedForCurrentCustomer && bookingId ? (
         <CustomerHouseholdMemorySuggestionsCard bookingId={bookingId} />
       ) : null}
