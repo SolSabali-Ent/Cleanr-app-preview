@@ -23,6 +23,7 @@ type OutboxRow = {
   next_retry_at: string | null;
   created_at: string;
   sent_at: string | null;
+  payload: Record<string, unknown> | null;
 };
 
 function formatTimestamp(value: string | null) {
@@ -34,6 +35,7 @@ function formatTimestamp(value: string | null) {
 export function KinexHandoffPanel() {
   const [bookings, setBookings] = useState<PendingBookingRow[]>([]);
   const [outbox, setOutbox] = useState<OutboxRow[]>([]);
+  const [relationshipDeliveryEnabled, setRelationshipDeliveryEnabled] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -41,7 +43,7 @@ export function KinexHandoffPanel() {
     setLoading(true);
     setError(null);
 
-    const [bookingResult, outboxResult] = await Promise.all([
+    const [bookingResult, outboxResult, settingResult] = await Promise.all([
       supabase
         .from("bookings")
         .select("id,status,provider_id,service_relationship_id,stripe_payment_intent_id,created_at,updated_at")
@@ -53,9 +55,14 @@ export function KinexHandoffPanel() {
         .limit(50),
       supabase
         .from("kinex_event_outbox")
-        .select("id,event_type,booking_id,status,attempt_count,last_error,next_retry_at,created_at,sent_at")
+        .select("id,event_type,booking_id,status,attempt_count,last_error,next_retry_at,created_at,sent_at,payload")
         .order("created_at", { ascending: false })
         .limit(50),
+      supabase
+        .from("platform_settings")
+        .select("value")
+        .eq("key", "kinex_relationship_assignment_delivery_enabled")
+        .maybeSingle(),
     ]);
 
     const errors: string[] = [];
@@ -64,6 +71,9 @@ export function KinexHandoffPanel() {
 
     if (outboxResult.error) errors.push(`Kinex outbox: ${outboxResult.error.message}`);
     else setOutbox((outboxResult.data ?? []) as OutboxRow[]);
+
+    if (settingResult.error) errors.push(`relationship delivery gate: ${settingResult.error.message}`);
+    else setRelationshipDeliveryEnabled(String(settingResult.data?.value ?? "false").toLowerCase() === "true");
 
     setError(errors.length ? errors.join(" · ") : null);
     setLoading(false);
@@ -80,8 +90,14 @@ export function KinexHandoffPanel() {
     const sent = outbox.filter((row) => row.status === "sent").length;
     const bookingConfirmed = outbox.filter((row) => row.event_type === "booking_confirmed");
     const failedConfirmed = bookingConfirmed.filter((row) => row.status === "failed").length;
-    return { queued, processing, failed, sent, failedConfirmed };
-  }, [outbox]);
+    const heldRelationshipConfirmed = bookingConfirmed.filter(
+      (row) =>
+        row.status === "queued" &&
+        row.payload?.relationship_assignment_pending === true &&
+        !relationshipDeliveryEnabled
+    ).length;
+    return { queued, processing, failed, sent, failedConfirmed, heldRelationshipConfirmed };
+  }, [outbox, relationshipDeliveryEnabled]);
 
   return (
     <section
@@ -114,9 +130,21 @@ export function KinexHandoffPanel() {
         </div>
       ) : null}
 
-      <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="mt-4 rounded-lg border px-3 py-3" style={{ borderColor: relationshipDeliveryEnabled ? "#B7E0A4" : "#F2D38A", backgroundColor: relationshipDeliveryEnabled ? "#F5FBF2" : "#FFF9E8" }}>
+        <p className="text-xs font-semibold" style={{ color: adminTheme.textPrimary }}>
+          Relationship assignment delivery: {relationshipDeliveryEnabled ? "enabled" : "held intentionally"}
+        </p>
+        <p className="mt-1 text-xs leading-5" style={{ color: adminTheme.textSecondary }}>
+          {relationshipDeliveryEnabled
+            ? "Cleanr may release relationship-pending booking_confirmed events to Kinex. Keep this enabled only after the Kinex routing migration and callback worker are verified live."
+            : "Cleanr continues to preserve relationship-pending booking_confirmed rows in the outbox without claiming them or consuming retry attempts. Ordinary Kinex lifecycle events are unaffected."}
+        </p>
+      </div>
+
+      <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
         {[
           ["Pending relationship assignment", bookings.length, "Paid relationship bookings still waiting for formal provider reconciliation"],
+          ["Relationship events held", health.heldRelationshipConfirmed, "Queued intentionally while the Kinex relationship rail is disabled"],
           ["Outbox queued", health.queued, "Cleanr events waiting to be delivered to Kinex"],
           ["Outbox processing", health.processing, "Rows currently claimed by the transport worker"],
           ["Outbox failed", health.failed, `${health.failedConfirmed} failed booking_confirmed events`],
@@ -170,7 +198,7 @@ export function KinexHandoffPanel() {
       <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3">
         <p className="text-xs font-semibold text-slate-800">Blocked Kinex database activation</p>
         <p className="mt-1 text-xs leading-5 text-slate-600">
-          The Kinex source migration for the Cleanr relationship-assignment routing rule is ready, but live Kinex database access is not currently available. Until that migration is confirmed live, this panel intentionally exposes no retry or manual assignment control.
+          The Kinex source migration for the Cleanr relationship-assignment routing rule is ready, but live Kinex database access is not currently available. Until that migration is confirmed live, the delivery gate remains off and this panel intentionally exposes no retry or manual assignment control.
         </p>
       </div>
     </section>
