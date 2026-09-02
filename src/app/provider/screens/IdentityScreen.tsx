@@ -41,9 +41,9 @@ export default function IdentityScreen() {
     setError(null);
 
     const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-    const path = `providers/${profile.id}/identity/${Date.now()}-${safeName}`;
+    const path = `providers/${profile.id}/identity/${Date.now()}-${crypto.randomUUID()}-${safeName}`;
 
-    const upload = await supabase.storage.from("provider-documents").upload(path, file, { upsert: true });
+    const upload = await supabase.storage.from("provider-documents").upload(path, file, { upsert: false });
     if (upload.error) {
       setError(upload.error.message);
       setSaving(false);

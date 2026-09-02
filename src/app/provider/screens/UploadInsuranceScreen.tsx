@@ -15,7 +15,6 @@ function sanitizeFilename(name: string): string {
   return name.replace(/[^a-zA-Z0-9._-]/g, "_");
 }
 
-/** Format YYYY-MM-DD for display (e.g. "March 15, 2025"). Same as booking date field. */
 function formatDateDisplay(isoDate: string): string {
   if (!isoDate) return "";
   const d = new Date(isoDate + "T12:00:00");
@@ -47,11 +46,11 @@ export default function UploadInsuranceScreen() {
     setMessage(null);
 
     const safeName = sanitizeFilename(file.name);
-    const path = `providers/${profile.id}/insurance/${Date.now()}-${safeName}`;
+    const path = `providers/${profile.id}/insurance/${Date.now()}-${crypto.randomUUID()}-${safeName}`;
 
     const upload = await supabase.storage
       .from("provider-documents")
-      .upload(path, file, { upsert: true });
+      .upload(path, file, { upsert: false });
     if (upload.error) {
       setError(upload.error.message);
       setSaving(false);
@@ -117,7 +116,6 @@ export default function UploadInsuranceScreen() {
             className="h-11 w-full min-w-0 max-w-full rounded-xl border border-white/10 bg-white/5 px-3 text-base text-white placeholder-slate-300 box-border"
           />
         </div>
-        {/* Same shell + overlay pattern as booking date field: visible shell controls layout; native input absolutely over with opacity 0 so iOS opens picker. */}
         <div className="w-full min-w-0">
           <div className="relative w-full min-w-0 overflow-hidden rounded-xl border border-white/10 bg-white/5 pl-3 pr-10 py-2 min-h-[44px] flex items-center focus-within:outline-none focus-within:ring-2 focus-within:ring-white/30">
             <span
