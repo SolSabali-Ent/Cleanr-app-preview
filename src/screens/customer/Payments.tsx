@@ -1,8 +1,8 @@
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, CreditCard } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "../../components/ui/Button";
 
-/** Customer: payment methods and history. Shared domain (payments), customer view. */
+/** Customer payment surface. Stripe-backed management is intentionally deferred until checkout is configured. */
 export function Payments() {
   const navigate = useNavigate();
 
@@ -12,8 +12,16 @@ export function Payments() {
         Back
       </Button>
       <h1 className="text-xl font-semibold mb-2">Payments</h1>
-      <div className="provider-card">
-        <p className="text-sm text-[#667085]">Payment methods and history — coming soon.</p>
+      <div className="provider-card space-y-3">
+        <div className="flex items-start gap-3">
+          <CreditCard className="mt-0.5 h-5 w-5 shrink-0 text-[#8DCC64]" />
+          <div>
+            <p className="text-sm font-medium">Payment management is not active yet</p>
+            <p className="mt-1 text-sm text-[#667085]">
+              Cleanr will add saved payment methods and payment history here when checkout and Stripe payment processing are enabled.
+            </p>
+          </div>
+        </div>
       </div>
       <Button className="mt-4" variant="secondary" size="lg" fullWidth onClick={() => navigate("/app/profile")}>
         Done

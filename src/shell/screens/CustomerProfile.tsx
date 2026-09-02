@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { LogOut, HelpCircle, CreditCard, MapPin, Phone, Share2 } from "lucide-react";
+import { LogOut, HelpCircle, CreditCard, MapPin, MessageCircle, Share2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useProfile } from "@/lib/useProfile";
 import { useSession } from "@/lib/useSession";
@@ -70,8 +70,8 @@ export function CustomerProfile() {
           <div className="flex items-center gap-3">
             <CreditCard className="w-4 h-4 text-[#8DCC64]" />
             <div>
-              <p className="text-sm">Payment methods</p>
-              <p className="text-xs text-[#667085]">Manage your saved cards</p>
+              <p className="text-sm">Payments</p>
+              <p className="text-xs text-[#667085]">Payment features activate with checkout</p>
             </div>
           </div>
         </button>
@@ -80,8 +80,8 @@ export function CustomerProfile() {
           <div className="flex items-center gap-3">
             <MapPin className="w-4 h-4 text-[#8DCC64]" />
             <div>
-              <p className="text-sm">Addresses</p>
-              <p className="text-xs text-[#667085]">Home, office, or recurring locations</p>
+              <p className="text-sm">Service addresses</p>
+              <p className="text-xs text-[#667085]">Locations are currently saved with each booking</p>
             </div>
           </div>
         </button>
@@ -102,18 +102,18 @@ export function CustomerProfile() {
           <div className="flex items-center gap-3">
             <HelpCircle className="w-4 h-4 text-[#8DCC64]" />
             <div>
-              <p className="text-sm">Support & FAQ</p>
-              <p className="text-xs text-[#667085]">Get help, see policies, or contact us</p>
+              <p className="text-sm">Help &amp; safety</p>
+              <p className="text-xs text-[#667085]">Booking help, policies, and safety guidance</p>
             </div>
           </div>
         </button>
         <div className="h-px bg-[#E5E7EB] mx-3" />
         <button type="button" onClick={() => navigate("/app/emergency")} className={actionRowClass}>
           <div className="flex items-center gap-3">
-            <Phone className="w-4 h-4 text-[#8DCC64]" />
+            <MessageCircle className="w-4 h-4 text-[#8DCC64]" />
             <div>
-              <p className="text-sm">Emergency contact</p>
-              <p className="text-xs text-[#667085]">For urgent issues with a cleaning</p>
+              <p className="text-sm">Urgent booking help</p>
+              <p className="text-xs text-[#667085]">For urgent issues tied to an active cleaning</p>
             </div>
           </div>
         </button>

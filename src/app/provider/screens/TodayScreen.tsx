@@ -46,7 +46,6 @@ export default function TodayScreen() {
   const [myJobs, setMyJobs] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isOnline, setIsOnline] = useState(false);
 
   const isUnlocked = Boolean(displayProfile && displayProfile.marketplace_access === true);
   const isOnboarded = Boolean(displayProfile && displayProfile.is_onboarded === true);
@@ -228,13 +227,22 @@ export default function TodayScreen() {
           </section>
 
           <section style={{ marginBottom: CSP_SECTION_GAP }}>
-            <div className="rounded-2xl border" style={{ backgroundColor: CSP_SURFACE, borderColor: "rgba(248, 250, 252, 0.08)", padding: CSP_CARD_PADDING }}>
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-medium">Availability</p>
-                <button type="button" onClick={() => setIsOnline((prev) => !prev)} className="rounded-lg px-3 py-1.5 text-xs font-semibold" style={{ backgroundColor: isOnline ? "rgba(16, 185, 129, 0.2)" : "rgba(148, 163, 184, 0.2)", color: isOnline ? "#6EE7B7" : "#CBD5E1" }}>{isOnline ? "Go offline" : "Go online"}</button>
+            <button
+              type="button"
+              onClick={() => navigate("/csp/dashboard/calendar?tab=availability")}
+              className="w-full rounded-2xl border text-left transition-opacity hover:opacity-90"
+              style={{ backgroundColor: CSP_SURFACE, borderColor: "rgba(248, 250, 252, 0.08)", padding: CSP_CARD_PADDING }}
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-medium">Availability</p>
+                  <p className="mt-2 text-xs" style={{ color: CSP_TEXT_SECONDARY }}>
+                    Set weekly hours, block time, and keep your schedule current.
+                  </p>
+                </div>
+                <span className="text-xs font-semibold" style={{ color: CSP_PRIMARY_BUTTON }}>Manage →</span>
               </div>
-              <p className="mt-2 text-xs" style={{ color: CSP_TEXT_SECONDARY }}>Route optimization is coming soon.</p>
-            </div>
+            </button>
           </section>
 
           <section style={{ marginBottom: CSP_SECTION_GAP }}>

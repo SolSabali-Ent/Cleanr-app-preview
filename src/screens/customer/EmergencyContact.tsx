@@ -17,7 +17,7 @@ export function EmergencyContact() {
         Back
       </Button>
 
-      <h1 className="text-xl font-semibold mb-2">Emergency contact</h1>
+      <h1 className="text-xl font-semibold mb-2">Urgent booking help</h1>
       <div className="provider-card space-y-3">
         <p className="text-sm text-[#667085]">
           For an urgent issue tied to an active cleaning, open the booking and message your CSP from the booking thread.

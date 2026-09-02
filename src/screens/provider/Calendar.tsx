@@ -5,11 +5,17 @@ import { Button } from "../../components/ui/Button";
 
 export function Calendar() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const isAvailability = searchParams.get("tab") === "availability";
 
   const leaveCalendar = () => {
     navigate("/csp/dashboard", { replace: true });
+  };
+
+  const closeAvailability = () => {
+    const next = new URLSearchParams(searchParams);
+    next.delete("tab");
+    setSearchParams(next, { replace: true });
   };
 
   return (
@@ -25,8 +31,8 @@ export function Calendar() {
           >
             Back
           </Button>
-          <Button variant="secondary" size="sm" onClick={leaveCalendar}>
-            Done
+          <Button variant="secondary" size="sm" onClick={closeAvailability}>
+            Close
           </Button>
         </div>
       ) : null}
