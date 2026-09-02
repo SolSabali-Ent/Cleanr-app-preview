@@ -1,5 +1,6 @@
-import { NavLink } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
 import { Home, CalendarDays, UserCircle2, Sparkles } from "lucide-react";
+import { customerRouteForContext } from "@/lib/contextualRoutes";
 
 const tabs = [
   { to: "/app", label: "Home", icon: Home },
@@ -9,14 +10,17 @@ const tabs = [
 ];
 
 export function CustomerBottomNav() {
+  const { pathname } = useLocation();
+
   return (
     <nav className="customer-bottom-nav">
       {tabs.map((tab) => {
         const Icon = tab.icon;
+        const target = customerRouteForContext(pathname, tab.to);
         return (
           <NavLink
             key={tab.to}
-            to={tab.to}
+            to={target}
             end={tab.to === "/app"}
             className={({ isActive }) =>
               `nav-item ${isActive ? "active" : ""} flex flex-col items-center justify-center text-xs font-medium`

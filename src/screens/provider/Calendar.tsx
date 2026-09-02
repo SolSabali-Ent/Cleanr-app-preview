@@ -1,15 +1,17 @@
 import { ArrowLeft } from "lucide-react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import CalendarScreen from "../../app/provider/screens/CalendarScreen";
 import { Button } from "../../components/ui/Button";
+import { cspRouteForContext } from "../../lib/contextualRoutes";
 
 export function Calendar() {
   const navigate = useNavigate();
+  const { pathname } = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const isAvailability = searchParams.get("tab") === "availability";
 
   const leaveCalendar = () => {
-    navigate("/csp/dashboard", { replace: true });
+    navigate(cspRouteForContext(pathname, "/csp/dashboard"), { replace: true });
   };
 
   const closeAvailability = () => {
