@@ -3,6 +3,7 @@ import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { ArrowLeft, ShieldCheck, Star } from "lucide-react";
 import { Button } from "../components/ui/Button";
 import { supabase } from "../lib/supabase";
+import { getMyServiceRelationshipWithProvider } from "../lib/serviceRelationshipApi";
 import { providerDisplayName } from "./types";
 import { isUuid } from "@/utils/isUuid";
 
@@ -29,6 +30,7 @@ export function ProviderDetail() {
   const [searchParams] = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<PublicProviderProfile | null>(null);
+  const [relationshipId, setRelationshipId] = useState<string | null>(null);
 
   const bookingId = searchParams.get("bookingId");
   const isValidProviderId = isUuid(providerId);
@@ -60,7 +62,15 @@ export function ProviderDetail() {
         .eq("id", providerId)
         .single();
 
+      let durableRelationshipId: string | null = null;
+      try {
+        durableRelationshipId = (await getMyServiceRelationshipWithProvider(providerId))?.id ?? null;
+      } catch {
+        durableRelationshipId = null;
+      }
+
       if (!active) return;
+      setRelationshipId(durableRelationshipId);
 
       if (providerError || !provider) {
         setProfile(null);
@@ -213,11 +223,17 @@ export function ProviderDetail() {
             <span className="font-medium">{profile?.service_radius_miles ?? "—"} miles</span>
           </p>
           <p>
-            <span className="text-[#667085]">Marketplace access:</span>{" "}
+            <span className="text-[#667085]">Open-market availability:</span>{" "}
             <span className="font-medium">
-              {profile?.marketplace_access ? "Active" : "Pending Verification"}
+              {profile?.marketplace_access ? "Active" : "Not active yet"}
             </span>
           </p>
+          {relationshipId ? (
+            <p>
+              <span className="text-[#667085]">Your relationship:</span>{" "}
+              <span className="font-medium">Established</span>
+            </p>
+          ) : null}
           <p>
             <span className="text-[#667085]">Member since:</span>{" "}
             <span className="font-medium">{memberSinceYear}</span>
@@ -236,6 +252,15 @@ export function ProviderDetail() {
             >
               View Booking
             </Button>
+          ) : relationshipId ? (
+            <Button
+              variant="primaryGreen"
+              size="lg"
+              fullWidth
+              onClick={() => navigate(`/book?relationship=${encodeURIComponent(relationshipId)}`)}
+            >
+              Book another cleaning together
+            </Button>
           ) : (
             <Button variant="secondary" size="lg" fullWidth disabled>
               Book This Provider
@@ -246,4 +271,3 @@ export function ProviderDetail() {
     </div>
   );
 }
-
