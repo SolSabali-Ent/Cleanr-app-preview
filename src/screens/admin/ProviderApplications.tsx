@@ -40,6 +40,15 @@ type VerificationReviewRow = {
   reviewed_evidence_ref: string | null;
 };
 
+type ApplicationDecisionRow = {
+  id: string;
+  provider_id: string;
+  decision: "approved" | "rejected";
+  reason: string | null;
+  decided_by: string;
+  decided_at: string;
+};
+
 type ReviewerProfile = {
   id: string;
   full_name: string | null;
@@ -89,6 +98,7 @@ export function ProviderApplications() {
   const focusedProviderId = searchParams.get("provider")?.trim() || null;
   const [rows, setRows] = useState<ProviderApplicationRow[]>([]);
   const [reviews, setReviews] = useState<VerificationReviewRow[]>([]);
+  const [decisions, setDecisions] = useState<ApplicationDecisionRow[]>([]);
   const [reviewerProfiles, setReviewerProfiles] = useState<ReviewerProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
@@ -119,6 +129,7 @@ export function ProviderApplications() {
       setMessage(error.message);
       setRows([]);
       setReviews([]);
+      setDecisions([]);
       setReviewerProfiles([]);
       setLoading(false);
       return;
@@ -130,34 +141,54 @@ export function ProviderApplications() {
     const providerIds = providerRows.map((row) => row.id);
     if (providerIds.length === 0) {
       setReviews([]);
+      setDecisions([]);
       setReviewerProfiles([]);
       setLoading(false);
       return;
     }
 
-    const { data: reviewData, error: reviewError } = await supabase
-      .from("provider_verification_reviews")
-      .select("id,provider_id,review_type,outcome,note,reviewed_by,reviewed_at,reviewed_evidence_ref")
-      .in("provider_id", providerIds)
-      .order("reviewed_at", { ascending: false });
+    const [reviewResult, decisionResult] = await Promise.all([
+      supabase
+        .from("provider_verification_reviews")
+        .select("id,provider_id,review_type,outcome,note,reviewed_by,reviewed_at,reviewed_evidence_ref")
+        .in("provider_id", providerIds)
+        .order("reviewed_at", { ascending: false }),
+      supabase
+        .from("provider_application_decisions")
+        .select("id,provider_id,decision,reason,decided_by,decided_at")
+        .in("provider_id", providerIds)
+        .order("decided_at", { ascending: false }),
+    ]);
 
-    if (reviewError) {
-      setMessage(`Provider applications loaded, but review history could not be read: ${reviewError.message}`);
-      setReviews([]);
+    if (reviewResult.error || decisionResult.error) {
+      const pieces = [
+        reviewResult.error ? `verification history: ${reviewResult.error.message}` : null,
+        decisionResult.error ? `application decision history: ${decisionResult.error.message}` : null,
+      ].filter(Boolean);
+      setMessage(`Provider applications loaded, but audit history could not be fully read: ${pieces.join(" · ")}`);
+      setReviews(reviewResult.error ? [] : ((reviewResult.data ?? []) as VerificationReviewRow[]));
+      setDecisions(decisionResult.error ? [] : ((decisionResult.data ?? []) as ApplicationDecisionRow[]));
       setReviewerProfiles([]);
       setLoading(false);
       return;
     }
 
-    const reviewRows = (reviewData ?? []) as VerificationReviewRow[];
+    const reviewRows = (reviewResult.data ?? []) as VerificationReviewRow[];
+    const decisionRows = (decisionResult.data ?? []) as ApplicationDecisionRow[];
     setReviews(reviewRows);
+    setDecisions(decisionRows);
 
-    const reviewerIds = [...new Set(reviewRows.map((review) => review.reviewed_by).filter(Boolean))];
-    if (reviewerIds.length > 0) {
+    const actorIds = [
+      ...new Set([
+        ...reviewRows.map((review) => review.reviewed_by).filter(Boolean),
+        ...decisionRows.map((decision) => decision.decided_by).filter(Boolean),
+      ]),
+    ];
+    if (actorIds.length > 0) {
       const { data: reviewerData } = await supabase
         .from("profiles")
         .select("id,full_name")
-        .in("id", reviewerIds);
+        .in("id", actorIds);
       setReviewerProfiles((reviewerData ?? []) as ReviewerProfile[]);
     } else {
       setReviewerProfiles([]);
@@ -342,6 +373,7 @@ export function ProviderApplications() {
             const trustActionDisabled = workingKey !== null || selfReview;
             const focused = focusedProviderId === row.id;
             const providerReviews = reviews.filter((review) => review.provider_id === row.id);
+            const providerDecisions = decisions.filter((decision) => decision.provider_id === row.id);
             const readiness = approvalReadiness(row, providerReviews);
             const approvalDisabled = selfReview || !readiness.ready;
 
@@ -373,7 +405,7 @@ export function ProviderApplications() {
                     <p className="text-xs text-slate-500">travel: {row.travel_readiness_status ?? "not_started"}</p>
                     <p className="text-xs text-slate-500">CSP terms: {row.csp_terms_accepted_at ? "accepted" : "pending"}</p>
                     <p className="text-xs text-slate-500">insurance (optional): {row.insurance_status ?? "not_started"}</p>
-                    {row.rejection_reason ? <p className="text-xs text-red-600">review note: {row.rejection_reason}</p> : null}
+                    {row.rejection_reason ? <p className="text-xs text-red-600">current rejection note: {row.rejection_reason}</p> : null}
 
                     {selfReview ? (
                       <div className="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-3">
@@ -465,6 +497,40 @@ export function ProviderApplications() {
                                   </p>
                                 ) : null}
                                 {review.note?.trim() ? <p className="mt-2 text-xs leading-5 text-slate-700">{review.note}</p> : <p className="mt-2 text-[11px] text-slate-400">No review note recorded.</p>}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="mt-3 rounded-lg border border-slate-200 bg-white p-3">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                          <p className="text-xs font-semibold text-slate-800">Application decision trail</p>
+                          <p className="mt-0.5 text-[11px] text-slate-500">Append-only final approval/rejection provenance from provider_application_decisions. Current application status is shown separately above.</p>
+                        </div>
+                        <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-600">{providerDecisions.length} recorded</span>
+                      </div>
+
+                      {providerDecisions.length === 0 ? (
+                        <p className="mt-3 text-xs leading-5 text-slate-500">No durable final application decision has been recorded yet. No historical decision is inferred from the current profile status.</p>
+                      ) : (
+                        <div className="mt-3 space-y-2">
+                          {providerDecisions.map((decision) => {
+                            const actorName = reviewerNameById.get(decision.decided_by) ?? null;
+                            return (
+                              <div key={decision.id} className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                  <p className={`text-xs font-semibold ${decision.decision === "approved" ? "text-emerald-700" : "text-red-700"}`}>
+                                    application → {decision.decision}
+                                  </p>
+                                  <p className="text-[11px] text-slate-500">{formatReviewTime(decision.decided_at)}</p>
+                                </div>
+                                <p className="mt-1 text-[11px] text-slate-500" title={decision.decided_by}>
+                                  decided by: {actorName ?? shortId(decision.decided_by)}
+                                </p>
+                                {decision.reason?.trim() ? <p className="mt-2 text-xs leading-5 text-slate-700">reason: {decision.reason}</p> : <p className="mt-2 text-[11px] text-slate-400">No decision reason recorded.</p>}
                               </div>
                             );
                           })}
