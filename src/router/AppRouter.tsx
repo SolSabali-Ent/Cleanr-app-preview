@@ -12,6 +12,9 @@ import { CustomerBookingMessagePage } from "../screens/customer/BookingMessagePa
 import { BeforeYourCleaning } from "../shell/screens/BeforeYourCleaning";
 import { Schedule } from "../screens/customer/Schedule";
 import { Payments } from "../screens/customer/Payments";
+import { Addresses } from "../screens/customer/Addresses";
+import { Support } from "../screens/customer/Support";
+import { EmergencyContact } from "../screens/customer/EmergencyContact";
 import { Profile as CustomerProfile } from "../screens/customer/Profile";
 import CustomerLogin from "../screens/customer/CustomerLogin";
 import { Home as ProviderHome } from "../screens/provider/Home";
@@ -91,6 +94,9 @@ export function AppRouter() {
             <Route path="provider/:providerId" element={<ProviderDetail />} />
             <Route path="profile" element={<CustomerProfile />} />
             <Route path="payments" element={<Payments />} />
+            <Route path="addresses" element={<Addresses />} />
+            <Route path="support" element={<Support />} />
+            <Route path="emergency" element={<EmergencyContact />} />
           </Route>
 
           <Route path="/csp/login" element={<CSPLogin />} />
@@ -168,6 +174,9 @@ export function AppRouter() {
               <Route path="provider/:providerId" element={<ProviderDetail />} />
               <Route path="profile" element={<CustomerProfile />} />
               <Route path="payments" element={<Payments />} />
+              <Route path="addresses" element={<Addresses />} />
+              <Route path="support" element={<Support />} />
+              <Route path="emergency" element={<EmergencyContact />} />
             </Route>
 
             <Route path="csp" element={<ProviderLayout />}>
