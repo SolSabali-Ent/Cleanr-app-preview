@@ -56,6 +56,9 @@ const SECTIONS: RouteSection[] = [
       { label: "Provider detail", original: "/app/provider/:providerId", preview: "/admin/full-app/customer/provider/:providerId", dynamic: "provider" },
       { label: "Customer profile", original: "/app/profile", preview: "/admin/full-app/customer/profile" },
       { label: "Payments", original: "/app/payments", preview: "/admin/full-app/customer/payments" },
+      { label: "Service addresses", original: "/app/addresses", preview: "/admin/full-app/customer/addresses" },
+      { label: "Help & safety", original: "/app/support", preview: "/admin/full-app/customer/support" },
+      { label: "Urgent booking help", original: "/app/emergency", preview: "/admin/full-app/customer/emergency", note: "Legacy URL name retained for compatibility; product label is Urgent booking help." },
     ],
   },
   {
@@ -78,7 +81,7 @@ const SECTIONS: RouteSection[] = [
       { label: "Calendar", original: "/csp/dashboard/calendar", preview: "/admin/full-app/csp/calendar" },
       { label: "Earnings", original: "/csp/dashboard/earnings", preview: "/admin/full-app/csp/earnings" },
       { label: "Existing clients", original: "/csp/dashboard/existing-clients", preview: "/admin/full-app/csp/existing-clients" },
-      { label: "Availability", original: "/csp/dashboard/availability", preview: "/admin/full-app/csp/availability" },
+      { label: "Availability legacy alias", original: "/csp/dashboard/availability", preview: "/admin/full-app/csp/availability", note: "Redirects to Calendar → Availability; retained for old links/bookmarks." },
       { label: "CSP profile", original: "/csp/dashboard/profile", preview: "/admin/full-app/csp/profile" },
     ],
   },
