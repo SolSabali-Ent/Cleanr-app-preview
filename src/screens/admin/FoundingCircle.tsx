@@ -60,6 +60,7 @@ type VerificationReviewRow = {
   provider_id: string;
   review_type: string;
   outcome: string;
+  reviewed_by: string;
   reviewed_at: string;
 };
 
@@ -82,6 +83,8 @@ type ProviderSignal = ProviderRow & {
   verificationReviewCount: number;
   identityReviewHistory: boolean;
   backgroundReviewHistory: boolean;
+  identityVerifiedReview: boolean;
+  backgroundClearReview: boolean;
   latestVerificationReviewAt: string | null;
   invitesIssued: number;
   invitesAccepted: number;
@@ -187,20 +190,24 @@ function pilotGuidance(provider: Omit<ProviderSignal, "pilotStage" | "pilotStage
     const backgroundVerified = isVerified(provider.background_check_status);
 
     if (!identityVerified) blockers.push(`Identity status: ${provider.identity_status ?? "not started"}.`);
-    if (!provider.identityReviewHistory) {
+    if (!provider.identityVerifiedReview) {
       blockers.push(
-        identityVerified
-          ? "Identity audit gap: status is verified, but no independent identity review history is recorded."
-          : "Identity: no independent review history recorded yet."
+        provider.identityReviewHistory
+          ? "Identity review history exists, but no durable independent identity review with outcome verified is recorded."
+          : identityVerified
+            ? "Identity audit gap: status is verified, but no independent identity review history is recorded."
+            : "Identity: no independent review history recorded yet."
       );
     }
 
     if (!backgroundVerified) blockers.push(`Background status: ${provider.background_check_status ?? "not started"}.`);
-    if (!provider.backgroundReviewHistory) {
+    if (!provider.backgroundClearReview) {
       blockers.push(
-        backgroundVerified
-          ? "Background audit gap: status is cleared, but no independent background review history is recorded."
-          : "Background: no independent review history recorded yet."
+        provider.backgroundReviewHistory
+          ? "Background review history exists, but no durable independent background review with outcome clear is recorded."
+          : backgroundVerified
+            ? "Background audit gap: status is cleared, but no independent background review history is recorded."
+            : "Background: no independent review history recorded yet."
       );
     }
 
@@ -208,7 +215,7 @@ function pilotGuidance(provider: Omit<ProviderSignal, "pilotStage" | "pilotStage
       stage: "Application review",
       stageOrder: 30,
       nextAction:
-        !provider.identityReviewHistory || !provider.backgroundReviewHistory
+        !provider.identityVerifiedReview || !provider.backgroundClearReview
           ? "Record independent review"
           : "Complete application review",
       nextActionTo: "/admin/providers",
@@ -349,7 +356,7 @@ export function FoundingCircle() {
           .select("provider_id,submitted_at,existing_client_household_bucket,recruitment_source"),
         supabase
           .from("provider_verification_reviews")
-          .select("id,provider_id,review_type,outcome,reviewed_at")
+          .select("id,provider_id,review_type,outcome,reviewed_by,reviewed_at")
           .order("reviewed_at", { ascending: false }),
         supabase
           .from("referrals")
@@ -426,6 +433,12 @@ export function FoundingCircle() {
         verificationReviewCount: providerReviews.length,
         identityReviewHistory: providerReviews.some((row) => row.review_type === "identity"),
         backgroundReviewHistory: providerReviews.some((row) => row.review_type === "background"),
+        identityVerifiedReview: providerReviews.some(
+          (row) => row.review_type === "identity" && row.outcome.trim().toLowerCase() === "verified" && row.reviewed_by !== provider.id
+        ),
+        backgroundClearReview: providerReviews.some(
+          (row) => row.review_type === "background" && row.outcome.trim().toLowerCase() === "clear" && row.reviewed_by !== provider.id
+        ),
         latestVerificationReviewAt: providerReviews[0]?.reviewed_at ?? null,
         invitesIssued: providerInvites.length,
         invitesAccepted: providerInvites.filter((row) => Boolean(row.relationship_confirmed_at && row.referee_id)).length,
@@ -473,6 +486,7 @@ export function FoundingCircle() {
       existingHouseholdSignal: signals.filter((row) => hasExistingHouseholds(row.existingClientBucket)).length,
       foundingActive: signals.filter((row) => row.foundingActivity).length,
       providersWithReviewHistory: signals.filter((row) => row.verificationReviewCount > 0).length,
+      providersWithSuccessfulReviews: signals.filter((row) => row.identityVerifiedReview && row.backgroundClearReview).length,
       verificationReviews: verificationReviews.length,
       invites: referrals.length,
       accepted: referrals.filter((row) => Boolean(row.relationship_confirmed_at && row.referee_id)).length,
@@ -508,7 +522,7 @@ export function FoundingCircle() {
           <div>
             <h2 className="text-sm font-semibold">Pilot attention queue</h2>
             <p className="mt-1 max-w-3xl text-xs leading-5" style={{ color: adminTheme.textSecondary }}>
-              Ordered by the earliest real blocker. Verification status and durable review history are separate signals: submitted evidence is not treated as independently reviewed. The queue does not change CSP eligibility, route bookings, or manufacture relationship provenance.
+              Verification status, durable review history, and successful review outcomes are separate signals: submitted evidence or a rejected review is not treated as approval-grade independent review. The queue does not change CSP eligibility, route bookings, or manufacture relationship provenance.
             </p>
           </div>
           <div className="rounded-lg border px-3 py-2 text-xs" style={{ borderColor: adminTheme.border, backgroundColor: adminTheme.surface }}>
@@ -529,8 +543,8 @@ export function FoundingCircle() {
                       <p className="font-medium">{provider.full_name ?? "Unnamed CSP"}</p>
                       <StagePill>{provider.pilotStage}</StagePill>
                       {provider.recruitmentSource === "founding_circle" ? <StatusPill ok>Founding recruit</StatusPill> : null}
-                      <StatusPill ok={provider.identityReviewHistory}>identity review history</StatusPill>
-                      <StatusPill ok={provider.backgroundReviewHistory}>background review history</StatusPill>
+                      <StatusPill ok={provider.identityVerifiedReview}>identity verified review</StatusPill>
+                      <StatusPill ok={provider.backgroundClearReview}>background clear review</StatusPill>
                     </div>
                     <p className="mt-1 text-[11px]" style={{ color: adminTheme.textSecondary }}>{provider.id}</p>
 
@@ -562,7 +576,7 @@ export function FoundingCircle() {
 
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
         <Metric label="CSP funnel" value={totals.csp} detail={`${totals.ready} approved or marketplace-enabled`} />
-        <Metric label="Independent review" value={`${totals.providersWithReviewHistory}/${totals.csp}`} detail={`${totals.verificationReviews} durable verification review records`} />
+        <Metric label="Approval-grade review" value={`${totals.providersWithSuccessfulReviews}/${totals.csp}`} detail={`${totals.providersWithReviewHistory} with any review history · ${totals.verificationReviews} durable records`} />
         <Metric label="Founding recruitment" value={totals.recruited} detail="Entered through the Founding Circle recruiting path" />
         <Metric label="Existing-household signal" value={totals.existingHouseholdSignal} detail="Self-reported 1+ households; recruitment context only" />
         <Metric label="Existing clients" value={`${totals.accepted}/${totals.invites}`} detail={`${totals.relationships} provider-brought durable relationships`} />
@@ -580,7 +594,7 @@ export function FoundingCircle() {
         <div className="rounded-xl border p-4" style={{ borderColor: adminTheme.border, backgroundColor: adminTheme.card }}>
           <p className="text-sm font-semibold">Pilot interpretation</p>
           <p className="mt-2 text-xs leading-5" style={{ color: adminTheme.textSecondary }}>
-            “Founding recruit” says how someone entered. Verification status says the current profile state; review history proves an independent review action was durably recorded, but does not version a particular uploaded file. Existing households indicate where relationship continuity can be tested quickly. None of those are quality scores or permanent tiers.
+            “Founding recruit” says how someone entered. Verification status says current profile state; review history proves an independent review action was durably recorded; approval-grade review requires the exact successful durable outcomes used by the server contract. Review history still does not version a particular uploaded file. Existing households indicate where relationship continuity can be tested quickly. None of those are quality scores or permanent tiers.
           </p>
         </div>
       </section>
@@ -610,8 +624,8 @@ export function FoundingCircle() {
                 </div>
                 <div className="flex flex-wrap gap-1.5">
                   <StatusPill ok={provider.readinessSubmitted}>readiness</StatusPill>
-                  <StatusPill ok={provider.identityReviewHistory}>identity reviewed</StatusPill>
-                  <StatusPill ok={provider.backgroundReviewHistory}>background reviewed</StatusPill>
+                  <StatusPill ok={provider.identityVerifiedReview}>identity verified review</StatusPill>
+                  <StatusPill ok={provider.backgroundClearReview}>background clear review</StatusPill>
                   <StatusPill ok={provider.application_status === "approved"}>approved</StatusPill>
                   <StatusPill ok={Boolean(provider.stripe_connect_ready)}>payout-ready</StatusPill>
                   <StatusPill ok={Boolean(provider.marketplace_access)}>marketplace</StatusPill>
@@ -622,7 +636,7 @@ export function FoundingCircle() {
               </div>
 
               <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-6">
-                <Metric label="Review records" value={provider.verificationReviewCount} detail={provider.latestVerificationReviewAt ? `Latest ${new Date(provider.latestVerificationReviewAt).toLocaleString()}` : "No independent review history"} />
+                <Metric label="Review records" value={provider.verificationReviewCount} detail={provider.latestVerificationReviewAt ? `Latest ${new Date(provider.latestVerificationReviewAt).toLocaleString()} · identity history ${provider.identityReviewHistory ? "yes" : "no"} · background history ${provider.backgroundReviewHistory ? "yes" : "no"}` : "No independent review history"} />
                 <Metric label="Invites" value={provider.invitesIssued} detail={`${provider.invitesAccepted} accepted`} />
                 <Metric label="Relationships" value={provider.relationships} detail="provider-brought" />
                 <Metric label="Paid bookings" value={provider.paidRelationshipBookings} detail={`${provider.relationshipAssignmentsPending} awaiting reconciliation · ${provider.completedRelationshipServices} completed together`} />
