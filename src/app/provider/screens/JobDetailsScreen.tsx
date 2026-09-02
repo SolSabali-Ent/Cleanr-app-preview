@@ -361,7 +361,6 @@ export default function JobDetailsScreen() {
           ) : null}
 
           <button onClick={() => navigate(`/csp/dashboard/jobs/${jobId}/incident`)} className="w-full bg-white border border-slate-200 py-3 rounded-xl text-sm font-semibold text-slate-900 shadow-md">Report Incident</button>
-          <button onClick={() => navigate(`/csp/dashboard/jobs/${jobId}/ai-check`)} className="w-full bg-white border border-slate-200 py-3 rounded-xl text-sm font-semibold text-slate-900 shadow-md">Run AI Check</button>
           {booking.status === "in_progress" && !isComplete && <button onClick={handleComplete} className="w-full bg-green-600 text-white py-3 rounded-xl text-sm font-semibold shadow-md">Mark Job Complete</button>}
         </div>
       </div>
