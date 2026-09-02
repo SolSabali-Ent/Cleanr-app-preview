@@ -1,14 +1,17 @@
 import { ArrowLeft, CreditCard } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "../../components/ui/Button";
+import { customerRouteForContext } from "../../lib/contextualRoutes";
 
 /** Customer payment surface. Stripe-backed management is intentionally deferred until checkout is configured. */
 export function Payments() {
   const navigate = useNavigate();
+  const { pathname } = useLocation();
+  const profilePath = customerRouteForContext(pathname, "/app/profile");
 
   return (
     <div className="text-[#0B1220]">
-      <Button variant="ghost" size="sm" leftIcon={<ArrowLeft className="w-3 h-3" />} className="mb-4 !px-0 text-[#667085]" onClick={() => navigate("/app/profile")}>
+      <Button variant="ghost" size="sm" leftIcon={<ArrowLeft className="w-3 h-3" />} className="mb-4 !px-0 text-[#667085]" onClick={() => navigate(profilePath)}>
         Back
       </Button>
       <h1 className="text-xl font-semibold mb-2">Payments</h1>
@@ -23,7 +26,7 @@ export function Payments() {
           </div>
         </div>
       </div>
-      <Button className="mt-4" variant="secondary" size="lg" fullWidth onClick={() => navigate("/app/profile")}>
+      <Button className="mt-4" variant="secondary" size="lg" fullWidth onClick={() => navigate(profilePath)}>
         Done
       </Button>
     </div>

@@ -1,13 +1,16 @@
 import { ArrowLeft, CalendarDays, ShieldCheck, MessageCircleQuestion } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "../../components/ui/Button";
+import { customerRouteForContext } from "../../lib/contextualRoutes";
 
 export function Support() {
   const navigate = useNavigate();
+  const { pathname } = useLocation();
+  const route = (canonicalPath: string) => customerRouteForContext(pathname, canonicalPath);
 
   return (
     <div className="text-[#0B1220]">
-      <Button variant="ghost" size="sm" leftIcon={<ArrowLeft className="w-3 h-3" />} className="mb-4 !px-0 text-[#667085]" onClick={() => navigate("/app/profile")}>
+      <Button variant="ghost" size="sm" leftIcon={<ArrowLeft className="w-3 h-3" />} className="mb-4 !px-0 text-[#667085]" onClick={() => navigate(route("/app/profile"))}>
         Back
       </Button>
       <h1 className="text-xl font-semibold mb-2">Help &amp; safety</h1>
@@ -22,7 +25,7 @@ export function Support() {
               <p className="mt-1 text-sm text-[#667085]">Open the booking for service details, status, and booking-specific communication.</p>
             </div>
           </div>
-          <Button variant="primaryBlue" size="md" fullWidth onClick={() => navigate("/app/bookings")}>
+          <Button variant="primaryBlue" size="md" fullWidth onClick={() => navigate(route("/app/bookings"))}>
             View my bookings
           </Button>
         </div>
@@ -35,7 +38,7 @@ export function Support() {
               <p className="mt-1 text-sm text-[#667085]">Use the urgent booking help path for an issue tied to an active service.</p>
             </div>
           </div>
-          <Button variant="secondary" size="md" fullWidth onClick={() => navigate("/app/emergency")}>
+          <Button variant="secondary" size="md" fullWidth onClick={() => navigate(route("/app/emergency"))}>
             Open urgent booking help
           </Button>
         </div>
@@ -54,7 +57,7 @@ export function Support() {
         </div>
       </div>
 
-      <Button className="mt-4" variant="secondary" size="lg" fullWidth onClick={() => navigate("/app/profile")}>
+      <Button className="mt-4" variant="secondary" size="lg" fullWidth onClick={() => navigate(route("/app/profile"))}>
         Done
       </Button>
     </div>

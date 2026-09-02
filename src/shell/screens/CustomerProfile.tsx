@@ -1,15 +1,17 @@
 import { useState } from "react";
 import { LogOut, HelpCircle, CreditCard, MapPin, MessageCircle, Share2 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useProfile } from "@/lib/useProfile";
 import { useSession } from "@/lib/useSession";
 import { signOutCleanr } from "@/lib/authSession";
+import { customerRouteForContext } from "@/lib/contextualRoutes";
 import { Button } from "../../components/ui/Button";
 import { CustomerHouseholdMemoryCard } from "../components/CustomerHouseholdMemoryCard";
 import { createReferral } from "@/lib/referralApi";
 
 export function CustomerProfile() {
   const navigate = useNavigate();
+  const { pathname } = useLocation();
   const { session } = useSession();
   const { profile, loading: profileLoading } = useProfile();
   const [inviteCopied, setInviteCopied] = useState(false);
@@ -22,6 +24,7 @@ export function CustomerProfile() {
   const initial = name.charAt(0).toUpperCase() || "C";
 
   const actionRowClass = "w-full flex items-center justify-between px-3 py-3 text-left hover:bg-[#F3FAF1]/50 rounded-lg transition";
+  const route = (canonicalPath: string) => customerRouteForContext(pathname, canonicalPath);
 
   const handleInviteLink = async () => {
     try {
@@ -66,7 +69,7 @@ export function CustomerProfile() {
       <CustomerHouseholdMemoryCard />
 
       <section className="provider-card p-1 mb-3">
-        <button type="button" onClick={() => navigate("/app/payments")} className={actionRowClass}>
+        <button type="button" onClick={() => navigate(route("/app/payments"))} className={actionRowClass}>
           <div className="flex items-center gap-3">
             <CreditCard className="w-4 h-4 text-[#8DCC64]" />
             <div>
@@ -76,7 +79,7 @@ export function CustomerProfile() {
           </div>
         </button>
         <div className="h-px bg-[#E5E7EB] mx-3" />
-        <button type="button" onClick={() => navigate("/app/addresses")} className={actionRowClass}>
+        <button type="button" onClick={() => navigate(route("/app/addresses"))} className={actionRowClass}>
           <div className="flex items-center gap-3">
             <MapPin className="w-4 h-4 text-[#8DCC64]" />
             <div>
@@ -98,7 +101,7 @@ export function CustomerProfile() {
           </div>
         </button>
         <div className="h-px bg-[#E5E7EB] mx-3" />
-        <button type="button" onClick={() => navigate("/app/support")} className={actionRowClass}>
+        <button type="button" onClick={() => navigate(route("/app/support"))} className={actionRowClass}>
           <div className="flex items-center gap-3">
             <HelpCircle className="w-4 h-4 text-[#8DCC64]" />
             <div>
@@ -108,7 +111,7 @@ export function CustomerProfile() {
           </div>
         </button>
         <div className="h-px bg-[#E5E7EB] mx-3" />
-        <button type="button" onClick={() => navigate("/app/emergency")} className={actionRowClass}>
+        <button type="button" onClick={() => navigate(route("/app/emergency"))} className={actionRowClass}>
           <div className="flex items-center gap-3">
             <MessageCircle className="w-4 h-4 text-[#8DCC64]" />
             <div>
