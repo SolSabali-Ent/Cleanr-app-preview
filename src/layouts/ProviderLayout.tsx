@@ -7,6 +7,7 @@ import { NotificationsSlot } from "../components/notifications/NotificationsSlot
 import { CspDashboardChromeProvider, useCspDashboardChrome } from "../contexts/CspDashboardChromeContext";
 import { pathnameIsGatedPreactivation } from "../lib/cspDashboardChrome";
 import { CspProviderFlashDetector } from "../app/provider/components/CspProviderFlashDetector";
+import { useStableSessionProfile } from "../hooks/useStableSessionProfile";
 
 /**
  * Context from gate can lag one frame behind route changes; pathname from useLocation is synchronous
@@ -15,7 +16,16 @@ import { CspProviderFlashDetector } from "../app/provider/components/CspProvider
 function ProviderLayoutInner() {
   const { pathname } = useLocation();
   const { showDashboardChrome } = useCspDashboardChrome();
-  const showChrome = showDashboardChrome && !pathnameIsGatedPreactivation(pathname);
+  const { displayProfile } = useStableSessionProfile();
+  const applicationStatus = (displayProfile?.application_status ?? "").toLowerCase();
+  const isApprovedPendingProvider = Boolean(
+    displayProfile?.role === "csp" &&
+      displayProfile.is_onboarded === true &&
+      displayProfile.marketplace_access !== true &&
+      (applicationStatus === "approved" || applicationStatus === "waitlisted")
+  );
+  const showChrome =
+    (showDashboardChrome || isApprovedPendingProvider) && !pathnameIsGatedPreactivation(pathname);
   const providerShellRef = useRef<HTMLDivElement>(null);
 
   return (
@@ -55,7 +65,7 @@ function ProviderLayoutInner() {
   );
 }
 
-/** Provider shell: dark authority background; bell + bottom nav only when gate says marketplace dashboard. */
+/** Provider shell: dark authority background; bell + bottom nav for active or approved-pending CSP workspaces. */
 export function ProviderLayout() {
   return (
     <CspDashboardChromeProvider>
