@@ -43,7 +43,6 @@ import NetworkScreen from "../app/provider/screens/NetworkScreen";
 import ExistingClientsScreen from "../app/provider/screens/ExistingClientsScreen";
 import FoundingCircleJoin from "../app/provider/screens/FoundingCircleJoin";
 import { CSP_GROWTH_ROUTES } from "../app/provider/growthRoutes";
-import { AICheck } from "../screens/provider/AICheck";
 import { IncidentLog } from "../screens/provider/IncidentLog";
 import CSPLogin from "../app/provider/screens/CSPLogin";
 import CSPSignup from "../app/provider/screens/CSPSignup";
@@ -132,7 +131,6 @@ export function AppRouter() {
                 <Route path="jobs" element={<JobQueue />} />
                 <Route path="jobs/:jobId" element={<JobDetails />} />
                 <Route path="jobs/:jobId/message" element={<JobMessagePage />} />
-                <Route path="jobs/:jobId/ai-check" element={<AICheck />} />
                 <Route path="jobs/:jobId/incident" element={<IncidentLog />} />
                 <Route path="calendar" element={<ProviderCalendar />} />
                 <Route path="earnings" element={<Earnings />} />
@@ -192,7 +190,6 @@ export function AppRouter() {
                 <Route path="jobs" element={<JobQueue />} />
                 <Route path="jobs/:jobId" element={<JobDetails />} />
                 <Route path="jobs/:jobId/message" element={<JobMessagePage />} />
-                <Route path="jobs/:jobId/ai-check" element={<AICheck />} />
                 <Route path="jobs/:jobId/incident" element={<IncidentLog />} />
                 <Route path="calendar" element={<ProviderCalendar />} />
                 <Route path="earnings" element={<Earnings />} />
