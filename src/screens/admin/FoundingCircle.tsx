@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { getProviderApprovalReviewEvidence } from "../../lib/cspActivation";
 import { useIsAdmin } from "../../lib/useIsAdmin";
 import { supabase } from "../../lib/supabase";
 import { adminTheme } from "../../theme/adminTheme";
@@ -13,6 +14,7 @@ type ProviderRow = {
   is_onboarded: boolean | null;
   marketplace_access: boolean | null;
   stripe_connect_ready: boolean | null;
+  identity_document_path: string | null;
   identity_status: string | null;
   background_check_status: string | null;
   insurance_status: string | null;
@@ -62,6 +64,7 @@ type VerificationReviewRow = {
   outcome: string;
   reviewed_by: string;
   reviewed_at: string;
+  reviewed_evidence_ref: string | null;
 };
 
 type NorthStarRow = { person_id: string; status: string };
@@ -193,9 +196,9 @@ function pilotGuidance(provider: Omit<ProviderSignal, "pilotStage" | "pilotStage
     if (!provider.identityVerifiedReview) {
       blockers.push(
         provider.identityReviewHistory
-          ? "Identity review history exists, but no durable independent identity review with outcome verified is recorded."
+          ? "Identity review history exists, but no durable independent verified review matches the currently registered identity evidence."
           : identityVerified
-            ? "Identity audit gap: status is verified, but no independent identity review history is recorded."
+            ? "Identity audit gap: status is verified, but no independent verified review of the current identity evidence is recorded."
             : "Identity: no independent review history recorded yet."
       );
     }
@@ -348,7 +351,7 @@ export function FoundingCircle() {
       const [p, ready, reviews, refs, rels, b, ns, net, contrib, rate] = await Promise.all([
         supabase
           .from("profiles")
-          .select("id,full_name,created_at,application_status,readiness_status,is_onboarded,marketplace_access,stripe_connect_ready,identity_status,background_check_status,insurance_status")
+          .select("id,full_name,created_at,application_status,readiness_status,is_onboarded,marketplace_access,stripe_connect_ready,identity_document_path,identity_status,background_check_status,insurance_status")
           .eq("role", "csp")
           .order("created_at", { ascending: true }),
         supabase
@@ -356,7 +359,7 @@ export function FoundingCircle() {
           .select("provider_id,submitted_at,existing_client_household_bucket,recruitment_source"),
         supabase
           .from("provider_verification_reviews")
-          .select("id,provider_id,review_type,outcome,reviewed_by,reviewed_at")
+          .select("id,provider_id,review_type,outcome,reviewed_by,reviewed_at,reviewed_evidence_ref")
           .order("reviewed_at", { ascending: false }),
         supabase
           .from("referrals")
@@ -412,6 +415,7 @@ export function FoundingCircle() {
     return providers.map((provider) => {
       const providerReadiness = readinessByProvider.get(provider.id);
       const providerReviews = verificationReviews.filter((row) => row.provider_id === provider.id);
+      const reviewEvidence = getProviderApprovalReviewEvidence(provider, providerReviews);
       const providerInvites = referrals.filter((row) => row.referrer_id === provider.id);
       const providerRelationships = relationships.filter((row) => row.provider_id === provider.id);
       const relationshipIds = new Set(providerRelationships.map((row) => row.id));
@@ -433,12 +437,8 @@ export function FoundingCircle() {
         verificationReviewCount: providerReviews.length,
         identityReviewHistory: providerReviews.some((row) => row.review_type === "identity"),
         backgroundReviewHistory: providerReviews.some((row) => row.review_type === "background"),
-        identityVerifiedReview: providerReviews.some(
-          (row) => row.review_type === "identity" && row.outcome.trim().toLowerCase() === "verified" && row.reviewed_by !== provider.id
-        ),
-        backgroundClearReview: providerReviews.some(
-          (row) => row.review_type === "background" && row.outcome.trim().toLowerCase() === "clear" && row.reviewed_by !== provider.id
-        ),
+        identityVerifiedReview: reviewEvidence.identityVerifiedReview === true,
+        backgroundClearReview: reviewEvidence.backgroundClearReview === true,
         latestVerificationReviewAt: providerReviews[0]?.reviewed_at ?? null,
         invitesIssued: providerInvites.length,
         invitesAccepted: providerInvites.filter((row) => Boolean(row.relationship_confirmed_at && row.referee_id)).length,
@@ -522,7 +522,7 @@ export function FoundingCircle() {
           <div>
             <h2 className="text-sm font-semibold">Pilot attention queue</h2>
             <p className="mt-1 max-w-3xl text-xs leading-5" style={{ color: adminTheme.textSecondary }}>
-              Verification status, durable review history, and successful review outcomes are separate signals: submitted evidence or a rejected review is not treated as approval-grade independent review. The queue does not change CSP eligibility, route bookings, or manufacture relationship provenance.
+              Verification status, durable review history, and approval-grade review truth are separate signals. Identity approval-grade truth requires a successful independent review of the currently registered ID evidence; an older verified review remains history, not current approval proof. The queue does not change CSP eligibility, route bookings, or manufacture relationship provenance.
             </p>
           </div>
           <div className="rounded-lg border px-3 py-2 text-xs" style={{ borderColor: adminTheme.border, backgroundColor: adminTheme.surface }}>
@@ -543,7 +543,7 @@ export function FoundingCircle() {
                       <p className="font-medium">{provider.full_name ?? "Unnamed CSP"}</p>
                       <StagePill>{provider.pilotStage}</StagePill>
                       {provider.recruitmentSource === "founding_circle" ? <StatusPill ok>Founding recruit</StatusPill> : null}
-                      <StatusPill ok={provider.identityVerifiedReview}>identity verified review</StatusPill>
+                      <StatusPill ok={provider.identityVerifiedReview}>identity current-evidence review</StatusPill>
                       <StatusPill ok={provider.backgroundClearReview}>background clear review</StatusPill>
                     </div>
                     <p className="mt-1 text-[11px]" style={{ color: adminTheme.textSecondary }}>{provider.id}</p>
@@ -594,7 +594,7 @@ export function FoundingCircle() {
         <div className="rounded-xl border p-4" style={{ borderColor: adminTheme.border, backgroundColor: adminTheme.card }}>
           <p className="text-sm font-semibold">Pilot interpretation</p>
           <p className="mt-2 text-xs leading-5" style={{ color: adminTheme.textSecondary }}>
-            “Founding recruit” says how someone entered. Verification status says current profile state; review history proves an independent review action was durably recorded; approval-grade review requires the exact successful durable outcomes used by the server contract. Review history still does not version a particular uploaded file. Existing households indicate where relationship continuity can be tested quickly. None of those are quality scores or permanent tiers.
+            “Founding recruit” says how someone entered. Verification status says current profile state; review history proves an independent review action was durably recorded; approval-grade identity truth additionally requires that the successful review reference the currently registered ID evidence. Existing households indicate where relationship continuity can be tested quickly. None of those are quality scores or permanent tiers.
           </p>
         </div>
       </section>
@@ -624,7 +624,7 @@ export function FoundingCircle() {
                 </div>
                 <div className="flex flex-wrap gap-1.5">
                   <StatusPill ok={provider.readinessSubmitted}>readiness</StatusPill>
-                  <StatusPill ok={provider.identityVerifiedReview}>identity verified review</StatusPill>
+                  <StatusPill ok={provider.identityVerifiedReview}>identity current-evidence review</StatusPill>
                   <StatusPill ok={provider.backgroundClearReview}>background clear review</StatusPill>
                   <StatusPill ok={provider.application_status === "approved"}>approved</StatusPill>
                   <StatusPill ok={Boolean(provider.stripe_connect_ready)}>payout-ready</StatusPill>
