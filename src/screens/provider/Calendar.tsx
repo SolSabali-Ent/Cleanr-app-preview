@@ -1,1 +1,38 @@
-export { default as Calendar } from "../../app/provider/screens/CalendarScreen";
+import { ArrowLeft } from "lucide-react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import CalendarScreen from "../../app/provider/screens/CalendarScreen";
+import { Button } from "../../components/ui/Button";
+
+export function Calendar() {
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const isAvailability = searchParams.get("tab") === "availability";
+
+  const leaveAvailability = () => {
+    const next = new URLSearchParams(searchParams);
+    next.delete("tab");
+    setSearchParams(next, { replace: true });
+  };
+
+  return (
+    <>
+      {isAvailability ? (
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <Button
+            variant="ghost"
+            size="sm"
+            leftIcon={<ArrowLeft className="h-3 w-3" />}
+            className="!px-0 text-slate-300"
+            onClick={() => navigate("/csp/dashboard")}
+          >
+            Back
+          </Button>
+          <Button variant="secondary" size="sm" onClick={leaveAvailability}>
+            Done
+          </Button>
+        </div>
+      ) : null}
+      <CalendarScreen />
+    </>
+  );
+}
