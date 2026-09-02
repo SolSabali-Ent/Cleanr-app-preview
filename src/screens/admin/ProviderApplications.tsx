@@ -36,6 +36,7 @@ type VerificationReviewRow = {
   outcome: string;
   note: string | null;
   reviewed_by: string;
+  reviewed_by_display_name: string | null;
   reviewed_at: string;
   reviewed_evidence_ref: string | null;
 };
@@ -46,6 +47,7 @@ type ApplicationDecisionRow = {
   decision: "approved" | "rejected";
   reason: string | null;
   decided_by: string;
+  decided_by_display_name: string | null;
   decided_at: string;
 };
 
@@ -150,12 +152,12 @@ export function ProviderApplications() {
     const [reviewResult, decisionResult] = await Promise.all([
       supabase
         .from("provider_verification_reviews")
-        .select("id,provider_id,review_type,outcome,note,reviewed_by,reviewed_at,reviewed_evidence_ref")
+        .select("id,provider_id,review_type,outcome,note,reviewed_by,reviewed_by_display_name,reviewed_at,reviewed_evidence_ref")
         .in("provider_id", providerIds)
         .order("reviewed_at", { ascending: false }),
       supabase
         .from("provider_application_decisions")
-        .select("id,provider_id,decision,reason,decided_by,decided_at")
+        .select("id,provider_id,decision,reason,decided_by,decided_by_display_name,decided_at")
         .in("provider_id", providerIds)
         .order("decided_at", { ascending: false }),
     ]);
@@ -477,7 +479,7 @@ export function ProviderApplications() {
                       ) : (
                         <div className="mt-3 space-y-2">
                           {providerReviews.map((review) => {
-                            const reviewerName = reviewerNameById.get(review.reviewed_by) ?? null;
+                            const reviewerName = review.reviewed_by_display_name?.trim() || reviewerNameById.get(review.reviewed_by) || null;
                             const identityEvidenceCurrent =
                               review.review_type === "identity" &&
                               review.reviewed_evidence_ref != null &&
@@ -518,7 +520,7 @@ export function ProviderApplications() {
                       ) : (
                         <div className="mt-3 space-y-2">
                           {providerDecisions.map((decision) => {
-                            const actorName = reviewerNameById.get(decision.decided_by) ?? null;
+                            const actorName = decision.decided_by_display_name?.trim() || reviewerNameById.get(decision.decided_by) || null;
                             return (
                               <div key={decision.id} className="rounded-lg border border-slate-200 bg-slate-50 p-3">
                                 <div className="flex flex-wrap items-center justify-between gap-2">
