@@ -21,6 +21,8 @@ export function CustomerProfile() {
   const phone = profile?.phone?.trim() || null;
   const initial = name.charAt(0).toUpperCase() || "C";
 
+  const actionRowClass = "w-full flex items-center justify-between px-3 py-3 text-left hover:bg-[#F3FAF1]/50 rounded-lg transition";
+
   const handleInviteLink = async () => {
     try {
       const { code } = await createReferral();
@@ -64,7 +66,7 @@ export function CustomerProfile() {
       <CustomerHouseholdMemoryCard />
 
       <section className="provider-card p-1 mb-3">
-        <div className="w-full flex items-center justify-between px-3 py-3 text-left">
+        <button type="button" onClick={() => navigate("/app/payments")} className={actionRowClass}>
           <div className="flex items-center gap-3">
             <CreditCard className="w-4 h-4 text-[#8DCC64]" />
             <div>
@@ -72,9 +74,9 @@ export function CustomerProfile() {
               <p className="text-xs text-[#667085]">Manage your saved cards</p>
             </div>
           </div>
-        </div>
+        </button>
         <div className="h-px bg-[#E5E7EB] mx-3" />
-        <div className="w-full flex items-center justify-between px-3 py-3 text-left">
+        <button type="button" onClick={() => navigate("/app/addresses")} className={actionRowClass}>
           <div className="flex items-center gap-3">
             <MapPin className="w-4 h-4 text-[#8DCC64]" />
             <div>
@@ -82,15 +84,11 @@ export function CustomerProfile() {
               <p className="text-xs text-[#667085]">Home, office, or recurring locations</p>
             </div>
           </div>
-        </div>
+        </button>
       </section>
 
       <section className="provider-card p-1 mb-3">
-        <button
-          type="button"
-          onClick={handleInviteLink}
-          className="w-full flex items-center justify-between px-3 py-3 text-left hover:bg-[#F3FAF1]/50 rounded-lg transition"
-        >
+        <button type="button" onClick={handleInviteLink} className={actionRowClass}>
           <div className="flex items-center gap-3">
             <Share2 className="w-4 h-4 text-[#8DCC64]" />
             <div>
@@ -100,7 +98,7 @@ export function CustomerProfile() {
           </div>
         </button>
         <div className="h-px bg-[#E5E7EB] mx-3" />
-        <div className="w-full flex items-center justify-between px-3 py-3 text-left">
+        <button type="button" onClick={() => navigate("/app/support")} className={actionRowClass}>
           <div className="flex items-center gap-3">
             <HelpCircle className="w-4 h-4 text-[#8DCC64]" />
             <div>
@@ -108,9 +106,9 @@ export function CustomerProfile() {
               <p className="text-xs text-[#667085]">Get help, see policies, or contact us</p>
             </div>
           </div>
-        </div>
+        </button>
         <div className="h-px bg-[#E5E7EB] mx-3" />
-        <div className="w-full flex items-center justify-between px-3 py-3 text-left">
+        <button type="button" onClick={() => navigate("/app/emergency")} className={actionRowClass}>
           <div className="flex items-center gap-3">
             <Phone className="w-4 h-4 text-[#8DCC64]" />
             <div>
@@ -118,7 +116,7 @@ export function CustomerProfile() {
               <p className="text-xs text-[#667085]">For urgent issues with a cleaning</p>
             </div>
           </div>
-        </div>
+        </button>
       </section>
 
       {logoutError ? <p className="mb-2 text-sm text-red-600" role="alert">{logoutError}</p> : null}
