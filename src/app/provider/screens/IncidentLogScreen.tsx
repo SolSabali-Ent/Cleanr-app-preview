@@ -1,13 +1,17 @@
 import { useState, useEffect } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { supabase } from "../../../lib/supabase";
 import { track } from "../../../lib/analytics";
+import { useSafeBack } from "../../../hooks/useSafeBack";
 
 const MAX_IMAGES = 5;
 
 export default function IncidentLogScreen() {
-  const navigate = useNavigate();
   const { jobId } = useParams<{ jobId: string }>();
+  const goBack = useSafeBack(
+    jobId ? `/csp/dashboard/jobs/${jobId}` : "/csp/dashboard/jobs",
+    jobId ? `/admin/full-app/csp/jobs/${jobId}` : "/admin/full-app/csp/jobs"
+  );
   const [description, setDescription] = useState("");
   const [images, setImages] = useState<File[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -77,7 +81,7 @@ export default function IncidentLogScreen() {
       if (incidentError) throw incidentError;
       track("incident_submitted", { incidentId });
       alert("Incident reported. Our team will review it shortly.");
-      navigate(-1);
+      goBack();
     } catch (err) {
       console.error(err);
       alert("Failed to submit incident. Check your connection and try again.");
@@ -96,7 +100,7 @@ export default function IncidentLogScreen() {
       />
       <div className="relative z-10">
         <button
-          onClick={() => navigate(-1)}
+          onClick={goBack}
           className="inline-flex items-center text-xs text-slate-400 mb-3"
         >
           ← Back

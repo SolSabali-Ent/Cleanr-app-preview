@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useSafeBack } from '../../../hooks/useSafeBack';
 
 export default function AICheckScreen() {
-  const navigate = useNavigate();
+  const goBack = useSafeBack('/csp/dashboard/jobs', '/admin/full-app/csp/jobs');
   const [image, setImage] = useState<File | null>(null);
   const [result, setResult] = useState<'pass' | 'flagged' | null>(null);
 
@@ -22,7 +22,7 @@ export default function AICheckScreen() {
       />
       <div className="relative z-10">
         <button
-          onClick={() => navigate(-1)}
+          onClick={goBack}
           className="inline-flex items-center text-xs text-slate-400 mb-3"
         >
           ← Back
@@ -60,4 +60,3 @@ export default function AICheckScreen() {
     </div>
   );
 }
-

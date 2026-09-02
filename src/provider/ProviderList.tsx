@@ -5,9 +5,11 @@ import { useProviderContext } from "./ProviderContext";
 import { ProviderCard } from "./ProviderCard";
 import { ArrowLeft, Check } from "lucide-react";
 import { Button } from "../components/ui/Button";
+import { useSafeBack } from "../hooks/useSafeBack";
 
 export function ProviderList() {
   const navigate = useNavigate();
+  const goBack = useSafeBack("/app/provider", "/admin/full-app/customer/provider");
   const { providers, selectedProvider, selectProvider } = useProviderContext();
   const browseableProviders = useMemo(
     () => providers.filter((provider) => provider.marketplace_access === true),
@@ -27,7 +29,7 @@ export function ProviderList() {
   return (
     <div className="text-[#0B1220] pb-32">
       <Button
-        onClick={() => navigate(-1)}
+        onClick={goBack}
         variant="ghost"
         size="sm"
         leftIcon={<ArrowLeft className="w-3 h-3" />}
