@@ -76,7 +76,6 @@ const SECTIONS: RouteSection[] = [
       { label: "Jobs", original: "/csp/dashboard/jobs", preview: "/admin/full-app/csp/jobs" },
       { label: "Job detail", original: "/csp/dashboard/jobs/:jobId", preview: "/admin/full-app/csp/jobs/:jobId", dynamic: "job" },
       { label: "Job message", original: "/csp/dashboard/jobs/:jobId/message", preview: "/admin/full-app/csp/jobs/:jobId/message", dynamic: "job" },
-      { label: "AI check", original: "/csp/dashboard/jobs/:jobId/ai-check", preview: "/admin/full-app/csp/jobs/:jobId/ai-check", dynamic: "job" },
       { label: "Incident log", original: "/csp/dashboard/jobs/:jobId/incident", preview: "/admin/full-app/csp/jobs/:jobId/incident", dynamic: "job" },
       { label: "Calendar", original: "/csp/dashboard/calendar", preview: "/admin/full-app/csp/calendar" },
       { label: "Earnings", original: "/csp/dashboard/earnings", preview: "/admin/full-app/csp/earnings" },
