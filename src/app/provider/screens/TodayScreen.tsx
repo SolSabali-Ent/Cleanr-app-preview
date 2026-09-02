@@ -110,10 +110,10 @@ export default function TodayScreen() {
   }, [showInitialBlocking, displayProfile?.id, isUnlocked, isOnboarded]);
 
   const marketplaceReviewRows = [
-    { label: "Application approved", badge: "Approved" },
-    { label: "Profile complete", badge: "Complete" },
-    { label: "Marketplace access pending", badge: "Pending" },
-    { label: "Jobs not available yet", badge: "Waiting" },
+    { label: "Application", badge: "Approved" },
+    { label: "Provider profile", badge: "Complete" },
+    { label: "Marketplace access", badge: "Pending" },
+    { label: "Open-market jobs", badge: "Not available yet" },
   ] as const;
 
   const existingClientAction = (
@@ -155,9 +155,9 @@ export default function TodayScreen() {
         showMarketplacePending ? (
           <>
             <header style={{ marginBottom: CSP_SECTION_GAP }}>
-              <h1 className="text-2xl font-semibold">Marketplace access pending</h1>
+              <h1 className="text-2xl font-semibold">You&apos;re approved. Marketplace access is next.</h1>
               <p className="text-sm mt-2" style={{ color: CSP_TEXT_SECONDARY }}>
-                Your provider application has been approved. We&apos;re preparing marketplace access in your service area and will notify you when open-market jobs are available.
+                We&apos;re preparing marketplace access in your service area and will notify you when open-market jobs are available.
               </p>
             </header>
             <section className="space-y-3" style={{ marginBottom: CSP_SECTION_GAP }}>
