@@ -89,12 +89,15 @@ export default function IdentityScreen() {
 
       {mode === "completed" && (
         <div className="mb-4 rounded-xl border px-4 py-3 text-sm" style={{ borderColor: "rgba(52, 211, 153, 0.3)", backgroundColor: "rgba(52, 211, 153, 0.08)", color: "rgb(167, 243, 208)" }}>
-          Verified. Your ID has been approved.
+          <p className="font-medium">Verified. Your current ID has been approved.</p>
+          <p className="mt-1 text-xs leading-5">
+            You can replace it if needed. A different ID reopens verification and any current application approval or marketplace access is paused until the new evidence receives a fresh independent review.
+          </p>
         </div>
       )}
       {mode === "submitted" && (
         <div className="mb-4 rounded-xl border px-4 py-3 text-sm" style={{ borderColor: "rgba(245, 158, 11, 0.3)", backgroundColor: "rgba(245, 158, 11, 0.08)", color: "rgb(253, 224, 71)" }}>
-          Your ID is already submitted. You can replace it below if needed.
+          Your ID is already submitted. You can replace it below if needed; a changed document must be reviewed independently before it can become verified.
         </div>
       )}
       {profile?.identity_status && mode === "not_started" ? (
@@ -109,7 +112,7 @@ export default function IdentityScreen() {
 
       <div className="mt-6 grid gap-3">
         <button type="button" onClick={handleUpload} disabled={saving || !file} className="w-full py-3 rounded-xl text-white text-sm font-semibold transition-opacity hover:opacity-90 disabled:opacity-60" style={{ backgroundColor: CSP_PRIMARY_BUTTON }}>
-          {saving ? "Uploading..." : mode !== "not_started" ? "Save ID and continue" : "Upload ID and continue"}
+          {saving ? "Uploading..." : mode === "completed" ? "Replace ID and resubmit" : mode === "submitted" ? "Save replacement and continue" : "Upload ID and continue"}
         </button>
         <button type="button" onClick={() => navigate("/csp/dashboard/application")} className="w-full py-3 rounded-xl text-sm font-medium border" style={{ borderColor: "rgba(248, 250, 252, 0.12)", color: CSP_TEXT_SECONDARY }}>
           View application checklist
