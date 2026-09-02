@@ -22,6 +22,9 @@ type ProviderOpsRow = {
   full_name: string | null;
   marketplace_access: boolean;
   infrastructure_only: boolean;
+  application_status: string | null;
+  stripe_connect_ready: boolean;
+  stripe_connect_account_id: string | null;
 };
 
 type RelationshipRow = {
@@ -70,6 +73,14 @@ function ControlMetric({ label, value, detail, to }: ControlMetricProps) {
   return to ? <Link to={to} className="block h-full">{body}</Link> : body;
 }
 
+function providerCanActivateMarketplace(provider: ProviderOpsRow): boolean {
+  return (
+    (provider.application_status ?? "").toLowerCase() === "approved" &&
+    provider.stripe_connect_ready === true &&
+    Boolean(provider.stripe_connect_account_id?.trim())
+  );
+}
+
 export function OperationsDashboard() {
   const { isAdmin, loading: adminLoading } = useIsAdmin();
   const [bookings, setBookings] = useState<BookingAuditRow[]>([]);
@@ -98,7 +109,7 @@ export function OperationsDashboard() {
         .limit(100),
       supabase
         .from("profiles")
-        .select("id,full_name,marketplace_access,infrastructure_only")
+        .select("id,full_name,marketplace_access,infrastructure_only,application_status,stripe_connect_ready,stripe_connect_account_id")
         .eq("role", "csp")
         .order("updated_at", { ascending: false })
         .limit(100),
@@ -189,6 +200,10 @@ export function OperationsDashboard() {
 
   const toggleMarketplace = async (provider: ProviderOpsRow) => {
     setMessage(null);
+    if (!provider.marketplace_access && !providerCanActivateMarketplace(provider)) {
+      setMessage("Marketplace activation is blocked until the application is approved and payout setup is complete.");
+      return;
+    }
     const { error } = await supabase.rpc("set_provider_marketplace_access", {
       p_provider_id: provider.id,
       p_enabled: !provider.marketplace_access,
@@ -412,33 +427,42 @@ export function OperationsDashboard() {
       <Section title="Marketplace Access">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
           <p className="max-w-3xl text-xs" style={{ color: adminTheme.textSecondary }}>
-            Use marketplace access for legitimate eligibility, safety, or operational governance—not to control an ongoing customer–CSP relationship outside an active Cleanr booking.
+            Marketplace activation requires an approved provider application and completed payout setup. Until Stripe Connect is configured, approved CSPs keep their provider workspace but cannot be activated for open-market jobs.
           </p>
           <Link to="/admin/providers" className="text-xs font-semibold underline" style={{ color: adminTheme.primary }}>
             Open provider review →
           </Link>
         </div>
         <div className="space-y-3">
-          {providers.map((p) => (
-            <div key={p.id} className="rounded-lg border border-slate-200 p-3">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-sm font-medium">{p.full_name ?? p.id}</p>
-                  <p className="text-xs text-slate-500">
-                    marketplace: {p.marketplace_access ? "enabled" : "disabled"} · infra-only:{" "}
-                    {p.infrastructure_only ? "yes" : "no"}
-                  </p>
+          {providers.map((p) => {
+            const activationReady = providerCanActivateMarketplace(p);
+            const canToggle = p.marketplace_access || activationReady;
+            return (
+              <div key={p.id} className="rounded-lg border border-slate-200 p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-medium">{p.full_name ?? p.id}</p>
+                    <p className="text-xs text-slate-500">
+                      application: {p.application_status ?? "not submitted"} · payout setup:{" "}
+                      {p.stripe_connect_ready && p.stripe_connect_account_id?.trim() ? "ready" : "not set up"}
+                    </p>
+                    <p className="mt-0.5 text-xs text-slate-500">
+                      marketplace: {p.marketplace_access ? "enabled" : "disabled"} · infra-only:{" "}
+                      {p.infrastructure_only ? "yes" : "no"}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => void toggleMarketplace(p)}
+                    disabled={!canToggle}
+                    className="rounded-md px-2 py-1 text-xs text-white disabled:cursor-not-allowed disabled:opacity-40"
+                    style={{ backgroundColor: adminTheme.primary }}
+                  >
+                    {p.marketplace_access ? "Disable marketplace" : activationReady ? "Enable marketplace" : "Waiting on payout setup"}
+                  </button>
                 </div>
-                <button
-                  onClick={() => void toggleMarketplace(p)}
-                  className="rounded-md px-2 py-1 text-xs text-white"
-                  style={{ backgroundColor: adminTheme.primary }}
-                >
-                  Toggle Access
-                </button>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </Section>
     </main>
