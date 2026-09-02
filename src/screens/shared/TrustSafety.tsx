@@ -1,17 +1,9 @@
-import { useNavigate } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "../../components/ui/Button";
+import { useSafeBack } from "../../hooks/useSafeBack";
 
 export function TrustSafety() {
-  const navigate = useNavigate();
-
-  const handleBack = () => {
-    if (typeof window !== "undefined" && window.history.length > 1) {
-      navigate(-1);
-      return;
-    }
-    navigate("/app/bookings");
-  };
+  const goBack = useSafeBack("/app/bookings", "/admin/full-app/customer/bookings");
 
   return (
     <div className="min-h-screen bg-white text-slate-900">
@@ -21,7 +13,7 @@ export function TrustSafety() {
           size="sm"
           leftIcon={<ArrowLeft className="w-3 h-3" />}
           className="mb-4 !px-0 text-[#667085]"
-          onClick={handleBack}
+          onClick={goBack}
         >
           Back
         </Button>
@@ -48,4 +40,3 @@ export function TrustSafety() {
     </div>
   );
 }
-

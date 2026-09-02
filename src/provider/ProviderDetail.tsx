@@ -6,6 +6,7 @@ import { supabase } from "../lib/supabase";
 import { getMyServiceRelationshipWithProvider } from "../lib/serviceRelationshipApi";
 import { providerDisplayName } from "./types";
 import { isUuid } from "@/utils/isUuid";
+import { useSafeBack } from "../hooks/useSafeBack";
 
 type PublicProviderProfile = {
   id: string;
@@ -27,6 +28,7 @@ type PublicProviderProfile = {
 export function ProviderDetail() {
   const { providerId } = useParams<{ providerId: string }>();
   const navigate = useNavigate();
+  const goBack = useSafeBack("/app/provider/list", "/admin/full-app/customer/provider/list");
   const [searchParams] = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<PublicProviderProfile | null>(null);
@@ -125,7 +127,7 @@ export function ProviderDetail() {
     return (
       <div className="text-[#0B1220]">
         <Button
-          onClick={() => navigate(-1)}
+          onClick={goBack}
           variant="ghost"
           size="sm"
           leftIcon={<ArrowLeft className="w-3 h-3" />}
@@ -141,7 +143,7 @@ export function ProviderDetail() {
   return (
     <div className="pb-28 text-[#0B1220]">
       <Button
-        onClick={() => navigate(-1)}
+        onClick={goBack}
         variant="ghost"
         size="sm"
         leftIcon={<ArrowLeft className="w-3 h-3" />}
