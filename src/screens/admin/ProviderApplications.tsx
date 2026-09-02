@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { traceProfileWriteStart, traceProfileWriteResult } from "@/lib/debug/profileWriteTrace";
-import { getActivationChecks } from "../../lib/cspActivation";
+import { getActivationChecks, getProviderApprovalReviewEvidence } from "../../lib/cspActivation";
 import { supabase } from "../../lib/supabase";
 import { useIsAdmin } from "../../lib/useIsAdmin";
 import { adminTheme } from "../../theme/adminTheme";
@@ -37,6 +37,7 @@ type VerificationReviewRow = {
   note: string | null;
   reviewed_by: string;
   reviewed_at: string;
+  reviewed_evidence_ref: string | null;
 };
 
 type ReviewerProfile = {
@@ -47,8 +48,13 @@ type ReviewerProfile = {
 type ReviewType = "identity" | "background" | "screening";
 
 function approvalReadiness(row: ProviderApplicationRow, providerReviews: VerificationReviewRow[]) {
+  const reviewEvidence = getProviderApprovalReviewEvidence(
+    { id: row.id, identity_document_path: row.identity_document_path },
+    providerReviews
+  );
   const checks = getActivationChecks(
     {
+      id: row.id,
       role: "csp",
       is_onboarded: row.is_onboarded,
       csp_terms_accepted_at: row.csp_terms_accepted_at,
@@ -58,14 +64,7 @@ function approvalReadiness(row: ProviderApplicationRow, providerReviews: Verific
       screening_status: row.screening_status,
       travel_readiness_status: row.travel_readiness_status,
     },
-    {
-      identityVerifiedReview: providerReviews.some(
-        (review) => review.review_type === "identity" && review.outcome === "verified" && review.reviewed_by !== row.id
-      ),
-      backgroundClearReview: providerReviews.some(
-        (review) => review.review_type === "background" && review.outcome === "clear" && review.reviewed_by !== row.id
-      ),
-    }
+    reviewEvidence
   );
 
   return {
@@ -138,7 +137,7 @@ export function ProviderApplications() {
 
     const { data: reviewData, error: reviewError } = await supabase
       .from("provider_verification_reviews")
-      .select("id,provider_id,review_type,outcome,note,reviewed_by,reviewed_at")
+      .select("id,provider_id,review_type,outcome,note,reviewed_by,reviewed_at,reviewed_evidence_ref")
       .in("provider_id", providerIds)
       .order("reviewed_at", { ascending: false });
 
@@ -389,7 +388,7 @@ export function ProviderApplications() {
                       <div className="flex items-center justify-between gap-3">
                         <div>
                           <p className="text-xs font-semibold text-slate-800">Canonical approval readiness</p>
-                          <p className="mt-0.5 text-[11px] text-slate-500">Shared app mirror of the database approval boundary. Successful durable reviews are required; profile statuses alone are insufficient.</p>
+                          <p className="mt-0.5 text-[11px] text-slate-500">Shared app mirror of the database approval boundary. Identity review must match the currently registered ID evidence; profile statuses alone are insufficient.</p>
                         </div>
                         <span className={`rounded-full px-2 py-1 text-[11px] font-semibold ${readiness.ready ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-800"}`}>
                           {readiness.ready ? "Ready for approval" : "Prerequisites missing"}
@@ -436,7 +435,7 @@ export function ProviderApplications() {
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <div>
                           <p className="text-xs font-semibold text-slate-800">Verification audit trail</p>
-                          <p className="mt-0.5 text-[11px] text-slate-500">Durable reviewer, outcome, note, and timestamp from provider_verification_reviews.</p>
+                          <p className="mt-0.5 text-[11px] text-slate-500">Durable reviewer, outcome, evidence provenance where applicable, note, and timestamp from provider_verification_reviews.</p>
                         </div>
                         <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-600">{providerReviews.length} recorded</span>
                       </div>
@@ -447,6 +446,10 @@ export function ProviderApplications() {
                         <div className="mt-3 space-y-2">
                           {providerReviews.map((review) => {
                             const reviewerName = reviewerNameById.get(review.reviewed_by) ?? null;
+                            const identityEvidenceCurrent =
+                              review.review_type === "identity" &&
+                              review.reviewed_evidence_ref != null &&
+                              review.reviewed_evidence_ref === row.identity_document_path;
                             return (
                               <div key={review.id} className="rounded-lg border border-slate-200 bg-slate-50 p-3">
                                 <div className="flex flex-wrap items-center justify-between gap-2">
@@ -456,6 +459,11 @@ export function ProviderApplications() {
                                 <p className="mt-1 text-[11px] text-slate-500" title={review.reviewed_by}>
                                   reviewer: {reviewerName ?? shortId(review.reviewed_by)}
                                 </p>
+                                {review.review_type === "identity" ? (
+                                  <p className={`mt-1 text-[11px] ${identityEvidenceCurrent ? "text-emerald-700" : "text-amber-700"}`}>
+                                    {identityEvidenceCurrent ? "Reviewed evidence matches the current registered ID." : "Historical identity review; it does not match the current registered ID."}
+                                  </p>
+                                ) : null}
                                 {review.note?.trim() ? <p className="mt-2 text-xs leading-5 text-slate-700">{review.note}</p> : <p className="mt-2 text-[11px] text-slate-400">No review note recorded.</p>}
                               </div>
                             );
