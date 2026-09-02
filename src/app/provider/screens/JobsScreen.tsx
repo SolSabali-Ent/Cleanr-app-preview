@@ -64,22 +64,13 @@ function JobCardAvailable({
         <p className="font-semibold" style={{ color: CSP_TEXT_PRIMARY }}>
           {formatDistance(job.distance_meters)}
         </p>
-        <p
-          className="text-sm mt-1"
-          style={{ color: CSP_TEXT_SECONDARY }}
-        >
+        <p className="text-sm mt-1" style={{ color: CSP_TEXT_SECONDARY }}>
           {formatTime(job.scheduled_start)} · {formatDate(job.scheduled_start)}
         </p>
-        <p
-          className="text-sm mt-0.5"
-          style={{ color: CSP_TEXT_SECONDARY }}
-        >
+        <p className="text-sm mt-0.5" style={{ color: CSP_TEXT_SECONDARY }}>
           ${((job.price_cents ?? 0) / 100).toFixed(0)}
         </p>
-        <p
-          className="text-xs mt-0.5 truncate"
-          style={{ color: CSP_TEXT_SECONDARY }}
-        >
+        <p className="text-xs mt-0.5 truncate" style={{ color: CSP_TEXT_SECONDARY }}>
           {job.address}
         </p>
         <button
@@ -123,16 +114,10 @@ function JobCardMy({
       <p className="font-semibold" style={{ color: CSP_TEXT_PRIMARY }}>
         {booking.address}
       </p>
-      <p
-        className="text-sm mt-1"
-        style={{ color: CSP_TEXT_SECONDARY }}
-      >
+      <p className="text-sm mt-1" style={{ color: CSP_TEXT_SECONDARY }}>
         {formatTime(booking.scheduled_start)} · {formatDate(booking.scheduled_start)}
       </p>
-      <p
-        className="text-sm mt-0.5"
-        style={{ color: CSP_TEXT_SECONDARY }}
-      >
+      <p className="text-sm mt-0.5" style={{ color: CSP_TEXT_SECONDARY }}>
         ${((booking.price_cents ?? 0) / 100).toFixed(0)}
       </p>
       <span
@@ -158,6 +143,8 @@ export default function JobsScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const marketplaceEnabled = profile?.marketplace_access === true;
+
   useEffect(() => {
     const providerId = profile?.role === "csp" ? profile.id : null;
     if (!providerId) {
@@ -166,11 +153,16 @@ export default function JobsScreen() {
       setLoading(false);
       return;
     }
-    if (!profile?.marketplace_access) {
+    setError(null);
+    setLoading(true);
+    if (!marketplaceEnabled) {
       setAvailable([]);
       listMyJobsAsProvider()
         .then((my) => setMyJobs(my))
-        .catch(() => setMyJobs([]))
+        .catch((err) => {
+          setMyJobs([]);
+          setError(err?.message ?? "Failed to load jobs");
+        })
         .finally(() => setLoading(false));
       return;
     }
@@ -186,7 +178,7 @@ export default function JobsScreen() {
         setError(err?.message ?? "Failed to load jobs");
       })
       .finally(() => setLoading(false));
-  }, [profile?.id, profile?.role, profile?.marketplace_access]);
+  }, [profile?.id, profile?.role, marketplaceEnabled]);
 
   const active = myJobs.filter(
     (b) => b.status === "accepted" || b.status === "in_progress"
@@ -223,13 +215,14 @@ export default function JobsScreen() {
   return (
     <div className="relative" style={{ color: CSP_TEXT_PRIMARY }}>
       <header style={{ marginBottom: CSP_SECTION_GAP }}>
-        <h1 className="text-2xl font-semibold">Available</h1>
+        <h1 className="text-2xl font-semibold">Jobs</h1>
         <p className="text-sm mt-2" style={{ color: CSP_TEXT_SECONDARY }}>
-          Based on your service area.
+          {marketplaceEnabled
+            ? "Manage available, active, and completed work."
+            : "Your provider account is approved. Open-market jobs will appear after marketplace access is enabled."}
         </p>
       </header>
 
-      {/* Tabs */}
       <div
         className="flex rounded-xl border p-0.5 mb-6"
         style={{
@@ -261,7 +254,31 @@ export default function JobsScreen() {
 
       {tab === "available" && (
         <section style={{ marginBottom: CSP_SECTION_GAP }}>
-          {available.length === 0 ? (
+          {!marketplaceEnabled ? (
+            <div
+              className="rounded-2xl border p-5 text-sm"
+              style={{
+                backgroundColor: CSP_SURFACE,
+                borderColor: "rgba(248, 250, 252, 0.08)",
+                color: CSP_TEXT_SECONDARY,
+              }}
+            >
+              <p className="font-medium" style={{ color: CSP_TEXT_PRIMARY }}>
+                Open-market access is pending
+              </p>
+              <p className="mt-2 leading-6">
+                Marketplace jobs are intentionally locked until Cleanr enables access. Existing-client bookings can still appear under Active and Completed.
+              </p>
+              <button
+                type="button"
+                onClick={() => navigate("/csp/dashboard/existing-clients")}
+                className="mt-4 w-full rounded-xl py-3 text-sm font-semibold text-white transition-opacity hover:opacity-90"
+                style={{ backgroundColor: CSP_PRIMARY_BUTTON }}
+              >
+                Bring an existing client
+              </button>
+            </div>
+          ) : available.length === 0 ? (
             <div
               className="rounded-2xl border py-8 px-4 text-center text-sm"
               style={{
@@ -270,7 +287,7 @@ export default function JobsScreen() {
                 color: CSP_TEXT_SECONDARY,
               }}
             >
-              <p>No jobs available.</p>
+              <p>No jobs available right now.</p>
               <p className="mt-2">
                 New jobs will appear when they fall within your service area.
               </p>
@@ -293,7 +310,7 @@ export default function JobsScreen() {
         <section style={{ marginBottom: CSP_SECTION_GAP }}>
           {active.length === 0 ? (
             <div
-              className="rounded-2xl border py-6 text-center text-sm"
+              className="rounded-2xl border py-6 px-4 text-center text-sm"
               style={{
                 backgroundColor: CSP_SURFACE,
                 borderColor: "rgba(248, 250, 252, 0.08)",
@@ -316,7 +333,7 @@ export default function JobsScreen() {
         <section style={{ marginBottom: CSP_SECTION_GAP }}>
           {completed.length === 0 ? (
             <div
-              className="rounded-2xl border py-6 text-center text-sm"
+              className="rounded-2xl border py-6 px-4 text-center text-sm"
               style={{
                 backgroundColor: CSP_SURFACE,
                 borderColor: "rgba(248, 250, 252, 0.08)",
