@@ -19,6 +19,7 @@ export type ActivationCheck = {
 };
 
 export interface ProfileForActivation {
+  id?: string | null;
   role?: string | null;
   is_onboarded?: boolean | null;
   csp_terms_accepted_at?: string | null;
@@ -30,16 +31,61 @@ export interface ProfileForActivation {
   marketplace_access?: boolean | null;
 }
 
+export interface ProviderReviewForActivation {
+  review_type: string;
+  outcome: string;
+  reviewed_by: string;
+  reviewed_evidence_ref?: string | null;
+}
+
 export interface ProviderApprovalReviewEvidence {
-  /** Durable provider_verification_reviews row with review_type=identity, outcome=verified. */
+  /** Durable independent identity review of the provider's currently registered identity evidence. */
   identityVerifiedReview?: boolean;
-  /** Durable provider_verification_reviews row with review_type=background, outcome=clear. */
+  /** Durable independent provider_verification_reviews row with review_type=background, outcome=clear. */
   backgroundClearReview?: boolean;
 }
 
 function normalizedIn(value: string | null | undefined, allowed: readonly string[]): boolean {
   if (value == null || value === "") return false;
   return allowed.includes(value.trim().toLowerCase());
+}
+
+/**
+ * Canonical app-side review truth used by admin surfaces.
+ *
+ * Identity approval-grade review is intentionally evidence-specific: a prior verified
+ * review does not count when its reviewed_evidence_ref differs from the provider's
+ * currently registered identity_document_path. This mirrors the authoritative
+ * admin_approve_provider_application RPC and the admin verification truth projection.
+ */
+export function getProviderApprovalReviewEvidence(
+  profile: Pick<ProfileForActivation, "id" | "identity_document_path"> | null,
+  reviews: readonly ProviderReviewForActivation[]
+): ProviderApprovalReviewEvidence {
+  if (!profile?.id) {
+    return { identityVerifiedReview: false, backgroundClearReview: false };
+  }
+
+  const providerId = profile.id;
+  const currentIdentityEvidence = profile.identity_document_path?.trim() || null;
+
+  return {
+    identityVerifiedReview:
+      currentIdentityEvidence != null &&
+      reviews.some(
+        (review) =>
+          review.review_type.trim().toLowerCase() === "identity" &&
+          review.outcome.trim().toLowerCase() === "verified" &&
+          review.reviewed_by !== providerId &&
+          (review.reviewed_evidence_ref?.trim() || null) === currentIdentityEvidence
+      ),
+    backgroundClearReview: reviews.some(
+      (review) =>
+        review.review_type.trim().toLowerCase() === "background" &&
+        review.outcome.trim().toLowerCase() === "clear" &&
+        review.reviewed_by !== providerId
+    ),
+  };
 }
 
 /**
