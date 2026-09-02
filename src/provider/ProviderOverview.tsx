@@ -1,6 +1,6 @@
 // src/provider/ProviderOverview.tsx
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useProviderContext } from "./ProviderContext";
 import { CalendarDays, Heart, MessageCircleMore } from "lucide-react";
 import { Button } from "../components/ui/Button";
@@ -11,6 +11,7 @@ import type { ServiceRelationship } from "../domain/serviceRelationship";
 import { customerFacingServiceLabel } from "../lib/serviceCatalog";
 import { getMyServiceRelationshipWithProvider, setMyPreferredServiceProvider } from "../lib/serviceRelationshipApi";
 import { isOfflinePreviewMode } from "../lib/supabase";
+import { customerRouteForContext } from "../lib/contextualRoutes";
 
 function formatDateTime(value: string): string {
   try {
@@ -25,12 +26,14 @@ function formatDateTime(value: string): string {
 
 export function ProviderOverview() {
   const navigate = useNavigate();
+  const { pathname } = useLocation();
   const { selectedProvider, relationshipSource } = useProviderContext();
   const [messageLoading, setMessageLoading] = useState(false);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [durableRelationship, setDurableRelationship] = useState<ServiceRelationship | null>(null);
   const [preferenceBusy, setPreferenceBusy] = useState(false);
   const [preferenceError, setPreferenceError] = useState<string | null>(null);
+  const route = (canonicalPath: string) => customerRouteForContext(pathname, canonicalPath);
 
   useEffect(() => {
     let active = true;
@@ -94,9 +97,9 @@ export function ProviderOverview() {
       const withThisProvider = [...relationshipBookings]
         .sort((a, b) => new Date(b.scheduled_start).getTime() - new Date(a.scheduled_start).getTime())[0];
       if (withThisProvider) {
-        navigate(`/app/bookings/${withThisProvider.id}/message`);
+        navigate(route(`/app/bookings/${withThisProvider.id}/message`));
       } else {
-        navigate("/app/bookings");
+        navigate(route("/app/bookings"));
       }
     } finally {
       setMessageLoading(false);
@@ -128,7 +131,7 @@ export function ProviderOverview() {
           No provider relationship is established yet. Browse CSPs or book a cleaning to get started.
         </p>
         <Button
-          onClick={() => navigate("/app/provider/list")}
+          onClick={() => navigate(route("/app/provider/list"))}
           variant="primaryGreen"
           size="lg"
           fullWidth
@@ -172,7 +175,7 @@ export function ProviderOverview() {
               ) : null}
             </div>
             <Button
-              onClick={() => navigate(`/app/provider/${selectedProvider.id}`)}
+              onClick={() => navigate(route(`/app/provider/${selectedProvider.id}`))}
               variant="ghost"
               size="sm"
               className="text-[11px] text-[#8DCC64] underline underline-offset-2 !px-0"
@@ -243,7 +246,7 @@ export function ProviderOverview() {
           <p className="text-xs font-semibold text-[#166534] mb-1">Next cleaning together</p>
           <button
             type="button"
-            onClick={() => navigate(`/app/bookings/${nextCleaning.id}`)}
+            onClick={() => navigate(route(`/app/bookings/${nextCleaning.id}`))}
             className="next-cleaning-card w-full text-left"
           >
             <p className="text-sm font-semibold">{customerFacingServiceLabel(nextCleaning.service_type)}</p>
@@ -276,7 +279,7 @@ export function ProviderOverview() {
         >
           {messageLoading ? "Loading…" : "Message CSP"}
         </Button>
-        <Button onClick={() => navigate("/app/provider/list")} variant="secondary" size="lg" fullWidth>
+        <Button onClick={() => navigate(route("/app/provider/list"))} variant="secondary" size="lg" fullWidth>
           Browse providers
         </Button>
       </section>

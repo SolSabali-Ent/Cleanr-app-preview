@@ -10,7 +10,9 @@ export function CustomerLayout() {
   const location = useLocation();
   const isBookingFlow =
     location.pathname.startsWith("/book") || location.pathname.startsWith("/booking");
-  const isCustomerApp = location.pathname.startsWith("/app");
+  const isCustomerApp =
+    location.pathname.startsWith("/app") ||
+    location.pathname.startsWith("/admin/full-app/customer");
 
   return (
     <div
