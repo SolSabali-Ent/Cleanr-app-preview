@@ -29,6 +29,12 @@ export default function BackgroundCheckScreen() {
 
   async function handleSubmit() {
     if (!profile) return;
+
+    if (mode === "completed") {
+      navigate(NEXT_STEP_PATH, { replace: true });
+      return;
+    }
+
     setSaving(true);
     setError(null);
 
@@ -64,7 +70,9 @@ export default function BackgroundCheckScreen() {
         </p>
         <h1 className="text-2xl font-semibold">Background check</h1>
         <p className="text-sm mt-2" style={{ color: CSP_TEXT_SECONDARY }}>
-          Submit this step for review. We’ll take you directly to screening when it’s saved.
+          {mode === "completed"
+            ? "Your background check is complete. Continue to screening without changing the verified result."
+            : "Submit this step for review. We’ll take you directly to screening when it’s saved."}
         </p>
       </header>
 
@@ -80,7 +88,9 @@ export default function BackgroundCheckScreen() {
       )}
 
       <p className="text-sm" style={{ color: CSP_TEXT_SECONDARY }}>
-        Cleanr reviews the result separately. Submitting this step lets your application continue while that review is pending.
+        {mode === "completed"
+          ? "Cleanr owns the verified result. Continuing from here does not resubmit or alter that review state."
+          : "Cleanr reviews the result separately. Submitting this step lets your application continue while that review is pending."}
       </p>
 
       {error ? <p className="mt-4 text-sm text-red-300">{error}</p> : null}
