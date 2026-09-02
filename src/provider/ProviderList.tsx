@@ -1,14 +1,16 @@
 // src/provider/ProviderList.tsx
 import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useProviderContext } from "./ProviderContext";
 import { ProviderCard } from "./ProviderCard";
 import { ArrowLeft, Check } from "lucide-react";
 import { Button } from "../components/ui/Button";
 import { useSafeBack } from "../hooks/useSafeBack";
+import { customerRouteForContext } from "../lib/contextualRoutes";
 
 export function ProviderList() {
   const navigate = useNavigate();
+  const { pathname } = useLocation();
   const goBack = useSafeBack("/app/provider", "/admin/full-app/customer/provider");
   const { providers, selectedProvider, selectProvider } = useProviderContext();
   const browseableProviders = useMemo(
@@ -22,7 +24,7 @@ export function ProviderList() {
   const handleConfirm = () => {
     if (pendingSelectionId) {
       selectProvider(pendingSelectionId);
-      navigate("/app/provider");
+      navigate(customerRouteForContext(pathname, "/app/provider"));
     }
   };
 

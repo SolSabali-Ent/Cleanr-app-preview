@@ -1,9 +1,12 @@
 import { ArrowLeft, MessageCircle, ShieldAlert } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "../../components/ui/Button";
+import { customerRouteForContext } from "../../lib/contextualRoutes";
 
 export function EmergencyContact() {
   const navigate = useNavigate();
+  const { pathname } = useLocation();
+  const route = (canonicalPath: string) => customerRouteForContext(pathname, canonicalPath);
 
   return (
     <div className="text-[#0B1220]">
@@ -12,7 +15,7 @@ export function EmergencyContact() {
         size="sm"
         leftIcon={<ArrowLeft className="w-3 h-3" />}
         className="mb-4 !px-0 text-[#667085]"
-        onClick={() => navigate("/app/profile")}
+        onClick={() => navigate(route("/app/profile"))}
       >
         Back
       </Button>
@@ -29,7 +32,7 @@ export function EmergencyContact() {
           size="md"
           fullWidth
           leftIcon={<MessageCircle className="w-4 h-4" />}
-          onClick={() => navigate("/app/bookings")}
+          onClick={() => navigate(route("/app/bookings"))}
         >
           Go to my bookings
         </Button>
@@ -45,7 +48,7 @@ export function EmergencyContact() {
         </Button>
       </div>
 
-      <Button className="mt-4" variant="secondary" size="lg" fullWidth onClick={() => navigate("/app/profile")}>
+      <Button className="mt-4" variant="secondary" size="lg" fullWidth onClick={() => navigate(route("/app/profile"))}>
         Done
       </Button>
     </div>
