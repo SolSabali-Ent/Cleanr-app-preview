@@ -9,7 +9,19 @@ export function pathnameIsGatedPreactivation(pathname: string): boolean {
     pathname.includes("/csp/dashboard/verification") ||
     pathname.includes("/csp/dashboard/candidate-readiness") ||
     pathname.includes("/csp/dashboard/application-status") ||
-    pathname.includes("/csp/dashboard/application")
+    pathname.includes("/csp/dashboard/application") ||
+    pathname.includes("/admin/full-app/csp/onboarding") ||
+    pathname.includes("/admin/full-app/csp/terms") ||
+    pathname.includes("/admin/full-app/csp/verification") ||
+    pathname.includes("/admin/full-app/csp/candidate-readiness") ||
+    pathname.includes("/admin/full-app/csp/application-status") ||
+    pathname.includes("/admin/full-app/csp/application") ||
+    pathname.includes("/admin/device/csp/onboarding") ||
+    pathname.includes("/admin/device/csp/terms") ||
+    pathname.includes("/admin/device/csp/verification") ||
+    pathname.includes("/admin/device/csp/candidate-readiness") ||
+    pathname.includes("/admin/device/csp/application-status") ||
+    pathname.includes("/admin/device/csp/application")
   );
 }
 

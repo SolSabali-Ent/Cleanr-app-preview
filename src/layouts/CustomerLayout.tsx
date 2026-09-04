@@ -9,10 +9,13 @@ import { NotificationsSlot } from "../components/notifications/NotificationsSlot
 export function CustomerLayout() {
   const location = useLocation();
   const isBookingFlow =
-    location.pathname.startsWith("/book") || location.pathname.startsWith("/booking");
+    location.pathname.startsWith("/book") ||
+    location.pathname.startsWith("/booking") ||
+    location.pathname.startsWith("/admin/device/public/book");
   const isCustomerApp =
     location.pathname.startsWith("/app") ||
-    location.pathname.startsWith("/admin/full-app/customer");
+    location.pathname.startsWith("/admin/full-app/customer") ||
+    location.pathname.startsWith("/admin/device/customer");
 
   return (
     <div
