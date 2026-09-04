@@ -1,14 +1,20 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import JobDetailsScreen from "../../app/provider/screens/JobDetailsScreen";
 import { ProviderHouseholdMemorySuggestionCard } from "../../components/relationship/ProviderHouseholdMemorySuggestionCard";
 import { ProviderTrustedCoverageCard } from "../../components/relationship/ProviderTrustedCoverageCard";
+import { MutualRescheduleCard } from "../../components/relationship/MutualRescheduleCard";
 import type { Booking } from "../../domain/booking";
 import { getBooking } from "../../lib/bookingApi";
+import JobDetailsScreen from "../../app/provider/screens/JobDetailsScreen";
 
 export function JobDetails() {
   const { jobId } = useParams<{ jobId: string }>();
   const [booking, setBooking] = useState<Booking | null>(null);
+
+  async function refreshBooking() {
+    if (!jobId) return;
+    setBooking(await getBooking(jobId));
+  }
 
   useEffect(() => {
     let active = true;
@@ -28,13 +34,15 @@ export function JobDetails() {
     return () => { active = false; };
   }, [jobId]);
 
-  // Trusted coverage is a pre-service continuity mechanism. Once a visit is in progress,
-  // the residential service engine owns fulfillment and the assigned provider cannot be swapped
-  // through the relationship layer.
-  const canRequestTrustedCoverage =
+  // Schedule negotiation and trusted coverage are both pre-service continuity tools.
+  // Rescheduling keeps the same CSP relationship when timing can be resolved; coverage is
+  // the next continuity option when it cannot. Neither path mutates an in-progress visit.
+  const canMutuallyReschedule =
     Boolean(jobId) &&
     Boolean(booking?.provider_id) &&
     booking?.status === "accepted";
+
+  const canRequestTrustedCoverage = canMutuallyReschedule;
 
   const canLeaveContinuity =
     Boolean(jobId) &&
@@ -43,9 +51,16 @@ export function JobDetails() {
 
   return (
     <>
-      <JobDetailsScreen />
-      {jobId && (canRequestTrustedCoverage || canLeaveContinuity) ? (
+      <JobDetailsScreen key={`${jobId ?? "job"}:${booking?.updated_at ?? "initial"}`} />
+      {jobId && (canMutuallyReschedule || canRequestTrustedCoverage || canLeaveContinuity) ? (
         <div className="pb-24">
+          {canMutuallyReschedule ? (
+            <MutualRescheduleCard
+              bookingId={jobId}
+              audience="provider"
+              onScheduleChanged={refreshBooking}
+            />
+          ) : null}
           {canRequestTrustedCoverage ? <ProviderTrustedCoverageCard bookingId={jobId} /> : null}
           {canLeaveContinuity ? <ProviderHouseholdMemorySuggestionCard bookingId={jobId} /> : null}
         </div>
