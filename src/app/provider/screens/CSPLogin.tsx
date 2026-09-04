@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { supabase } from "../../../lib/supabase";
+import { signInWithPasswordResilient } from "../../../lib/supabase";
 import { captureReferralCodeFromUrl } from "../../../lib/referralRef";
 import { resolveCspLoginNavigateTarget } from "../../../lib/cspPostLoginRedirect";
 
@@ -34,10 +34,7 @@ export default function CSPLogin() {
     setNotice(null);
     setIsLoading(true);
     try {
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
-        password,
-      });
+      const { error: signInError } = await signInWithPasswordResilient(email, password);
 
       if (signInError) {
         setError(signInError.message);

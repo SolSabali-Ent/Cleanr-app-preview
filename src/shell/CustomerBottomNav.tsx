@@ -11,9 +11,10 @@ const tabs = [
 
 export function CustomerBottomNav() {
   const { pathname } = useLocation();
+  const isAdminPreview = pathname.startsWith("/admin/full-app/customer");
 
   return (
-    <nav className="customer-bottom-nav">
+    <nav className="customer-bottom-nav" style={isAdminPreview ? { position: "absolute" } : undefined}>
       {tabs.map((tab) => {
         const Icon = tab.icon;
         const target = customerRouteForContext(pathname, tab.to);
@@ -34,4 +35,3 @@ export function CustomerBottomNav() {
     </nav>
   );
 }
-

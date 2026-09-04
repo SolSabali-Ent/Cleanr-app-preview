@@ -52,7 +52,7 @@ import { AdminBookingMessagesScreen } from "../screens/admin/AdminBookingMessage
 import { FoundingCircle } from "../screens/admin/FoundingCircle";
 import { OperationsDashboard } from "../screens/admin/OperationsDashboard";
 import { ProviderApplications } from "../screens/admin/ProviderApplications";
-import { AdminFullAppIndex, AdminFullAppShell, AdminProviderPreviewOutlet } from "../screens/admin/AdminFullApp";
+import { AdminAppPreviewFrame, AdminFullAppIndex, AdminFullAppShell, AdminProviderPreviewOutlet } from "../screens/admin/AdminFullApp";
 import { NotFound } from "../screens/shared/NotFound";
 import { TrustSafety } from "../screens/shared/TrustSafety";
 import BookingConfirmation from "../booking/BookingConfirmation";
@@ -156,52 +156,68 @@ export function AppRouter() {
             <Route path="access" element={<AdminAccess />} />
             <Route path="booking/:bookingId/messages" element={<AdminBookingMessagesScreen />} />
             <Route path="providers" element={<ProviderApplications />} />
-          </Route>
 
-          <Route path="/admin/full-app" element={<AdminGate><AdminFullAppShell /></AdminGate>}>
-            <Route index element={<AdminFullAppIndex />} />
+            <Route path="full-app" element={<AdminFullAppShell />}>
+              <Route index element={<AdminFullAppIndex />} />
 
-            <Route path="customer" element={<CustomerLayout />}>
-              <Route index element={<CustomerHome />} />
-              <Route path="bookings" element={<Schedule />} />
-              <Route path="bookings/:bookingId" element={<CustomerBookingDetails />} />
-              <Route path="bookings/:bookingId/prep" element={<BeforeYourCleaning />} />
-              <Route path="bookings/:bookingId/message" element={<CustomerBookingMessagePage />} />
-              <Route path="provider" element={<ProviderOverview />} />
-              <Route path="provider/list" element={<ProviderList />} />
-              <Route path="provider/:providerId" element={<ProviderDetail />} />
-              <Route path="profile" element={<CustomerProfile />} />
-              <Route path="payments" element={<Payments />} />
-              <Route path="addresses" element={<Addresses />} />
-              <Route path="support" element={<Support />} />
-              <Route path="emergency" element={<EmergencyContact />} />
-            </Route>
+              <Route path="public" element={<AdminAppPreviewFrame />}>
+                <Route index element={<Landing />} />
+                <Route path="signin" element={<CustomerLogin />} />
+                <Route path="csp" element={<ProviderHub />} />
+                <Route path="csp/founding-circle" element={<FoundingCircleJoin />} />
+                <Route path="csp/login" element={<CSPLogin />} />
+                <Route path="csp/signup" element={<CSPSignup />} />
+                <Route path="booking-confirmed" element={<BookingConfirmation />} />
+                <Route path="trust-safety" element={<TrustSafety />} />
+                <Route path="book" element={<CustomerLayout />}>
+                  <Route index element={<BookService />} />
+                </Route>
+              </Route>
 
-            <Route path="csp" element={<ProviderLayout />}>
-              <Route element={<AdminProviderPreviewOutlet />}>
-                <Route index element={<ProviderHome />} />
-                <Route path="candidate-readiness" element={<CandidateReadinessScreen />} />
-                <Route path="onboarding" element={<OnboardingRoute />} />
-                <Route path="verification" element={<ProviderVerificationScreen />} />
-                <Route path="application-status" element={<ApplicationStatusScreen />} />
-                <Route path="terms" element={<CSPTermsScreen />} />
-                <Route path="application" element={<ApplicationHubScreen />} />
-                <Route path="application/:step" element={<ApplicationStepScreen />} />
-                <Route path="jobs" element={<JobQueue />} />
-                <Route path="jobs/:jobId" element={<JobDetails />} />
-                <Route path="jobs/:jobId/message" element={<JobMessagePage />} />
-                <Route path="jobs/:jobId/incident" element={<IncidentLog />} />
-                <Route path="calendar" element={<ProviderCalendar />} />
-                <Route path="earnings" element={<Earnings />} />
-                <Route path="existing-clients" element={<ExistingClientsScreen />} />
-                <Route path="availability" element={<Availability />} />
-                <Route path="profile" element={<ProviderProfile />} />
-                <Route path="growth" element={<GrowthScreen />} />
-                <Route path="growth/milestones" element={<MilestonesScreen />} />
-                <Route path="growth/capabilities" element={<CapabilitiesScreen />} />
-                <Route path="growth/opportunities" element={<GrowthOpportunitiesScreen />} />
-                <Route path="growth/network" element={<NetworkScreen />} />
-                <Route path="growth/contributions" element={<ContributionsScreen />} />
+              <Route element={<AdminAppPreviewFrame />}>
+                <Route path="customer" element={<CustomerLayout />}>
+                  <Route index element={<CustomerHome />} />
+                  <Route path="bookings" element={<Schedule />} />
+                  <Route path="bookings/:bookingId" element={<CustomerBookingDetails />} />
+                  <Route path="bookings/:bookingId/prep" element={<BeforeYourCleaning />} />
+                  <Route path="bookings/:bookingId/message" element={<CustomerBookingMessagePage />} />
+                  <Route path="provider" element={<ProviderOverview />} />
+                  <Route path="provider/list" element={<ProviderList />} />
+                  <Route path="provider/:providerId" element={<ProviderDetail />} />
+                  <Route path="profile" element={<CustomerProfile />} />
+                  <Route path="payments" element={<Payments />} />
+                  <Route path="addresses" element={<Addresses />} />
+                  <Route path="support" element={<Support />} />
+                  <Route path="emergency" element={<EmergencyContact />} />
+                </Route>
+
+                <Route path="csp" element={<ProviderLayout />}>
+                  <Route element={<AdminProviderPreviewOutlet />}>
+                    <Route index element={<ProviderHome />} />
+                    <Route path="candidate-readiness" element={<CandidateReadinessScreen />} />
+                    <Route path="onboarding" element={<OnboardingRoute />} />
+                    <Route path="verification" element={<ProviderVerificationScreen />} />
+                    <Route path="application-status" element={<ApplicationStatusScreen />} />
+                    <Route path="terms" element={<CSPTermsScreen />} />
+                    <Route path="application" element={<ApplicationHubScreen />} />
+                    <Route path="application/:step" element={<ApplicationStepScreen />} />
+                    <Route path="jobs" element={<JobQueue />} />
+                    <Route path="jobs/:jobId" element={<JobDetails />} />
+                    <Route path="jobs/:jobId/message" element={<JobMessagePage />} />
+                    <Route path="jobs/:jobId/incident" element={<IncidentLog />} />
+                    <Route path="calendar" element={<ProviderCalendar />} />
+                    <Route path="earnings" element={<Earnings />} />
+                    <Route path="existing-clients" element={<ExistingClientsScreen />} />
+                    <Route path="availability" element={<Availability />} />
+                    <Route path="profile" element={<ProviderProfile />} />
+                    <Route path="growth" element={<GrowthScreen />} />
+                    <Route path="growth/milestones" element={<MilestonesScreen />} />
+                    <Route path="growth/capabilities" element={<CapabilitiesScreen />} />
+                    <Route path="growth/opportunities" element={<GrowthOpportunitiesScreen />} />
+                    <Route path="growth/network" element={<NetworkScreen />} />
+                    <Route path="growth/contributions" element={<ContributionsScreen />} />
+                  </Route>
+                </Route>
               </Route>
             </Route>
           </Route>

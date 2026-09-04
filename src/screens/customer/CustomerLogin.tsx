@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { supabase } from "../../lib/supabase";
+import { signInWithPasswordResilient, supabase } from "../../lib/supabase";
 import { captureReferralCodeFromUrl, getStoredReferralCode } from "../../lib/referralRef";
 
 type AuthMode = "signin" | "signup" | "forgot" | "reset";
@@ -193,10 +193,7 @@ export default function CustomerLogin() {
         return;
       }
 
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
-        password,
-      });
+      const { error: signInError } = await signInWithPasswordResilient(email, password);
       if (signInError) {
         setError(signInError.message);
         return;
