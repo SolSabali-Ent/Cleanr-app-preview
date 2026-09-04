@@ -1,4 +1,4 @@
-import { type MouseEvent, useMemo } from "react";
+import { useMemo } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 
 function devicePathFromInspector(pathname: string): string {
@@ -39,44 +39,37 @@ export function AdminIframePreviewFrame() {
         </div>
 
         <p className="mt-3 px-3 text-center text-[11px] leading-4 text-slate-500">
-          True mobile viewport. Route gates are bypassed for inspection; data permissions remain unchanged.
+          Inspection only. Scroll the selected screen; navigation and controls are intentionally disabled.
         </p>
       </div>
     </main>
   );
 }
 
-function isBackControl(control: HTMLElement): boolean {
-  const label = [
-    control.getAttribute("aria-label"),
-    control.getAttribute("title"),
-    control.textContent,
-  ]
-    .filter(Boolean)
-    .join(" ")
-    .trim()
-    .toLowerCase();
-
-  return (
-    label === "back" ||
-    label.startsWith("back ") ||
-    label.includes("go back") ||
-    Boolean(control.querySelector("svg.lucide-arrow-left"))
-  );
-}
-
 export function AdminDeviceSurface() {
-  const handleClickCapture = (event: MouseEvent<HTMLDivElement>) => {
-    const target = event.target as HTMLElement | null;
-    const control = target?.closest<HTMLElement>("button, a");
-    if (!control || !isBackControl(control)) return;
-
-    event.preventDefault();
-    event.stopPropagation();
-  };
-
   return (
-    <div className="min-h-screen" onClickCapture={handleClickCapture}>
+    <div className="admin-device-static-preview min-h-screen">
+      <style>{`
+        .admin-device-static-preview a,
+        .admin-device-static-preview button,
+        .admin-device-static-preview input,
+        .admin-device-static-preview select,
+        .admin-device-static-preview textarea,
+        .admin-device-static-preview summary,
+        .admin-device-static-preview [role="button"],
+        .admin-device-static-preview [role="link"],
+        .admin-device-static-preview [contenteditable="true"] {
+          pointer-events: none !important;
+          user-select: none !important;
+          cursor: default !important;
+        }
+
+        .admin-device-static-preview input,
+        .admin-device-static-preview select,
+        .admin-device-static-preview textarea {
+          caret-color: transparent !important;
+        }
+      `}</style>
       <Outlet />
     </div>
   );
