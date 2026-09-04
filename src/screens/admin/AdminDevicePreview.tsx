@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef, type MouseEvent } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 
 function devicePathFromInspector(pathname: string): string {
@@ -39,37 +39,70 @@ export function AdminIframePreviewFrame() {
         </div>
 
         <p className="mt-3 px-3 text-center text-[11px] leading-4 text-slate-500">
-          Inspection only. Scroll the selected screen; navigation and controls are intentionally disabled.
+          Inspector mode. In-screen interactions work; navigation away from this selected screen is locked.
         </p>
       </div>
     </main>
   );
 }
 
-export function AdminDeviceSurface() {
-  return (
-    <div className="admin-device-static-preview min-h-screen">
-      <style>{`
-        .admin-device-static-preview a,
-        .admin-device-static-preview button,
-        .admin-device-static-preview input,
-        .admin-device-static-preview select,
-        .admin-device-static-preview textarea,
-        .admin-device-static-preview summary,
-        .admin-device-static-preview [role="button"],
-        .admin-device-static-preview [role="link"],
-        .admin-device-static-preview [contenteditable="true"] {
-          pointer-events: none !important;
-          user-select: none !important;
-          cursor: default !important;
-        }
+function resolvesToLockedPath(value: unknown, lockedPath: string): boolean {
+  if (value == null || value === "") return true;
+  try {
+    const url = new URL(String(value), window.location.href);
+    return url.origin === window.location.origin && url.pathname === lockedPath;
+  } catch {
+    return false;
+  }
+}
 
-        .admin-device-static-preview input,
-        .admin-device-static-preview select,
-        .admin-device-static-preview textarea {
-          caret-color: transparent !important;
-        }
-      `}</style>
+export function AdminDeviceSurface() {
+  const lockedPathRef = useRef(window.location.pathname);
+
+  useEffect(() => {
+    const lockedPath = lockedPathRef.current;
+    const originalPushState = window.history.pushState.bind(window.history);
+    const originalReplaceState = window.history.replaceState.bind(window.history);
+    const originalBack = window.history.back.bind(window.history);
+    const originalForward = window.history.forward.bind(window.history);
+    const originalGo = window.history.go.bind(window.history);
+
+    window.history.pushState = ((data: unknown, unused: string, url?: string | URL | null) => {
+      if (!resolvesToLockedPath(url, lockedPath)) return;
+      originalPushState(data, unused, url);
+    }) as History["pushState"];
+
+    window.history.replaceState = ((data: unknown, unused: string, url?: string | URL | null) => {
+      if (!resolvesToLockedPath(url, lockedPath)) return;
+      originalReplaceState(data, unused, url);
+    }) as History["replaceState"];
+
+    window.history.back = (() => undefined) as History["back"];
+    window.history.forward = (() => undefined) as History["forward"];
+    window.history.go = ((_delta?: number) => undefined) as History["go"];
+
+    return () => {
+      window.history.pushState = originalPushState as History["pushState"];
+      window.history.replaceState = originalReplaceState as History["replaceState"];
+      window.history.back = originalBack as History["back"];
+      window.history.forward = originalForward as History["forward"];
+      window.history.go = originalGo as History["go"];
+    };
+  }, []);
+
+  const handleClickCapture = (event: MouseEvent<HTMLDivElement>) => {
+    const target = event.target as HTMLElement | null;
+    const anchor = target?.closest<HTMLAnchorElement>("a[href]");
+    if (!anchor) return;
+
+    if (!resolvesToLockedPath(anchor.href, lockedPathRef.current)) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+  };
+
+  return (
+    <div className="min-h-screen" onClickCapture={handleClickCapture}>
       <Outlet />
     </div>
   );
