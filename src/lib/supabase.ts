@@ -104,12 +104,15 @@ export async function signInWithPasswordResilient(email: string, password: strin
     return { error: firstAttempt.error }
   }
 
+  const authUrl = supabaseUrl as string
+  const authKey = supabaseKey as string
+
   try {
-    const response = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=password`, {
+    const response = await fetch(`${authUrl}/auth/v1/token?grant_type=password`, {
       method: 'POST',
       headers: {
-        apikey: supabaseKey,
-        Authorization: `Bearer ${supabaseKey}`,
+        apikey: authKey,
+        Authorization: `Bearer ${authKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({ email: normalizedEmail, password }),
