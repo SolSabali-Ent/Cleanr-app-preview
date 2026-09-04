@@ -1,4 +1,5 @@
 import { NavLink, Outlet } from "react-router-dom";
+import { Monitor } from "lucide-react";
 import { adminTheme } from "../theme/adminTheme";
 
 const navItems = [
@@ -45,16 +46,35 @@ function AdminSidebar() {
   );
 }
 
-export function AdminLayout() {
+function AdminDesktopRequired() {
   return (
-    <div
-      className="admin-app min-h-screen flex"
-      style={{ backgroundColor: adminTheme.background, color: adminTheme.textPrimary }}
-    >
-      <AdminSidebar />
-      <div className="admin-content flex-1 p-8">
-        <Outlet />
+    <div className="flex min-h-[100dvh] items-center justify-center bg-slate-100 px-6 py-10 lg:hidden">
+      <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-sm">
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100 text-slate-700">
+          <Monitor className="h-6 w-6" aria-hidden />
+        </div>
+        <h1 className="mt-4 text-lg font-semibold text-slate-900">Admin is desktop only</h1>
+        <p className="mt-2 text-sm leading-6 text-slate-600">
+          Open the Cleanr admin workspace on a desktop-sized screen to continue.
+        </p>
       </div>
     </div>
+  );
+}
+
+export function AdminLayout() {
+  return (
+    <>
+      <AdminDesktopRequired />
+      <div
+        className="admin-app hidden min-h-screen lg:flex"
+        style={{ backgroundColor: adminTheme.background, color: adminTheme.textPrimary }}
+      >
+        <AdminSidebar />
+        <div className="admin-content min-w-0 flex-1 p-8">
+          <Outlet />
+        </div>
+      </div>
+    </>
   );
 }

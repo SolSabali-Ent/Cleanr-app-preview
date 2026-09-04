@@ -13,14 +13,14 @@ const navItems = [
 
 export default function BottomNav() {
   const { pathname } = useLocation();
-  const isAdminPreview = pathname.startsWith("/admin/full-app/csp");
+  const isAdminPreview = pathname.startsWith("/admin/full-app/csp") || pathname.startsWith("/admin/device/csp");
 
   return (
     <nav
-      className={`${isAdminPreview ? "absolute" : "fixed"} inset-x-0 bottom-0 z-20 flex justify-center pb-safe`}
+      className={`provider-bottom-nav ${isAdminPreview ? "absolute" : "fixed"} inset-x-0 bottom-0 z-20 flex justify-center pb-safe`}
       style={{ paddingBottom: "env(safe-area-inset-bottom, 16px)" }}
     >
-      <div className="w-full max-w-[560px] px-4">
+      <div className="w-full max-w-[480px] px-4">
         <div
           className="flex items-center justify-between rounded-2xl px-2 py-2"
           style={{
