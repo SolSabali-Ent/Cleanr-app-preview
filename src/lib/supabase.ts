@@ -82,3 +82,69 @@ export const supabase = createClient(supabaseUrl, supabaseKey, {
       }
     : {}),
 })
+
+type PasswordSignInResult = {
+  error: { message: string } | null
+}
+
+/**
+ * Keep public-preview auth behavior aligned with the source app. This retries only the
+ * parser-level "Auth session or user missing" edge case and still lets Supabase own all
+ * invalid-credential and other auth errors.
+ */
+export async function signInWithPasswordResilient(email: string, password: string): Promise<PasswordSignInResult> {
+  const normalizedEmail = email.trim()
+  const firstAttempt = await supabase.auth.signInWithPassword({
+    email: normalizedEmail,
+    password,
+  })
+
+  if (!firstAttempt.error) return { error: null }
+  if (firstAttempt.error.message !== 'Auth session or user missing' || isOfflinePreviewMode) {
+    return { error: firstAttempt.error }
+  }
+
+  try {
+    const response = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=password`, {
+      method: 'POST',
+      headers: {
+        apikey: supabaseKey,
+        Authorization: `Bearer ${supabaseKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email: normalizedEmail, password }),
+    })
+
+    const payload = (await response.json().catch(() => null)) as
+      | {
+          access_token?: string
+          refresh_token?: string
+          error_description?: string
+          msg?: string
+          message?: string
+        }
+      | null
+
+    if (!response.ok) {
+      return {
+        error: {
+          message:
+            payload?.error_description || payload?.msg || payload?.message || 'Unable to sign in. Please try again.',
+        },
+      }
+    }
+
+    if (!payload?.access_token || !payload.refresh_token) {
+      return { error: firstAttempt.error }
+    }
+
+    const { error: setSessionError } = await supabase.auth.setSession({
+      access_token: payload.access_token,
+      refresh_token: payload.refresh_token,
+    })
+
+    return { error: setSessionError }
+  } catch {
+    return { error: firstAttempt.error }
+  }
+}
