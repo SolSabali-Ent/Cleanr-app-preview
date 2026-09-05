@@ -1,6 +1,10 @@
-import { NavLink, Outlet } from "react-router-dom";
-import { Monitor } from "lucide-react";
+import { useState } from "react";
+import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { LogOut, Monitor } from "lucide-react";
 import { adminTheme } from "../theme/adminTheme";
+import { providerTheme } from "../theme/providerTheme";
+import { LANDING_LOGO_HERO_SRC } from "../lib/brand";
+import { signOutCleanr } from "../lib/authSession";
 
 const navItems = [
   { to: "/admin/ops", label: "Operations" },
@@ -12,36 +16,82 @@ const navItems = [
 ];
 
 function AdminSidebar() {
+  const navigate = useNavigate();
+  const [signingOut, setSigningOut] = useState(false);
+  const [signOutError, setSignOutError] = useState<string | null>(null);
+
+  const handleSignOut = async () => {
+    if (signingOut) return;
+    setSigningOut(true);
+    setSignOutError(null);
+
+    try {
+      await signOutCleanr();
+      navigate("/signin?reason=signed-out", { replace: true });
+    } catch (error) {
+      setSignOutError(error instanceof Error ? error.message : "Unable to sign out. Please try again.");
+      setSigningOut(false);
+    }
+  };
+
   return (
     <aside
-      className="w-64 shrink-0 border-r px-4 py-6"
-      style={{ borderColor: adminTheme.border, backgroundColor: adminTheme.surface }}
+      className="sticky top-0 flex h-screen w-64 shrink-0 flex-col border-r"
+      style={{
+        borderColor: "rgba(255,255,255,0.10)",
+        backgroundColor: providerTheme.background,
+      }}
     >
-      <p
-        className="mb-4 text-xs font-semibold uppercase tracking-wide"
-        style={{ color: adminTheme.textSecondary }}
-      >
-        Admin
-      </p>
-      <nav className="space-y-1">
+      <div className="border-b border-white/10 px-5 pb-5 pt-6">
+        <img
+          src={LANDING_LOGO_HERO_SRC}
+          alt="Cleanr"
+          width={906}
+          height={209}
+          className="h-12 w-auto max-w-[190px] object-contain object-left"
+        />
+        <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-300/80">
+          Admin Console
+        </p>
+      </div>
+
+      <nav className="flex-1 space-y-1 overflow-y-auto px-4 py-5">
         {navItems.map((item) => (
           <NavLink
             key={item.to}
             to={item.to}
-            className={({ isActive }) =>
-              `block rounded-md px-3 py-2 text-sm font-medium transition-colors ${
-                isActive ? "text-white" : ""
-              }`
-            }
+            className="block rounded-lg px-3 py-2.5 text-sm font-medium transition-colors"
             style={({ isActive }) => ({
               backgroundColor: isActive ? adminTheme.primary : "transparent",
-              color: isActive ? "#FFFFFF" : adminTheme.textPrimary,
+              color: isActive ? "#FFFFFF" : providerTheme.textSecondary,
             })}
           >
             {item.label}
           </NavLink>
         ))}
       </nav>
+
+      <div className="border-t border-white/10 px-5 py-5">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-white/50">Account</p>
+        <p className="mt-2 text-base font-semibold text-white">Cleanr Ops</p>
+
+        <button
+          type="button"
+          onClick={handleSignOut}
+          disabled={signingOut}
+          className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-white/10 disabled:cursor-wait disabled:opacity-60"
+          style={{ backgroundColor: "rgba(255,255,255,0.04)" }}
+        >
+          <LogOut className="h-4 w-4" aria-hidden />
+          {signingOut ? "Signing out…" : "Sign out"}
+        </button>
+
+        {signOutError ? (
+          <p className="mt-2 text-xs leading-5 text-red-300" role="alert">
+            {signOutError}
+          </p>
+        ) : null}
+      </div>
     </aside>
   );
 }
