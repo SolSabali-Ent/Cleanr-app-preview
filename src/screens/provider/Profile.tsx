@@ -9,6 +9,7 @@ export function Profile() {
 
   return (
     <>
+      <style>{`.provider-profile-core > div > section:nth-of-type(2) { display: none; }`}</style>
       <div className="px-4 pt-4" style={{ backgroundColor: "#0B1220" }}>
         <div className="mb-3">
           <p className="text-xs font-semibold uppercase tracking-[0.14em]" style={{ color: "#8DCC64" }}>
@@ -73,7 +74,9 @@ export function Profile() {
           </button>
         </div>
       </div>
-      <ProfileScreen />
+      <div className="provider-profile-core">
+        <ProfileScreen />
+      </div>
     </>
   );
 }
