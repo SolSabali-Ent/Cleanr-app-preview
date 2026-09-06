@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { adminTheme } from "../../theme/adminTheme";
+import { AdminAffiliateNetworkSummary } from "./AdminAffiliateNetworkSummary";
 
 type CashoutRow = {
   id: string;
@@ -117,6 +118,7 @@ export function AdminAffiliateCashouts() {
     <main className="mx-auto max-w-6xl space-y-7">
       <header><p className="text-xs font-semibold uppercase tracking-wide" style={{color:adminTheme.primary}}>Affiliate payouts</p><h1 className="mt-1 text-2xl font-semibold" style={{color:adminTheme.textPrimary}}>Network reward cash-outs</h1><p className="mt-1 text-sm" style={{color:adminTheme.textSecondary}}>Customer and CSP affiliate rewards stay separate from cleaning-service payouts while using guarded Stripe release rails.</p></header>
       {message ? <div className="rounded-lg border px-3 py-2 text-sm" style={{borderColor:adminTheme.border,backgroundColor:adminTheme.surface}}>{message}</div> : null}
+      <AdminAffiliateNetworkSummary />
       {table("provider", providers, "CSP affiliate cash-outs", "Rewards for bringing genuinely new households into Cleanr. CSP bank delivery uses the existing Stripe Connect account.")}
       {table("customer", customers, "Customer affiliate cash-outs", "Rewards earned through customer share-and-earn referrals.")}
       <p className="text-xs leading-5" style={{color:adminTheme.textSecondary}}>Approval and Stripe release remain intentionally separate. Requested or approved cash-outs may be cancelled; once processing begins, rewards stay reserved and the safe action is retry/reconcile with the same Stripe idempotency key. Cleanr does not store bank-account numbers.</p>
