@@ -39,14 +39,8 @@ function ProviderLayoutInner() {
       ) : null}
       {showChrome ? (
         <header
-          className="sticky top-0 z-10 flex items-center justify-between shrink-0 border-b border-white/10"
-          style={{
-            height: "calc(48px + env(safe-area-inset-top, 0px))",
-            paddingTop: "env(safe-area-inset-top, 0px)",
-            paddingRight: "16px",
-            paddingLeft: "16px",
-            backgroundColor: providerTheme.background,
-          }}
+          className="relative z-10 flex h-12 shrink-0 items-center justify-between border-b border-white/10 px-4"
+          style={{ backgroundColor: providerTheme.background }}
         >
           <img
             src="/media/Cleanr_wordmark_white.png"
