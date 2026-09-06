@@ -13,8 +13,21 @@ export interface ContactInfo {
   phone: string;
 }
 
+export interface ServiceAddress {
+  street: string;
+  unit: string;
+  city: string;
+  state: string;
+  zip: string;
+  formatted: string;
+  lat: number | null;
+  lng: number | null;
+  verified: boolean;
+}
+
 export interface BookingState {
   zipcode: string | null;
+  serviceAddress: ServiceAddress;
   serviceType: string | null;
   homeDetails: HomeDetails;
   frequency: "one-time" | "weekly" | "bi-weekly" | "monthly" | null;
@@ -34,6 +47,17 @@ export interface BookingContextType {
 
 const initialState: BookingState = {
   zipcode: null,
+  serviceAddress: {
+    street: "",
+    unit: "",
+    city: "",
+    state: "GA",
+    zip: "",
+    formatted: "",
+    lat: null,
+    lng: null,
+    verified: false,
+  },
   serviceType: null,
   homeDetails: {
     sqft: "",

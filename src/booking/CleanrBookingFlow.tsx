@@ -8,6 +8,7 @@ import { supabase } from "../lib/supabase";
 import { BookingProvider } from "./bookingStore";
 import { WizardLayout } from "./components/WizardLayout";
 import { StepZipCode } from "./steps/StepZipCode";
+import { StepAddress } from "./steps/StepAddress";
 import { StepService } from "./steps/StepService";
 import { StepHomeDetails } from "./steps/StepHomeDetails";
 import { StepFrequency } from "./steps/StepFrequency";
@@ -18,6 +19,7 @@ import { StepReview } from "./steps/StepReview";
 
 export type WizardStepId =
   | "zip"
+  | "address"
   | "service"
   | "home"
   | "frequency"
@@ -33,28 +35,29 @@ const STEPS: { id: WizardStepId; title: string; subtitle?: string }[] = [
     subtitle: "Enter your zip code to check availability.",
   },
   {
+    id: "address",
+    title: "Where are we cleaning?",
+    subtitle: "Enter the exact service address so Cleanr can match and verify the visit location.",
+  },
+  {
     id: "service",
     title: "What do you need cleaned?",
-    subtitle:
-      "Choose the option that best matches your home. You can adjust details later.",
+    subtitle: "Choose the option that best matches your home. You can adjust details later.",
   },
   {
     id: "home",
     title: "Tell us about your home",
-    subtitle:
-      "Bedrooms and bathrooms help us estimate time and match the right provider.",
+    subtitle: "Bedrooms and bathrooms help us estimate time and match the right provider.",
   },
   {
     id: "frequency",
     title: "How often do you want cleaning?",
-    subtitle:
-      "Choose the schedule that best fits your household and recurring cleaning needs.",
+    subtitle: "Choose the schedule that best fits your household and recurring cleaning needs.",
   },
   {
     id: "extras",
     title: "Any add-ons for this visit?",
-    subtitle:
-      "Inside fridge, oven, windows and more. You can customize for each clean.",
+    subtitle: "Inside fridge, oven, windows and more. You can customize for each clean.",
   },
   {
     id: "datetime",
@@ -64,8 +67,7 @@ const STEPS: { id: WizardStepId; title: string; subtitle?: string }[] = [
   {
     id: "contact",
     title: "Where should we send your confirmation?",
-    subtitle:
-      "We'll send updates and reminders about your booking to this contact.",
+    subtitle: "We'll send updates and reminders about your booking to this contact.",
   },
   {
     id: "review",
@@ -82,10 +84,7 @@ function CleanrBookingFlowInner() {
   const hasEmittedStarted = useRef(false);
 
   useEffect(() => {
-    window.scrollTo({
-      top: 0,
-      behavior: "smooth",
-    });
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }, [stepIndex]);
 
   useEffect(() => {
@@ -95,14 +94,9 @@ function CleanrBookingFlowInner() {
       if (cancelled || hasEmittedStarted.current) return;
       hasEmittedStarted.current = true;
       if (user?.id) emitBookingStarted(user.id, 0);
-      void recordBookingProgressEvent({
-        eventType: "pre_booking_zip_started",
-        currentStep: "zip",
-      });
+      void recordBookingProgressEvent({ eventType: "pre_booking_zip_started", currentStep: "zip" });
     });
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, []);
 
   const goNext = () => {
@@ -128,32 +122,16 @@ function CleanrBookingFlowInner() {
 
   const renderStep = () => {
     switch (current.id) {
-      case "zip":
-        return <StepZipCode onNext={goNext} />;
-
-      case "service":
-        return <StepService onNext={goNext} onBack={goBack} />;
-
-      case "home":
-        return <StepHomeDetails onNext={goNext} onBack={goBack} />;
-
-      case "frequency":
-        return <StepFrequency onNext={goNext} onBack={goBack} />;
-
-      case "extras":
-        return <StepExtras onNext={goNext} onBack={goBack} />;
-
-      case "datetime":
-        return <StepDateTime onNext={goNext} onBack={goBack} />;
-
-      case "contact":
-        return <StepContact onNext={goNext} onBack={goBack} />;
-
-      case "review":
-        return <StepReview onBack={goBack} />;
-
-      default:
-        return null;
+      case "zip": return <StepZipCode onNext={goNext} />;
+      case "address": return <StepAddress onNext={goNext} onBack={goBack} />;
+      case "service": return <StepService onNext={goNext} onBack={goBack} />;
+      case "home": return <StepHomeDetails onNext={goNext} onBack={goBack} />;
+      case "frequency": return <StepFrequency onNext={goNext} onBack={goBack} />;
+      case "extras": return <StepExtras onNext={goNext} onBack={goBack} />;
+      case "datetime": return <StepDateTime onNext={goNext} onBack={goBack} />;
+      case "contact": return <StepContact onNext={goNext} onBack={goBack} />;
+      case "review": return <StepReview onBack={goBack} />;
+      default: return null;
     }
   };
 
@@ -165,11 +143,7 @@ function CleanrBookingFlowInner() {
       subtitle={current.subtitle}
       showBack={true}
       onBack={goBack}
-      bottomHint={
-        current.id === "zip"
-          ? "Residential cleaning • Clear booking • Reliable support"
-          : undefined
-      }
+      bottomHint={current.id === "zip" ? "Residential cleaning • Clear booking • Reliable support" : undefined}
     >
       {renderStep()}
     </WizardLayout>
