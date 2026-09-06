@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Zap } from "lucide-react";
+import { Gift, Wallet, Zap } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useBooking } from "../bookingStore";
 import { createBookingCheckoutSession } from "../../lib/bookingApi";
@@ -8,10 +8,15 @@ import { setMyBookingServiceRelationshipContext } from "../../lib/bookingRelatio
 import { recordBookingProgressEvent, serviceOptionKeyFromBookingService } from "../../lib/bookingProgress";
 import { emitBookingAbandoned } from "../../lib/kinex/events";
 import { customerFacingServiceLabel } from "../../lib/serviceCatalog";
+import { getMyCustomerValueSummary } from "../../lib/customerAffiliateApi";
 import { Button } from "../../components/ui/Button";
 import { supabase } from "../../lib/supabase";
 
 interface StepReviewProps { onBack: () => void; }
+
+function money(cents: number) {
+  return new Intl.NumberFormat(undefined, { style: "currency", currency: "USD" }).format(cents / 100);
+}
 
 async function checkoutErrorMessage(err: unknown): Promise<string> {
   const fallback = err instanceof Error ? err.message : "We couldn't start payment. Please try again.";
@@ -35,6 +40,7 @@ export function StepReview({ onBack }: StepReviewProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [priorityRate, setPriorityRate] = useState(0.25);
+  const [valueSummary, setValueSummary] = useState({ cleanrCreditBalanceCents: 0, acquisitionCreditCents: 0 });
   const serviceRelationshipId = searchParams.get("relationship")?.trim() || null;
 
   useEffect(() => {
@@ -43,6 +49,11 @@ export function StepReview({ onBack }: StepReviewProps) {
       if (!active || !data || typeof data !== "object") return;
       const rate = Number((data as Record<string, unknown>).urgent_surcharge_rate);
       if (Number.isFinite(rate) && rate >= 0) setPriorityRate(rate);
+    });
+    void getMyCustomerValueSummary().then((summary) => {
+      if (active) setValueSummary(summary);
+    }).catch(() => {
+      // Checkout remains usable if the optional customer-value summary cannot load.
     });
     return () => { active = false; };
   }, []);
@@ -99,6 +110,30 @@ export function StepReview({ onBack }: StepReviewProps) {
 
   return (
     <div className="space-y-4">
+      {valueSummary.acquisitionCreditCents > 0 ? (
+        <div className="rounded-2xl border border-[#BBF7D0] bg-[#F0FDF4] p-4">
+          <div className="flex items-start gap-3">
+            <div className="rounded-xl bg-white p-2 text-[#166534]"><Gift className="h-4 w-4" /></div>
+            <div>
+              <p className="text-sm font-semibold text-[#166534]">Your {money(valueSummary.acquisitionCreditCents)} referral credit is ready</p>
+              <p className="mt-1 text-xs leading-5 text-[#3F6212]">We'll apply it automatically at secure payment. No code needed.</p>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {valueSummary.cleanrCreditBalanceCents > 0 ? (
+        <div className="rounded-2xl border border-[#DDE7F5] bg-[#F7F9FC] p-4">
+          <div className="flex items-start gap-3">
+            <div className="rounded-xl bg-white p-2 text-[#475467]"><Wallet className="h-4 w-4" /></div>
+            <div>
+              <p className="text-sm font-semibold">You have {money(valueSummary.cleanrCreditBalanceCents)} in Cleanr credit</p>
+              <p className="mt-1 text-xs leading-5 text-[#667085]">We'll use what can safely apply to this cleaning. Any unused credit stays in your balance.</p>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {state.priorityRequested ? (
         <div className="rounded-2xl border border-[#F59E0B]/40 bg-[#FFFBEB] p-4">
           <div className="flex items-start gap-3">
@@ -167,7 +202,7 @@ export function StepReview({ onBack }: StepReviewProps) {
       {submitError ? <p className="text-[12px] font-medium text-red-500">{submitError}</p> : null}
       {submitError?.toLowerCase().includes("sign in") ? <Button type="button" variant="secondary" size="md" fullWidth onClick={() => navigate("/signin")}>Sign in to continue</Button> : null}
 
-      <p className="text-[12px] text-center text-[#667085]">You'll see the final total in secure payment before you're charged.</p>
+      <p className="text-[12px] text-center text-[#667085]">You'll see the final total, including any Cleanr credit, before you're charged.</p>
       <Button type="button" onClick={handleConfirm} disabled={isSubmitting || !state.serviceAddress.verified} loading={isSubmitting} variant="primaryBlue" size="lg" fullWidth>
         {isSubmitting ? "Starting payment…" : "Continue to Secure Payment →"}
       </Button>
