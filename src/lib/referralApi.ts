@@ -2,7 +2,7 @@ import { supabase } from "./supabase";
 
 export type ReferralAttachResult = {
   attached: boolean;
-  kind?: "general" | "existing_client";
+  kind?: "general" | "existing_client" | "affiliate";
   relationship_id?: string;
   provider_id?: string;
 };
@@ -37,9 +37,10 @@ export async function createExistingClientInvite(): Promise<{ id: string; code: 
 }
 
 /**
- * Attach the current customer to an invitation by code after authentication.
- * For an existing-client invitation, the server also records customer consent
- * and establishes durable provider-brought relationship provenance.
+ * Attach the signed-in person to the referral code they entered through.
+ * - general: legacy one-to-one referral attribution
+ * - existing_client: CSP/customer relationship provenance
+ * - affiliate: reusable customer acquisition attribution
  */
 export async function attachRefereeByCode(code: string): Promise<ReferralAttachResult> {
   const { data, error } = await supabase.rpc("attach_referee_by_code", {

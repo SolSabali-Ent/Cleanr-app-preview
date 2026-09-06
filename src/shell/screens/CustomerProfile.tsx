@@ -7,14 +7,12 @@ import { signOutCleanr } from "@/lib/authSession";
 import { customerRouteForContext } from "@/lib/contextualRoutes";
 import { Button } from "../../components/ui/Button";
 import { CustomerHouseholdMemoryCard } from "../components/CustomerHouseholdMemoryCard";
-import { createReferral } from "@/lib/referralApi";
 
 export function CustomerProfile() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const { session } = useSession();
   const { profile, loading: profileLoading } = useProfile();
-  const [inviteCopied, setInviteCopied] = useState(false);
   const [logoutLoading, setLogoutLoading] = useState(false);
   const [logoutError, setLogoutError] = useState<string | null>(null);
 
@@ -25,18 +23,6 @@ export function CustomerProfile() {
 
   const actionRowClass = "w-full flex items-center justify-between px-3 py-3 text-left hover:bg-[#F3FAF1]/50 rounded-lg transition";
   const route = (canonicalPath: string) => customerRouteForContext(pathname, canonicalPath);
-
-  const handleInviteLink = async () => {
-    try {
-      const { code } = await createReferral();
-      const url = `${typeof window !== "undefined" ? window.location.origin : ""}/signin?ref=${encodeURIComponent(code)}`;
-      await navigator.clipboard.writeText(url);
-      setInviteCopied(true);
-      setTimeout(() => setInviteCopied(false), 2500);
-    } catch {
-      // non-blocking
-    }
-  };
 
   const handleLogout = async () => {
     setLogoutError(null);
@@ -91,12 +77,12 @@ export function CustomerProfile() {
       </section>
 
       <section className="provider-card p-1 mb-3">
-        <button type="button" onClick={handleInviteLink} className={actionRowClass}>
+        <button type="button" onClick={() => navigate(route("/app/affiliate"))} className={actionRowClass}>
           <div className="flex items-center gap-3">
             <Share2 className="w-4 h-4 text-[#8DCC64]" />
             <div>
-              <p className="text-sm">Invite friends</p>
-              <p className="text-xs text-[#667085]">{inviteCopied ? "Link copied" : "Get your invite link"}</p>
+              <p className="text-sm">Share &amp; earn</p>
+              <p className="text-xs text-[#667085]">Your referral link, activity, and rewards</p>
             </div>
           </div>
         </button>

@@ -13,6 +13,7 @@ import { BeforeYourCleaning } from "../shell/screens/BeforeYourCleaning";
 import { Schedule } from "../screens/customer/Schedule";
 import { Payments } from "../screens/customer/Payments";
 import { Addresses } from "../screens/customer/Addresses";
+import { Affiliate } from "../screens/customer/Affiliate";
 import { Support } from "../screens/customer/Support";
 import { EmergencyContact } from "../screens/customer/EmergencyContact";
 import { Profile as CustomerProfile } from "../screens/customer/Profile";
@@ -95,6 +96,7 @@ export function AppRouter() {
             <Route path="profile" element={<CustomerProfile />} />
             <Route path="payments" element={<Payments />} />
             <Route path="addresses" element={<Addresses />} />
+            <Route path="affiliate" element={<Affiliate />} />
             <Route path="support" element={<Support />} />
             <Route path="emergency" element={<EmergencyContact />} />
           </Route>
@@ -174,6 +176,7 @@ export function AppRouter() {
               <Route path="profile" element={<CustomerProfile />} />
               <Route path="payments" element={<Payments />} />
               <Route path="addresses" element={<Addresses />} />
+              <Route path="affiliate" element={<Affiliate />} />
               <Route path="support" element={<Support />} />
               <Route path="emergency" element={<EmergencyContact />} />
             </Route>
