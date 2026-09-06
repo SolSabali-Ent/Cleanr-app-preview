@@ -1,4 +1,4 @@
-const statuses = ["scheduled", "in_progress", "completed"];
+const statuses = ["scheduled", "en_route", "in_progress", "completed"];
 
 interface JobStatusStepperProps {
   currentStatus: string;
@@ -6,6 +6,7 @@ interface JobStatusStepperProps {
 
 const statusLabels: Record<string, string> = {
   scheduled: "Scheduled",
+  en_route: "En route",
   in_progress: "In progress",
   completed: "Completed",
 };
@@ -39,7 +40,7 @@ export default function JobStatusStepper({ currentStatus }: JobStatusStepperProp
                     : "bg-slate-200"
                 }`}
               />
-              <span className="text-xs mt-2 text-slate-900 font-medium text-center">
+              <span className="text-[11px] sm:text-xs mt-2 text-slate-900 font-medium text-center">
                 {statusLabels[status] ?? status}
               </span>
             </div>
