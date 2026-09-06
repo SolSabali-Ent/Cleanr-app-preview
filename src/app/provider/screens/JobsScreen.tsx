@@ -7,6 +7,7 @@ import {
 } from "../../../lib/bookingApi";
 import { useProfile } from "../../../lib/useProfile";
 import type { Booking } from "../../../domain/booking";
+import { supabase } from "../../../lib/supabase";
 import {
   CSP_SURFACE,
   CSP_CARD_PADDING,
@@ -43,6 +44,20 @@ function formatDistance(meters: number | undefined): string {
   return `${miles.toFixed(1)} mi`;
 }
 
+function providerStatusLabel(status: string): string {
+  if (status === "accepted") return "Scheduled";
+  if (status === "in_progress") return "In progress";
+  if (status === "completed_by_provider") return "Awaiting confirmation";
+  if (status === "confirmed") return "Completed";
+  if (status === "disputed") return "Needs attention";
+  return status.replace("_", " ");
+}
+
+type BookingFinancial = {
+  price_cents: number;
+  platform_fee_cents: number | null;
+};
+
 type Tab = "available" | "active" | "completed";
 
 function JobCardAvailable({
@@ -68,7 +83,7 @@ function JobCardAvailable({
           {formatTime(job.scheduled_start)} · {formatDate(job.scheduled_start)}
         </p>
         <p className="text-sm mt-0.5" style={{ color: CSP_TEXT_SECONDARY }}>
-          ${((job.price_cents ?? 0) / 100).toFixed(0)}
+          Customer total ${((job.price_cents ?? 0) / 100).toFixed(0)}
         </p>
         <p className="text-xs mt-0.5 truncate" style={{ color: CSP_TEXT_SECONDARY }}>
           {job.address}
@@ -79,7 +94,7 @@ function JobCardAvailable({
           className="mt-3 w-full py-2.5 rounded-xl text-white text-sm font-semibold transition-opacity hover:opacity-90 active:opacity-85 disabled:opacity-50"
           style={{ backgroundColor: CSP_PRIMARY_BUTTON }}
         >
-          Accept
+          View job
         </button>
       </div>
     </div>
@@ -88,12 +103,17 @@ function JobCardAvailable({
 
 function JobCardMy({
   booking,
+  financial,
   hasUnreadMessages,
 }: {
   booking: Booking;
+  financial: BookingFinancial | null;
   hasUnreadMessages: boolean;
 }) {
   const navigate = useNavigate();
+  const grossCents = financial?.price_cents ?? booking.price_cents ?? 0;
+  const earningCents = Math.max(0, grossCents - (financial?.platform_fee_cents ?? 0));
+
   return (
     <button
       type="button"
@@ -118,16 +138,16 @@ function JobCardMy({
         {formatTime(booking.scheduled_start)} · {formatDate(booking.scheduled_start)}
       </p>
       <p className="text-sm mt-0.5" style={{ color: CSP_TEXT_SECONDARY }}>
-        ${((booking.price_cents ?? 0) / 100).toFixed(0)}
+        Expected earnings ${(earningCents / 100).toFixed(0)}
       </p>
       <span
-        className="inline-block mt-2 px-2 py-0.5 rounded text-xs font-medium capitalize"
+        className="inline-block mt-2 px-2 py-0.5 rounded text-xs font-medium"
         style={{
           backgroundColor: "rgba(248, 250, 252, 0.1)",
           color: CSP_TEXT_SECONDARY,
         }}
       >
-        {booking.status.replace("_", " ")}
+        {providerStatusLabel(booking.status)}
       </span>
     </button>
   );
@@ -140,6 +160,7 @@ export default function JobsScreen() {
   const [tab, setTab] = useState<Tab>("available");
   const [available, setAvailable] = useState<AvailableJob[]>([]);
   const [myJobs, setMyJobs] = useState<Booking[]>([]);
+  const [financials, setFinancials] = useState<Record<string, BookingFinancial>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -150,17 +171,36 @@ export default function JobsScreen() {
     if (!providerId) {
       setAvailable([]);
       setMyJobs([]);
+      setFinancials({});
       setLoading(false);
       return;
     }
+
+    async function loadFinancials() {
+      const { data, error: financialError } = await supabase
+        .from("bookings")
+        .select("id, price_cents, platform_fee_cents")
+        .eq("provider_id", providerId);
+      if (financialError) throw financialError;
+      const next: Record<string, BookingFinancial> = {};
+      for (const row of data ?? []) {
+        next[String(row.id)] = {
+          price_cents: Number(row.price_cents ?? 0),
+          platform_fee_cents: row.platform_fee_cents == null ? null : Number(row.platform_fee_cents),
+        };
+      }
+      setFinancials(next);
+    }
+
     setError(null);
     setLoading(true);
     if (!marketplaceEnabled) {
       setAvailable([]);
-      listMyJobsAsProvider()
-        .then((my) => setMyJobs(my))
+      Promise.all([listMyJobsAsProvider(), loadFinancials()])
+        .then(([my]) => setMyJobs(my))
         .catch((err) => {
           setMyJobs([]);
+          setFinancials({});
           setError(err?.message ?? "Failed to load jobs");
         })
         .finally(() => setLoading(false));
@@ -169,6 +209,7 @@ export default function JobsScreen() {
     Promise.all([
       findAvailableJobsForProvider(providerId, 100),
       listMyJobsAsProvider(),
+      loadFinancials(),
     ])
       .then(([av, my]) => {
         setAvailable(av);
@@ -322,7 +363,12 @@ export default function JobsScreen() {
           ) : (
             <div className="flex flex-col gap-3">
               {active.map((b) => (
-                <JobCardMy key={b.id} booking={b} hasUnreadMessages={unreadBookingIds.has(b.id)} />
+                <JobCardMy
+                  key={b.id}
+                  booking={b}
+                  financial={financials[b.id] ?? null}
+                  hasUnreadMessages={unreadBookingIds.has(b.id)}
+                />
               ))}
             </div>
           )}
@@ -345,7 +391,12 @@ export default function JobsScreen() {
           ) : (
             <div className="flex flex-col gap-3">
               {completed.map((b) => (
-                <JobCardMy key={b.id} booking={b} hasUnreadMessages={unreadBookingIds.has(b.id)} />
+                <JobCardMy
+                  key={b.id}
+                  booking={b}
+                  financial={financials[b.id] ?? null}
+                  hasUnreadMessages={unreadBookingIds.has(b.id)}
+                />
               ))}
             </div>
           )}
