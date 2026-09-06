@@ -3,7 +3,7 @@ import { Link, useParams, useNavigate } from "react-router-dom";
 import { bookingAccessFieldsFromRow } from "../../lib/bookingApi";
 import { subscribeToBooking } from "../../lib/bookingRealtime";
 import type { Booking } from "../../domain/booking";
-import { ArrowLeft, CalendarDays, MapPin, Star } from "lucide-react";
+import { ArrowLeft, CalendarDays, MapPin, Navigation, Star } from "lucide-react";
 import { Button } from "../../components/ui/Button";
 import { supabase } from "../../lib/supabase";
 import { confirmMyCompletedService } from "../../lib/serviceCompletionApi";
@@ -28,6 +28,22 @@ function formatTime(iso: string) {
   } catch {
     return "";
   }
+}
+
+function normalizeBookingAddress(address: unknown): string {
+  if (typeof address === "string" && address.trim()) return address.trim();
+  if (address && typeof address === "object") {
+    const row = address as Record<string, unknown>;
+    if (typeof row.address === "string" && row.address.trim()) return row.address.trim();
+    const zip = row.zip_code ?? row.zip;
+    if (typeof zip === "string" && zip.trim()) return `ZIP ${zip.trim()}`;
+  }
+  return "Address unavailable";
+}
+
+function providerFirstName(booking: Booking): string {
+  const fullName = booking.provider?.full_name?.trim();
+  return fullName ? fullName.split(/\s+/)[0] : "Your CSP";
 }
 
 export function CustomerBookingDetails() {
@@ -86,11 +102,15 @@ export function CustomerBookingDetails() {
       customer_id: (bookingRow.customer_id as string) ?? null,
       provider_id: (bookingRow.provider_id as string) || null,
       service_type: bookingRow.service_type as string,
-      address: typeof bookingRow.address === "string" ? bookingRow.address : "Address TBD",
+      address: normalizeBookingAddress(bookingRow.address),
       scheduled_start: bookingRow.scheduled_start as string,
       scheduled_end: (bookingRow.scheduled_end as string) || null,
       status: bookingRow.status as Booking["status"],
+      provider_en_route_at: (bookingRow.provider_en_route_at as string | null) ?? null,
+      provider_arrived_at: (bookingRow.provider_arrived_at as string | null) ?? null,
+      provider_en_route_location_updated_at: (bookingRow.provider_en_route_location_updated_at as string | null) ?? null,
       price_cents: (bookingRow.price_cents as number) ?? 0,
+      stripe_payment_intent_id: (bookingRow.stripe_payment_intent_id as string | null) ?? null,
       created_at: bookingRow.created_at as string,
       updated_at: bookingRow.updated_at as string,
       ...bookingAccessFieldsFromRow(bookingRow),
@@ -240,6 +260,23 @@ export function CustomerBookingDetails() {
     booking.customer_id === customerUserId &&
     !reviewAlreadyExists &&
     !reviewSubmitted;
+  const providerName = providerFirstName(booking);
+  const providerPresence =
+    booking.status === "accepted" && booking.provider_arrived_at
+      ? {
+          title: `${providerName} has arrived`,
+          detail: "Arrival at your service address has been verified. The visit will move to in progress when service starts.",
+          className: "border-emerald-200 bg-emerald-50",
+          iconClassName: "text-emerald-600",
+        }
+      : booking.status === "accepted" && booking.provider_en_route_at
+        ? {
+            title: `${providerName} is on the way`,
+            detail: "Cleanr will update this visit when arrival is verified. Exact provider location is not shared.",
+            className: "border-sky-200 bg-sky-50",
+            iconClassName: "text-sky-600",
+          }
+        : null;
 
   return (
     <div className="text-[#0B1220]">
@@ -256,6 +293,21 @@ export function CustomerBookingDetails() {
       <h1 className="text-xl font-semibold mb-2">{customerFacingServiceLabel(booking.service_type)}</h1>
       <p className="text-xs text-[#667085] mb-2">Booking ID: {booking.id}</p>
       <p className="text-sm font-medium status-green mb-4">{statusMessage}</p>
+
+      {providerPresence ? (
+        <section className={`mb-4 rounded-2xl border p-4 ${providerPresence.className}`}>
+          <div className="flex items-start gap-3">
+            <div className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/70 ${providerPresence.iconClassName}`}>
+              <Navigation className="h-4 w-4" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-[#0B1220]">{providerPresence.title}</p>
+              <p className="mt-1 text-xs leading-5 text-[#667085]">{providerPresence.detail}</p>
+            </div>
+          </div>
+        </section>
+      ) : null}
+
       <Link
         to={`/app/bookings/${booking.id}/prep`}
         className="text-sm font-medium text-[#0A84FF] underline mb-4 inline-block"
@@ -283,7 +335,9 @@ export function CustomerBookingDetails() {
         <p className="section-label mb-1">Payment</p>
         <p className="text-sm font-semibold">
           ${((booking.price_cents ?? 0) / 100).toFixed(0)}
-          <span className="text-xs font-normal text-[#667085] ml-1">(estimated)</span>
+          <span className="text-xs font-normal text-[#667085] ml-1">
+            {booking.stripe_payment_intent_id ? "paid" : "estimated"}
+          </span>
         </p>
       </section>
 

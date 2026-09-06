@@ -1,4 +1,4 @@
-const statuses = ["scheduled", "en_route", "in_progress", "completed"];
+const statuses = ["scheduled", "en_route", "arrived", "in_progress", "completed"];
 
 interface JobStatusStepperProps {
   currentStatus: string;
@@ -7,6 +7,7 @@ interface JobStatusStepperProps {
 const statusLabels: Record<string, string> = {
   scheduled: "Scheduled",
   en_route: "En route",
+  arrived: "Arrived",
   in_progress: "In progress",
   completed: "Completed",
 };
@@ -22,7 +23,7 @@ export default function JobStatusStepper({ currentStatus }: JobStatusStepperProp
           const isCurrent = status === currentStatus;
 
           return (
-            <div key={status} className="flex flex-col items-center flex-1 relative">
+            <div key={status} className="flex flex-col items-center flex-1 relative min-w-0">
               {index < statuses.length - 1 && (
                 <div
                   className={`absolute top-2 left-1/2 h-0.5 w-full ${
@@ -40,7 +41,7 @@ export default function JobStatusStepper({ currentStatus }: JobStatusStepperProp
                     : "bg-slate-200"
                 }`}
               />
-              <span className="text-[11px] sm:text-xs mt-2 text-slate-900 font-medium text-center">
+              <span className="text-[9px] sm:text-[11px] mt-2 text-slate-900 font-medium text-center leading-tight">
                 {statusLabels[status] ?? status}
               </span>
             </div>

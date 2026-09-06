@@ -33,6 +33,9 @@ export interface Booking {
 
   // lifecycle
   status: BookingStatus;
+  provider_en_route_at?: string | null;
+  provider_arrived_at?: string | null;
+  provider_en_route_location_updated_at?: string | null;
 
   // metadata
   price_cents: number;
