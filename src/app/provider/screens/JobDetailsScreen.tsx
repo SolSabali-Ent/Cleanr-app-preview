@@ -275,7 +275,7 @@ export default function JobDetailsScreen() {
         <div className="mb-4"><JobStatusStepper currentStatus={jobStatus} /></div>
 
         <section className="bg-white border border-slate-200 rounded-2xl p-4 mb-3 shadow-md">
-          <p className="text-xs font-semibold text-slate-500 mb-1">Service area</p>
+          <p className="text-xs font-semibold text-slate-500 mb-1">Service address</p>
           <p className="text-sm font-semibold text-slate-900">{booking.address}</p>
         </section>
 
