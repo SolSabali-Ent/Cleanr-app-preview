@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { Zap } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useBooking } from "../bookingStore";
 import { createBookingCheckoutSession } from "../../lib/bookingApi";
@@ -10,29 +11,20 @@ import { customerFacingServiceLabel } from "../../lib/serviceCatalog";
 import { Button } from "../../components/ui/Button";
 import { supabase } from "../../lib/supabase";
 
-interface StepReviewProps {
-  onBack: () => void;
-}
+interface StepReviewProps { onBack: () => void; }
 
 async function checkoutErrorMessage(err: unknown): Promise<string> {
   const fallback = err instanceof Error ? err.message : "We couldn't start payment. Please try again.";
   const context = (err as { context?: unknown } | null)?.context;
-
   if (context instanceof Response) {
     try {
       const payload = (await context.clone().json()) as { error?: unknown; message?: unknown } | null;
       const message = payload?.error ?? payload?.message;
       if (typeof message === "string" && message.trim()) return message.trim();
     } catch {
-      try {
-        const text = await context.clone().text();
-        if (text.trim()) return text.trim();
-      } catch {
-        // Fall through to the Supabase client message.
-      }
+      try { const text = await context.clone().text(); if (text.trim()) return text.trim(); } catch { /* fall through */ }
     }
   }
-
   return fallback;
 }
 
@@ -42,38 +34,40 @@ export function StepReview({ onBack }: StepReviewProps) {
   const { state } = useBooking();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [priorityRate, setPriorityRate] = useState(0.25);
   const serviceRelationshipId = searchParams.get("relationship")?.trim() || null;
+
+  useEffect(() => {
+    let active = true;
+    void supabase.rpc("get_public_booking_upsell_config").then(({ data }) => {
+      if (!active || !data || typeof data !== "object") return;
+      const rate = Number((data as Record<string, unknown>).urgent_surcharge_rate);
+      if (Number.isFinite(rate) && rate >= 0) setPriorityRate(rate);
+    });
+    return () => { active = false; };
+  }, []);
 
   const handleConfirm = async () => {
     setSubmitError(null);
     setIsSubmitting(true);
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      const { data: { user } } = await supabase.auth.getUser();
       if (!user?.id) {
-        void recordBookingProgressEvent({
-          eventType: "auth_required_checkout_blocked",
-          currentStep: "review",
-          zip: state.zipcode ?? null,
-          serviceOptionKey: serviceOptionKeyFromBookingService(state.serviceType),
-        });
+        void recordBookingProgressEvent({ eventType: "auth_required_checkout_blocked", currentStep: "review", zip: state.zipcode ?? null, serviceOptionKey: serviceOptionKeyFromBookingService(state.serviceType) });
         throw new Error("Please sign in before payment so we can confirm your booking identity.");
       }
 
       const bookingId = await createVerifiedBooking(state);
-      if (serviceRelationshipId) {
-        await setMyBookingServiceRelationshipContext(bookingId, serviceRelationshipId);
-      }
+      if (serviceRelationshipId) await setMyBookingServiceRelationshipContext(bookingId, serviceRelationshipId);
+
+      const priorityMetadata = state.priorityRequested ? { service_priority: "urgent" } : {};
       void recordBookingProgressEvent({
         eventType: "booking_created_payment_not_started",
         currentStep: "review",
         bookingId,
         zip: state.zipcode ?? null,
         serviceOptionKey: serviceOptionKeyFromBookingService(state.serviceType),
-        metadata: serviceRelationshipId
-          ? { relationship_context: "customer_selected_existing_relationship" }
-          : undefined,
+        metadata: { ...priorityMetadata, ...(serviceRelationshipId ? { relationship_context: "customer_selected_existing_relationship" } : {}) },
       });
       void recordBookingProgressEvent({
         eventType: "checkout_started_payment_not_completed",
@@ -81,48 +75,23 @@ export function StepReview({ onBack }: StepReviewProps) {
         bookingId,
         zip: state.zipcode ?? null,
         serviceOptionKey: serviceOptionKeyFromBookingService(state.serviceType),
-        metadata: {
-          transport: "stripe_checkout_redirect",
-          location_precision: "verified_street_address",
-          ...(serviceRelationshipId ? { relationship_context: "customer_selected_existing_relationship" } : {}),
-        },
+        metadata: { transport: "stripe_checkout_redirect", location_precision: "verified_street_address", ...priorityMetadata, ...(serviceRelationshipId ? { relationship_context: "customer_selected_existing_relationship" } : {}) },
       });
+
       const { url } = await createBookingCheckoutSession(bookingId);
       window.location.assign(url);
     } catch (err) {
       const message = await checkoutErrorMessage(err);
-      if (
-        message.includes("PROVIDER_SUPPLY_BUILDING") ||
-        message.includes("MARKET_NOT_ACTIVE") ||
-        message.includes("UNSUPPORTED_SERVICE_AREA")
-      ) {
-        const activationReason = message.includes("PROVIDER_SUPPLY_BUILDING")
-          ? "provider_supply_building"
-          : message.includes("UNSUPPORTED_SERVICE_AREA")
-            ? "unsupported_service_area"
-            : "market_not_active";
-        void recordBookingProgressEvent({
-          eventType: "booking_created_payment_not_started",
-          currentStep: "review",
-          zip: state.zipcode ?? null,
-          serviceOptionKey: serviceOptionKeyFromBookingService(state.serviceType),
-          metadata: { checkout_block_reason: activationReason },
-        });
-        void supabase.auth.getUser().then(({ data: { user } }) => {
-          if (user?.id) emitBookingAbandoned(user.id, "review_checkout_blocked", 0);
-        });
+      if (message.includes("PROVIDER_SUPPLY_BUILDING") || message.includes("MARKET_NOT_ACTIVE") || message.includes("UNSUPPORTED_SERVICE_AREA")) {
+        const activationReason = message.includes("PROVIDER_SUPPLY_BUILDING") ? "provider_supply_building" : message.includes("UNSUPPORTED_SERVICE_AREA") ? "unsupported_service_area" : "market_not_active";
+        void recordBookingProgressEvent({ eventType: "booking_created_payment_not_started", currentStep: "review", zip: state.zipcode ?? null, serviceOptionKey: serviceOptionKeyFromBookingService(state.serviceType), metadata: { checkout_block_reason: activationReason } });
+        void supabase.auth.getUser().then(({ data: { user } }) => { if (user?.id) emitBookingAbandoned(user.id, "review_checkout_blocked", 0); });
       }
-      if (message.includes("PROVIDER_SUPPLY_BUILDING")) {
-        setSubmitError("No eligible Cleanr provider is available for this selected time. Choose another arrival window.");
-      } else if (message.includes("MARKET_NOT_ACTIVE")) {
-        setSubmitError("Booking is not open in this area yet. Check back soon.");
-      } else if (message.includes("UNSUPPORTED_SERVICE_AREA")) {
-        setSubmitError("Cleanr is not serving this ZIP yet.");
-      } else if (message.includes("invalid_service_relationship_context")) {
-        setSubmitError("This Cleanr relationship is no longer available for this booking. Choose a CSP again or continue without relationship context.");
-      } else {
-        setSubmitError(message);
-      }
+      if (message.includes("PROVIDER_SUPPLY_BUILDING")) setSubmitError("No Cleanr provider is available for this time. Choose another arrival window.");
+      else if (message.includes("MARKET_NOT_ACTIVE")) setSubmitError("Booking is not open in this area yet. Check back soon.");
+      else if (message.includes("UNSUPPORTED_SERVICE_AREA")) setSubmitError("Cleanr is not serving this ZIP yet.");
+      else if (message.includes("invalid_service_relationship_context")) setSubmitError("Your preferred cleaner is no longer available for this booking. Choose another option and try again.");
+      else setSubmitError(message);
     } finally {
       setIsSubmitting(false);
     }
@@ -130,32 +99,39 @@ export function StepReview({ onBack }: StepReviewProps) {
 
   return (
     <div className="space-y-4">
+      {state.priorityRequested ? (
+        <div className="rounded-2xl border border-[#F59E0B]/40 bg-[#FFFBEB] p-4">
+          <div className="flex items-start gap-3">
+            <div className="rounded-xl bg-[#FEF3C7] p-2 text-[#92400E]"><Zap className="h-4 w-4" /></div>
+            <div className="flex-1">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-sm font-semibold text-[#78350F]">Priority cleaning</p>
+                <span className="rounded-full bg-[#FEF3C7] px-2.5 py-1 text-[11px] font-semibold text-[#92400E]">+{Math.round(priorityRate * 100)}%</span>
+              </div>
+              <p className="mt-1 text-xs leading-5 text-[#92400E]">This is a short-notice booking. The priority charge will be included in the final total before you pay.</p>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {serviceRelationshipId ? (
         <div className="rounded-[14px] border border-[#BBF7D0] bg-[#F0FDF4] p-4">
-          <p className="text-[13px] font-semibold text-[#166534]">Continuing an established Cleanr relationship</p>
-          <p className="mt-1 text-[12px] leading-5 text-[#3F6212]">
-            This booking will carry the relationship you selected into checkout. That context preserves provenance and continuity; it does not bypass Cleanr fulfillment safeguards or create lock-in.
-          </p>
+          <p className="text-[13px] font-semibold text-[#166534]">Booking with your preferred cleaner</p>
+          <p className="mt-1 text-[12px] leading-5 text-[#3F6212]">We'll keep this relationship connected to the visit while still checking availability.</p>
         </div>
       ) : null}
 
       <div className="rounded-[14px] border border-[#E5E7EB] bg-white p-4 space-y-3 text-sm">
         <div>
           <p className="text-[12px] font-medium text-[#667085] uppercase">Service</p>
-          <p className="mt-1 text-[14px] font-medium text-[#0B1220]">
-            {state.serviceType ? customerFacingServiceLabel(state.serviceType) : "Not selected"}
-          </p>
+          <p className="mt-1 text-[14px] font-medium text-[#0B1220]">{state.serviceType ? customerFacingServiceLabel(state.serviceType) : "Not selected"}</p>
         </div>
 
         <div className="grid grid-cols-2 gap-3">
           <div>
             <p className="text-[12px] font-medium text-[#667085] uppercase">Home</p>
-            <p className="mt-1 text-[13px] font-medium text-[#0B1220]">
-              {state.homeDetails.bedrooms ?? "-"} bd • {state.homeDetails.bathrooms ?? "-"} ba
-            </p>
-            {state.homeDetails.sqft && (
-              <p className="text-[12px] font-medium text-[#667085]">Approx. {state.homeDetails.sqft} sq ft</p>
-            )}
+            <p className="mt-1 text-[13px] font-medium text-[#0B1220]">{state.homeDetails.bedrooms ?? "-"} bd • {state.homeDetails.bathrooms ?? "-"} ba</p>
+            {state.homeDetails.sqft ? <p className="text-[12px] font-medium text-[#667085]">Approx. {state.homeDetails.sqft} sq ft</p> : null}
           </div>
           <div>
             <p className="text-[12px] font-medium text-[#667085] uppercase">Frequency</p>
@@ -165,13 +141,7 @@ export function StepReview({ onBack }: StepReviewProps) {
 
         <div>
           <p className="text-[12px] font-medium text-[#667085] uppercase">Extras</p>
-          {state.extras.length === 0 ? (
-            <p className="mt-1 text-[13px] font-medium text-[#0B1220]">No add-ons selected.</p>
-          ) : (
-            <ul className="mt-1 text-[13px] font-medium text-[#0B1220] list-disc list-inside space-y-0.5">
-              {state.extras.map((extra) => <li key={extra}>{extra}</li>)}
-            </ul>
-          )}
+          <p className="mt-1 text-[13px] font-medium text-[#0B1220]">{state.extras.length ? state.extras.join(", ") : "No add-ons"}</p>
         </div>
 
         <div className="grid grid-cols-2 gap-3">
@@ -182,9 +152,7 @@ export function StepReview({ onBack }: StepReviewProps) {
           </div>
           <div>
             <p className="text-[12px] font-medium text-[#667085] uppercase">Where</p>
-            <p className="mt-1 text-[13px] font-medium text-[#0B1220] leading-5">
-              {state.serviceAddress.verified ? state.serviceAddress.formatted : "Address not verified"}
-            </p>
+            <p className="mt-1 text-[13px] font-medium text-[#0B1220] leading-5">{state.serviceAddress.verified ? state.serviceAddress.formatted : "Address not verified"}</p>
           </div>
         </div>
 
@@ -197,30 +165,14 @@ export function StepReview({ onBack }: StepReviewProps) {
       </div>
 
       {submitError ? <p className="text-[12px] font-medium text-red-500">{submitError}</p> : null}
-      {submitError?.toLowerCase().includes("sign in") ? (
-        <Button type="button" variant="secondary" size="md" fullWidth onClick={() => navigate("/signin")}>Sign in to continue</Button>
-      ) : null}
-      <p className="text-[12px] text-center text-[#667085]">
-        Final price and service-location eligibility are validated server-side before secure checkout.
-      </p>
+      {submitError?.toLowerCase().includes("sign in") ? <Button type="button" variant="secondary" size="md" fullWidth onClick={() => navigate("/signin")}>Sign in to continue</Button> : null}
 
-      <Button
-        type="button"
-        onClick={handleConfirm}
-        disabled={isSubmitting || !state.serviceAddress.verified}
-        loading={isSubmitting}
-        variant="primaryBlue"
-        size="lg"
-        fullWidth
-      >
+      <p className="text-[12px] text-center text-[#667085]">You'll see the final total in secure payment before you're charged.</p>
+      <Button type="button" onClick={handleConfirm} disabled={isSubmitting || !state.serviceAddress.verified} loading={isSubmitting} variant="primaryBlue" size="lg" fullWidth>
         {isSubmitting ? "Starting payment…" : "Continue to Secure Payment →"}
       </Button>
-
       <Button type="button" onClick={onBack} variant="secondary" size="lg" fullWidth>Back to make changes</Button>
-
-      <p className="text-[12px] font-medium text-center text-[#667085]">
-        By confirming, you agree to Cleanr&apos;s terms of service and cancellation policy.
-      </p>
+      <p className="text-[12px] font-medium text-center text-[#667085]">By confirming, you agree to Cleanr&apos;s terms of service and cancellation policy.</p>
     </div>
   );
 }
