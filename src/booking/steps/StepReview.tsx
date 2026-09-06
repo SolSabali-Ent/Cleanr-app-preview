@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useBooking } from "../bookingStore";
-import { createBooking, createBookingCheckoutSession } from "../../lib/bookingApi";
+import { createBookingCheckoutSession } from "../../lib/bookingApi";
+import { createVerifiedBooking } from "../../lib/verifiedBookingApi";
 import { setMyBookingServiceRelationshipContext } from "../../lib/bookingRelationshipApi";
 import { recordBookingProgressEvent, serviceOptionKeyFromBookingService } from "../../lib/bookingProgress";
 import { emitBookingAbandoned } from "../../lib/kinex/events";
@@ -60,7 +61,7 @@ export function StepReview({ onBack }: StepReviewProps) {
         throw new Error("Please sign in before payment so we can confirm your booking identity.");
       }
 
-      const bookingId = await createBooking(state);
+      const bookingId = await createVerifiedBooking(state);
       if (serviceRelationshipId) {
         await setMyBookingServiceRelationshipContext(bookingId, serviceRelationshipId);
       }
@@ -82,6 +83,7 @@ export function StepReview({ onBack }: StepReviewProps) {
         serviceOptionKey: serviceOptionKeyFromBookingService(state.serviceType),
         metadata: {
           transport: "stripe_checkout_redirect",
+          location_precision: "verified_street_address",
           ...(serviceRelationshipId ? { relationship_context: "customer_selected_existing_relationship" } : {}),
         },
       });
@@ -180,7 +182,9 @@ export function StepReview({ onBack }: StepReviewProps) {
           </div>
           <div>
             <p className="text-[12px] font-medium text-[#667085] uppercase">Where</p>
-            <p className="mt-1 text-[13px] font-medium text-[#0B1220]">Zip code {state.zipcode || "—"}</p>
+            <p className="mt-1 text-[13px] font-medium text-[#0B1220] leading-5">
+              {state.serviceAddress.verified ? state.serviceAddress.formatted : "Address not verified"}
+            </p>
           </div>
         </div>
 
@@ -197,10 +201,18 @@ export function StepReview({ onBack }: StepReviewProps) {
         <Button type="button" variant="secondary" size="md" fullWidth onClick={() => navigate("/signin")}>Sign in to continue</Button>
       ) : null}
       <p className="text-[12px] text-center text-[#667085]">
-        Final price is calculated and validated server-side before secure checkout.
+        Final price and service-location eligibility are validated server-side before secure checkout.
       </p>
 
-      <Button type="button" onClick={handleConfirm} disabled={isSubmitting} loading={isSubmitting} variant="primaryBlue" size="lg" fullWidth>
+      <Button
+        type="button"
+        onClick={handleConfirm}
+        disabled={isSubmitting || !state.serviceAddress.verified}
+        loading={isSubmitting}
+        variant="primaryBlue"
+        size="lg"
+        fullWidth
+      >
         {isSubmitting ? "Starting payment…" : "Continue to Secure Payment →"}
       </Button>
 
