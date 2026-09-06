@@ -4,6 +4,7 @@ import { ProviderContextProvider } from "../provider/ProviderContext";
 import { customerTheme } from "../theme/customerTheme";
 import { PageContainer } from "../components/shared/PageContainer";
 import { NotificationsSlot } from "../components/notifications/NotificationsSlot";
+import { CustomerBookingIssuePanel } from "../shell/components/CustomerBookingIssuePanel";
 
 /** Role context for customer: nav, tabs, headers. No role checks inside. */
 export function CustomerLayout() {
@@ -45,6 +46,7 @@ export function CustomerLayout() {
         <ProviderContextProvider>
           <main className="flex-1 pt-6">
             <Outlet />
+            <CustomerBookingIssuePanel />
           </main>
         </ProviderContextProvider>
       </PageContainer>

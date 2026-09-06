@@ -36,6 +36,11 @@ export interface Booking {
   provider_en_route_at?: string | null;
   provider_arrived_at?: string | null;
   provider_en_route_location_updated_at?: string | null;
+  service_finished_at?: string | null;
+  provider_departed_at?: string | null;
+  customer_confirmation_due_at?: string | null;
+  customer_confirmed_at?: string | null;
+  customer_confirmation_source?: "customer" | "auto_24h" | "admin_resolution" | null;
 
   // metadata
   price_cents: number;

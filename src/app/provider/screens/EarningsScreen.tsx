@@ -66,6 +66,31 @@ function earningsSubtitle(row: ProviderEarningsBookingRow): string {
   return `Booking …${suffix}`;
 }
 
+function payoutStatus(row: ProviderEarningsBookingRow, variant: "pending" | "paid") {
+  if (variant === "paid") {
+    return {
+      chip: "Paid",
+      detail: row.payout_released_at ? "Stripe transfer recorded" : "Payout released",
+    };
+  }
+  if (row.status === "completed_by_provider") {
+    return {
+      chip: "Waiting on customer",
+      detail: "Your service is complete. Customer confirmation is the next payout milestone.",
+    };
+  }
+  if (row.payout_approved_at) {
+    return {
+      chip: "Payout approved",
+      detail: "Cleanr approved this payout. Stripe transfer is the remaining release step.",
+    };
+  }
+  return {
+    chip: "Pending payout",
+    detail: "Service is confirmed and waiting on payout approval.",
+  };
+}
+
 function EarningsRow({
   row,
   variant,
@@ -74,7 +99,7 @@ function EarningsRow({
   variant: "pending" | "paid";
 }) {
   const cents = providerEarningCentsFromRow(row);
-  const chip = variant === "pending" ? "Pending payout" : "Paid";
+  const payout = payoutStatus(row, variant);
 
   return (
     <div
@@ -94,7 +119,7 @@ function EarningsRow({
             className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-xs font-medium shrink-0"
             style={{ color: CSP_TEXT_SECONDARY }}
           >
-            {chip}
+            {payout.chip}
           </span>
         </div>
         <p className="text-sm mt-0.5" style={{ color: CSP_TEXT_SECONDARY }}>
@@ -103,10 +128,13 @@ function EarningsRow({
         <p className="text-xs mt-1 font-mono opacity-80" style={{ color: CSP_TEXT_SECONDARY }}>
           {earningsSubtitle(row)}
         </p>
+        <p className="mt-2 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>
+          {payout.detail}
+        </p>
       </div>
       <div className="text-left sm:text-right shrink-0">
         <p className="text-xs" style={{ color: CSP_TEXT_SECONDARY }}>
-          Payout
+          {variant === "paid" ? "Paid" : "Expected payout"}
         </p>
         <p className="font-semibold text-lg" style={{ color: CSP_TEXT_PRIMARY }}>
           {formatUsdFromCents(cents)}

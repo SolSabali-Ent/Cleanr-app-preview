@@ -15,6 +15,7 @@ type BookingAuditRow = {
   payout_approved_at: string | null;
   payout_released: boolean | null;
   stripe_payment_intent_id: string | null;
+  stripe_transfer_id: string | null;
 };
 
 type ProviderOpsRow = {
@@ -94,6 +95,7 @@ export function OperationsDashboard() {
   const [bookingIdInput, setBookingIdInput] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [payoutAction, setPayoutAction] = useState<"approve" | "release" | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -103,7 +105,7 @@ export function OperationsDashboard() {
       supabase
         .from("bookings")
         .select(
-          "id,status,customer_id,provider_id,check_in_at,check_out_at,payout_approved_at,payout_released,stripe_payment_intent_id"
+          "id,status,customer_id,provider_id,check_in_at,check_out_at,payout_approved_at,payout_released,stripe_payment_intent_id,stripe_transfer_id"
         )
         .order("updated_at", { ascending: false })
         .limit(100),
@@ -187,15 +189,51 @@ export function OperationsDashboard() {
       return;
     }
     setMessage(null);
-    const { error } = await supabase.rpc("admin_approve_payout", {
-      p_booking_id: bookingIdInput.trim(),
-    });
-    if (error) {
-      setMessage(error.message);
+    setPayoutAction("approve");
+    try {
+      const { error } = await supabase.rpc("admin_approve_payout", {
+        p_booking_id: bookingIdInput.trim(),
+      });
+      if (error) {
+        setMessage(error.message);
+        return;
+      }
+      setMessage("Payout approved. Stripe transfer is still a separate action.");
+      await load();
+    } finally {
+      setPayoutAction(null);
+    }
+  };
+
+  const releasePayout = async () => {
+    if (!bookingIdInput.trim()) {
+      setMessage("Enter a booking id first.");
       return;
     }
-    setMessage("Payout approved. Release still requires Stripe transfer truth.");
-    await load();
+    setMessage(null);
+    setPayoutAction("release");
+    try {
+      const { data, error } = await supabase.functions.invoke("release-provider-payout", {
+        body: { booking_id: bookingIdInput.trim() },
+      });
+      if (error) {
+        setMessage(error.message || "Stripe payout release failed.");
+        return;
+      }
+      const result = data as { error?: string; detail?: string; transfer_id?: string; already_released?: boolean } | null;
+      if (result?.error) {
+        setMessage(result.detail ? `${result.error}: ${result.detail}` : result.error);
+        return;
+      }
+      setMessage(
+        result?.already_released
+          ? `Payout was already released${result.transfer_id ? ` · ${result.transfer_id}` : ""}.`
+          : `Stripe payout released${result?.transfer_id ? ` · ${result.transfer_id}` : ""}.`
+      );
+      await load();
+    } finally {
+      setPayoutAction(null);
+    }
   };
 
   const toggleMarketplace = async (provider: ProviderOpsRow) => {
@@ -329,7 +367,7 @@ export function OperationsDashboard() {
         </div>
       </section>
 
-      <Section title="Booking Audit & Payout Approval">
+      <Section title="Booking Audit & Payout Operations">
         <div className="flex flex-wrap gap-2">
           <input
             value={bookingIdInput}
@@ -340,15 +378,24 @@ export function OperationsDashboard() {
           />
           <button
             onClick={() => void approvePayout()}
-            className="min-h-[52px] rounded-[14px] px-6 text-xs font-semibold text-white"
+            disabled={payoutAction !== null}
+            className="min-h-[52px] rounded-[14px] px-6 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
             style={{ backgroundColor: adminTheme.primary }}
           >
-            Approve Payout
+            {payoutAction === "approve" ? "Approving…" : "Approve Payout"}
+          </button>
+          <button
+            onClick={() => void releasePayout()}
+            disabled={payoutAction !== null}
+            className="min-h-[52px] rounded-[14px] border px-6 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-50"
+            style={{ borderColor: adminTheme.primary, color: adminTheme.primary, backgroundColor: adminTheme.surface }}
+          >
+            {payoutAction === "release" ? "Sending…" : "Send Stripe Payout"}
           </button>
         </div>
 
         <p className="mt-2 text-xs" style={{ color: adminTheme.textSecondary }}>
-          Check-in and check-out are CSP service evidence and are not editable from this dashboard. Payout approval authorizes operations; release is shown only after Stripe transfer truth is recorded.
+          Check-in and check-out are CSP service evidence and are not editable here. Approval records the operator decision. Send Stripe Payout is allowed only after provider checkout, customer confirmation, captured payment, payout approval, and verified Stripe Connect setup. Payout is marked released only after a real Stripe transfer is created and recorded.
         </p>
 
         <div className="mt-3 overflow-x-auto">
@@ -379,13 +426,23 @@ export function OperationsDashboard() {
               ) : (
                 bookings.slice(0, 20).map((b) => {
                   const payoutState = b.payout_released
-                    ? "released"
+                    ? `released${b.stripe_transfer_id ? ` · ${b.stripe_transfer_id}` : ""}`
                     : b.payout_approved_at
-                      ? "approved"
+                      ? "approved · awaiting Stripe transfer"
                       : "held";
                   return (
                     <tr key={b.id} className="border-t border-slate-200">
-                      <td className="py-2">{b.id}</td>
+                      <td className="py-2">
+                        <button
+                          type="button"
+                          onClick={() => setBookingIdInput(b.id)}
+                          className="text-left font-mono text-xs underline"
+                          style={{ color: adminTheme.primary }}
+                          title="Use this booking for payout actions"
+                        >
+                          {b.id}
+                        </button>
+                      </td>
                       <td>{b.status}</td>
                       <td>{b.check_in_at ?? "—"}</td>
                       <td>{b.check_out_at ?? "—"}</td>

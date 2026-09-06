@@ -4,12 +4,12 @@ export type ProviderTravelState = {
   enRouteAt: string | null;
   trackingActive: boolean;
   lastLocationAt: string | null;
-  arrivedAt?: string | null;
-  distanceMeters?: number | null;
-  travelOpensAt?: string | null;
-  checkInOpensAt?: string | null;
-  travelWindowOpen?: boolean;
-  checkInWindowOpen?: boolean;
+  arrivedAt: string | null;
+  distanceMeters: number | null;
+  travelOpensAt: string | null;
+  checkInOpensAt: string | null;
+  travelWindowOpen: boolean;
+  checkInWindowOpen: boolean;
 };
 
 function asTravelState(data: unknown): ProviderTravelState {

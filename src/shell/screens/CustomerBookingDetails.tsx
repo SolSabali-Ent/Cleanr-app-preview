@@ -30,6 +30,14 @@ function formatTime(iso: string) {
   }
 }
 
+function formatDateTime(iso: string) {
+  try {
+    return new Date(iso).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+  } catch {
+    return iso;
+  }
+}
+
 function normalizeBookingAddress(address: unknown): string {
   if (typeof address === "string" && address.trim()) return address.trim();
   if (address && typeof address === "object") {
@@ -109,6 +117,11 @@ export function CustomerBookingDetails() {
       provider_en_route_at: (bookingRow.provider_en_route_at as string | null) ?? null,
       provider_arrived_at: (bookingRow.provider_arrived_at as string | null) ?? null,
       provider_en_route_location_updated_at: (bookingRow.provider_en_route_location_updated_at as string | null) ?? null,
+      service_finished_at: (bookingRow.service_finished_at as string | null) ?? null,
+      provider_departed_at: (bookingRow.provider_departed_at as string | null) ?? null,
+      customer_confirmation_due_at: (bookingRow.customer_confirmation_due_at as string | null) ?? null,
+      customer_confirmed_at: (bookingRow.customer_confirmed_at as string | null) ?? null,
+      customer_confirmation_source: (bookingRow.customer_confirmation_source as Booking["customer_confirmation_source"]) ?? null,
       price_cents: (bookingRow.price_cents as number) ?? 0,
       stripe_payment_intent_id: (bookingRow.stripe_payment_intent_id as string | null) ?? null,
       created_at: bookingRow.created_at as string,
@@ -121,8 +134,6 @@ export function CustomerBookingDetails() {
             service_radius_miles: (providerRow.service_radius_miles as number | null) ?? null,
             marketplace_access: (providerRow.marketplace_access as boolean | null) ?? null,
             created_at: (providerRow.created_at as string | null) ?? null,
-            avg_rating: (providerRow.avg_rating as number | null) ?? null,
-            review_count: (providerRow.review_count as number | null) ?? null,
             background_checked: (providerRow.background_checked as boolean | null) ?? null,
             insured: (providerRow.insured as boolean | null) ?? null,
             platform_verified: (providerRow.platform_verified as boolean | null) ?? null,
@@ -277,6 +288,9 @@ export function CustomerBookingDetails() {
             iconClassName: "text-sky-600",
           }
         : null;
+  const confirmationDeadline = booking.customer_confirmation_due_at
+    ? formatDateTime(booking.customer_confirmation_due_at)
+    : null;
 
   return (
     <div className="text-[#0B1220]">
@@ -382,8 +396,14 @@ export function CustomerBookingDetails() {
           <p className="section-label mb-2">Service completed</p>
           <p className="text-sm font-semibold text-[#0B1220]">Confirm this visit</p>
           <p className="mt-1 text-sm leading-6 text-[#667085]">
-            Your CSP marked the service complete. Confirming closes this transaction and leaves durable service history for the relationship. It does not create a trust score or lock you into this CSP.
+            {providerName}'s departure from the service area has been verified. You can confirm now, or Cleanr will automatically confirm after the 24-hour review window if no issue or dispute is open.
           </p>
+          {confirmationDeadline ? (
+            <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5">
+              <p className="text-xs font-semibold text-amber-900">Review window ends {confirmationDeadline}</p>
+              <p className="mt-1 text-xs leading-5 text-amber-800">If something is wrong with the visit, raise it before this window closes so automatic confirmation is held.</p>
+            </div>
+          ) : null}
           {confirmationError ? (
             <p className="mt-3 text-sm text-red-600" role="alert">{confirmationError}</p>
           ) : null}
@@ -411,6 +431,9 @@ export function CustomerBookingDetails() {
           >
             Confirm service completed
           </Button>
+          <Link to="/trust-safety" className="mt-3 inline-block text-xs font-semibold text-[#0A84FF] underline">
+            Something isn't right? Open Trust & Safety
+          </Link>
         </section>
       ) : null}
 
@@ -419,7 +442,9 @@ export function CustomerBookingDetails() {
           <p className="section-label mb-1">Relationship continuity</p>
           <p className="text-sm font-semibold text-[#0B1220]">This visit is now part of your shared service history.</p>
           <p className="mt-1 text-xs leading-5 text-[#667085]">
-            Future continuity can build from completed service without turning the relationship into ownership, exclusivity, or a hidden score.
+            {booking.customer_confirmation_source === "auto_24h"
+              ? "Cleanr automatically confirmed the service after the 24-hour review window closed without an open issue."
+              : "The completed service is confirmed and can now support future relationship continuity."}
           </p>
         </section>
       ) : null}
