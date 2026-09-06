@@ -84,7 +84,7 @@ export function CustomerProfile() {
             <MapPin className="w-4 h-4 text-[#8DCC64]" />
             <div>
               <p className="text-sm">Service addresses</p>
-              <p className="text-xs text-[#667085]">Locations are currently saved with each booking</p>
+              <p className="text-xs text-[#667085]">Your verified cleaning locations</p>
             </div>
           </div>
         </button>
