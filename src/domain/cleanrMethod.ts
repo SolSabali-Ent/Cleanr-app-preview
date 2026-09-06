@@ -1,9 +1,7 @@
 /**
  * Cleanr Method relationship practices for a residential visit.
  *
- * These are product-owned service principles, not AI orchestration, a friendliness script,
- * or a second cleaning checklist. They help a CSP use existing relationship and household
- * truth with care while leaving operational booking state untouched.
+ * Internal product logic can stay precise; anything shown to a CSP should use everyday language.
  */
 
 export type CleanrMethodVisitPracticeKey =
@@ -33,33 +31,33 @@ export function buildCleanrMethodVisitPractices(
   return [
     {
       key: "prepare",
-      label: "Prepare with context",
+      label: "Know what matters before you arrive",
       guidance: returning
         ? context.hasRememberedPreferences
-          ? "Review what this household chose to remember and what changed for this visit. Familiarity is useful; assumptions are not."
-          : "Review this visit before arrival and use prior service history as continuity, not as permission to assume nothing has changed."
-        : "Read this visit before arrival. Learn only what helps you serve well, and do not collect personal context you do not need.",
+          ? "Review the preferences this household chose to save and check what changed for this visit. Knowing the home helps, but do not assume everything is the same."
+          : "Review this visit and any past service notes before you arrive. Use them as a guide, and still pay attention to what is different today."
+        : "Read the visit details before you arrive. Learn only what helps you do the job well, and do not collect personal information you do not need.",
     },
     {
       key: "attune",
-      label: "Notice the household",
+      label: "Pay attention to the home",
       guidance: returning
-        ? "Respect established preferences while noticing what is different today. A strong relationship stays attentive instead of becoming automatic."
-        : "Establish the household's baseline: priorities, boundaries, and how they want the service relationship to work.",
+        ? "Respect the household's known preferences and notice what is different today. Familiarity should make you more attentive, not less."
+        : "Learn what matters to this household: their priorities, boundaries, and how they want the visit to go.",
     },
     {
       key: "communicate",
-      label: "Communicate before surprises",
+      label: "Speak up early",
       guidance: context.hasVisitSpecificUpdates
-        ? "Acknowledge material visit-specific changes before acting. If something is unclear or changes scope, ask early."
-        : "If something changes, is unclear, or could affect the result, communicate before it becomes a surprise.",
+        ? "Review any changes for this visit before you begin. If something is unclear or could change the job, ask before moving forward."
+        : "If something changes, is unclear, or could affect the result, communicate early instead of letting it become a surprise.",
     },
     {
       key: "close",
-      label: "Leave useful continuity",
+      label: "Leave helpful notes for next time",
       guidance: context.memoryEnabled
-        ? "Close clearly: what was completed, what genuinely matters next time, and what should remain visit-specific. Do not turn casual conversation into stored memory."
-        : "Close clearly: what was completed and anything the household should know. Do not create persistent memory without the household choosing it.",
+        ? "Be clear about what you completed and anything that would truly help on the next visit. Do not save personal details just because they came up in conversation."
+        : "Be clear about what you completed and anything the household should know. Only save ongoing preferences when the household has chosen to allow it.",
     },
   ];
 }
