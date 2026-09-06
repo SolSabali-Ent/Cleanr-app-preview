@@ -41,7 +41,13 @@ export default function CSPLogin() {
         return;
       }
 
-      navigate(resolveCspLoginNavigateTarget(), { replace: true });
+      const activeElement = document.activeElement;
+      if (activeElement instanceof HTMLElement) activeElement.blur();
+      window.scrollTo(0, 0);
+
+      // A full document navigation clears the iOS Safari visual-viewport offset left
+      // behind by the sign-in keyboard. SPA navigation can preserve that offset.
+      window.location.replace(resolveCspLoginNavigateTarget());
     } finally {
       setIsLoading(false);
     }

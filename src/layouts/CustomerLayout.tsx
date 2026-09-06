@@ -25,7 +25,7 @@ export function CustomerLayout() {
     >
       {isCustomerApp ? (
         <header
-          className="relative z-10 flex h-12 shrink-0 items-center justify-between border-b px-4"
+          className="sticky top-0 z-10 flex h-12 shrink-0 items-center justify-between border-b px-4"
           style={{
             backgroundColor: customerTheme.background,
             borderColor: "rgba(14, 18, 36, 0.08)",

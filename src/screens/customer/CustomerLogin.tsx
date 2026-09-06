@@ -18,6 +18,13 @@ function initialAuthNotice(searchParams: URLSearchParams): string | null {
   return null;
 }
 
+function replaceAfterAuth(destination: string) {
+  const activeElement = document.activeElement;
+  if (activeElement instanceof HTMLElement) activeElement.blur();
+  window.scrollTo(0, 0);
+  window.location.replace(destination);
+}
+
 export default function CustomerLogin() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -180,7 +187,7 @@ export default function CustomerLogin() {
         }
 
         if (data.session) {
-          navigate(hasReferral ? "/app/provider" : "/app", { replace: true });
+          replaceAfterAuth(hasReferral ? "/app/provider" : "/app");
           return;
         }
 
@@ -199,7 +206,9 @@ export default function CustomerLogin() {
         return;
       }
 
-      navigate(hasReferral ? "/app/provider" : "/dashboard", { replace: true });
+      // Use a full document navigation after authentication so iPhone Safari cannot
+      // carry the sign-in keyboard's visual-viewport offset into the app shell.
+      replaceAfterAuth(hasReferral ? "/app/provider" : "/dashboard");
     } finally {
       setIsLoading(false);
     }

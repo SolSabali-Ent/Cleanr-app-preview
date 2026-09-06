@@ -39,7 +39,7 @@ function ProviderLayoutInner() {
       ) : null}
       {showChrome ? (
         <header
-          className="relative z-10 flex h-12 shrink-0 items-center justify-between border-b border-white/10 px-4"
+          className="sticky top-0 z-10 flex h-12 shrink-0 items-center justify-between border-b border-white/10 px-4"
           style={{ backgroundColor: providerTheme.background }}
         >
           <img
