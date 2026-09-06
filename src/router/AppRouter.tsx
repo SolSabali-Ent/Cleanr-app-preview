@@ -42,6 +42,7 @@ import ContributionsScreen from "../app/provider/screens/ContributionsScreen";
 import MilestonesScreen from "../app/provider/screens/MilestonesScreen";
 import NetworkScreen from "../app/provider/screens/NetworkScreen";
 import ExistingClientsScreen from "../app/provider/screens/ExistingClientsScreen";
+import AffiliateScreen from "../app/provider/screens/AffiliateScreen";
 import FoundingCircleJoin from "../app/provider/screens/FoundingCircleJoin";
 import { CSP_GROWTH_ROUTES } from "../app/provider/growthRoutes";
 import { IncidentLog } from "../screens/provider/IncidentLog";
@@ -138,6 +139,7 @@ export function AppRouter() {
                 <Route path="jobs/:jobId/incident" element={<IncidentLog />} />
                 <Route path="calendar" element={<ProviderCalendar />} />
                 <Route path="earnings" element={<Earnings />} />
+                <Route path="affiliate" element={<AffiliateScreen />} />
                 <Route path="growth" element={<Navigate to={CSP_GROWTH_ROUTES.home} replace />} />
                 <Route path="growth/milestones" element={<Navigate to={CSP_GROWTH_ROUTES.milestones} replace />} />
                 <Route path="growth/capabilities" element={<Navigate to={CSP_GROWTH_ROUTES.capabilities} replace />} />
@@ -194,6 +196,7 @@ export function AppRouter() {
                 <Route path="jobs/:jobId/incident" element={<IncidentLog />} />
                 <Route path="calendar" element={<ProviderCalendar />} />
                 <Route path="earnings" element={<Earnings />} />
+                <Route path="affiliate" element={<AffiliateScreen />} />
                 <Route path="existing-clients" element={<ExistingClientsScreen />} />
                 <Route path="availability" element={<Availability />} />
                 <Route path="profile" element={<ProviderProfile />} />

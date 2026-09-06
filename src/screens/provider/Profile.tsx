@@ -8,7 +8,19 @@ export function Profile() {
 
   return (
     <>
-      <div className="px-4 pt-4" style={{ backgroundColor: "#0B1220" }}>
+      <div className="space-y-3 px-4 pt-4" style={{ backgroundColor: "#0B1220" }}>
+        <button
+          type="button"
+          onClick={() => navigate(cspRouteForContext(pathname, "/csp/dashboard/affiliate"))}
+          className="w-full rounded-2xl border px-4 py-3 text-left"
+          style={{ backgroundColor: "rgba(141,204,100,.08)", borderColor: "rgba(141,204,100,.22)", color: "#F8FAFC" }}
+        >
+          <p className="text-sm font-semibold">Share Cleanr & earn</p>
+          <p className="mt-1 text-xs leading-5" style={{ color: "#98A2B3" }}>
+            Invite new households to Cleanr. They get a first-clean credit; you earn when they complete service and keep using Cleanr.
+          </p>
+        </button>
+
         <button
           type="button"
           onClick={() => navigate(cspRouteForContext(pathname, "/csp/dashboard/existing-clients"))}

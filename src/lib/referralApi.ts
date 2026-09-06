@@ -2,9 +2,10 @@ import { supabase } from "./supabase";
 
 export type ReferralAttachResult = {
   attached: boolean;
-  kind?: "general" | "existing_client" | "affiliate";
+  kind?: "general" | "existing_client" | "affiliate" | "provider_affiliate";
   relationship_id?: string;
   provider_id?: string;
+  credit_cents?: number;
 };
 
 /**
@@ -41,6 +42,7 @@ export async function createExistingClientInvite(): Promise<{ id: string; code: 
  * - general: legacy one-to-one referral attribution
  * - existing_client: CSP/customer relationship provenance
  * - affiliate: reusable customer acquisition attribution
+ * - provider_affiliate: reusable CSP-led acquisition for a genuinely new Cleanr household
  */
 export async function attachRefereeByCode(code: string): Promise<ReferralAttachResult> {
   const { data, error } = await supabase.rpc("attach_referee_by_code", {
