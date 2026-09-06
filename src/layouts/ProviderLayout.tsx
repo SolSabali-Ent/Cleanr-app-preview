@@ -48,12 +48,11 @@ function ProviderLayoutInner() {
             backgroundColor: providerTheme.background,
           }}
         >
-          <span
-            aria-label="Cleanr"
-            className="select-none text-[34px] font-semibold leading-none tracking-[-0.06em] text-white"
-          >
-            cleanr
-          </span>
+          <img
+            src="/media/Cleanr_wordmark_white.png"
+            alt="Cleanr"
+            className="h-8 w-auto max-w-[160px] object-contain object-left"
+          />
           <NotificationsSlot variant="provider" />
         </header>
       ) : null}

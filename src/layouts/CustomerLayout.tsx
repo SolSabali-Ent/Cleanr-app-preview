@@ -35,13 +35,11 @@ export function CustomerLayout() {
             borderColor: "rgba(14, 18, 36, 0.08)",
           }}
         >
-          <span
-            aria-label="Cleanr"
-            className="select-none text-[34px] font-semibold leading-none tracking-[-0.06em]"
-            style={{ color: customerTheme.textPrimary }}
-          >
-            cleanr
-          </span>
+          <img
+            src="/media/Cleanr_wordmark_black.png"
+            alt="Cleanr"
+            className="h-8 w-auto max-w-[160px] object-contain object-left"
+          />
           <NotificationsSlot variant="customer" />
         </header>
       ) : null}
