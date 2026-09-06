@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { LogOut, HelpCircle, CreditCard, MapPin, MessageCircle, Share2 } from "lucide-react";
+import { LogOut, HelpCircle, CreditCard, MapPin, Share2, Zap } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useProfile } from "@/lib/useProfile";
 import { useSession } from "@/lib/useSession";
@@ -77,6 +77,19 @@ export function CustomerProfile() {
       </section>
 
       <section className="provider-card p-1 mb-3">
+        <button type="button" onClick={() => navigate("/book?priority=urgent")} className={actionRowClass}>
+          <div className="flex items-center gap-3">
+            <Zap className="w-4 h-4 text-[#B45309]" />
+            <div>
+              <div className="flex items-center gap-2">
+                <p className="text-sm font-medium">Priority cleaning</p>
+                <span className="rounded-full bg-[#FEF3C7] px-2 py-0.5 text-[10px] font-semibold text-[#92400E]">Short notice</span>
+              </div>
+              <p className="text-xs text-[#667085]">Need a cleaning sooner? Check priority availability.</p>
+            </div>
+          </div>
+        </button>
+        <div className="h-px bg-[#E5E7EB] mx-3" />
         <button type="button" onClick={() => navigate(route("/app/affiliate"))} className={actionRowClass}>
           <div className="flex items-center gap-3">
             <Share2 className="w-4 h-4 text-[#8DCC64]" />
@@ -92,17 +105,7 @@ export function CustomerProfile() {
             <HelpCircle className="w-4 h-4 text-[#8DCC64]" />
             <div>
               <p className="text-sm">Help &amp; safety</p>
-              <p className="text-xs text-[#667085]">Booking help, policies, and safety guidance</p>
-            </div>
-          </div>
-        </button>
-        <div className="h-px bg-[#E5E7EB] mx-3" />
-        <button type="button" onClick={() => navigate(route("/app/emergency"))} className={actionRowClass}>
-          <div className="flex items-center gap-3">
-            <MessageCircle className="w-4 h-4 text-[#8DCC64]" />
-            <div>
-              <p className="text-sm">Urgent booking help</p>
-              <p className="text-xs text-[#667085]">For urgent issues tied to an active cleaning</p>
+              <p className="text-xs text-[#667085]">Booking help, policies, and active-cleaning support</p>
             </div>
           </div>
         </button>
