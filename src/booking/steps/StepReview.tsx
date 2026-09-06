@@ -13,6 +13,28 @@ interface StepReviewProps {
   onBack: () => void;
 }
 
+async function checkoutErrorMessage(err: unknown): Promise<string> {
+  const fallback = err instanceof Error ? err.message : "We couldn't start payment. Please try again.";
+  const context = (err as { context?: unknown } | null)?.context;
+
+  if (context instanceof Response) {
+    try {
+      const payload = (await context.clone().json()) as { error?: unknown; message?: unknown } | null;
+      const message = payload?.error ?? payload?.message;
+      if (typeof message === "string" && message.trim()) return message.trim();
+    } catch {
+      try {
+        const text = await context.clone().text();
+        if (text.trim()) return text.trim();
+      } catch {
+        // Fall through to the Supabase client message.
+      }
+    }
+  }
+
+  return fallback;
+}
+
 export function StepReview({ onBack }: StepReviewProps) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -52,8 +74,6 @@ export function StepReview({ onBack }: StepReviewProps) {
           ? { relationship_context: "customer_selected_existing_relationship" }
           : undefined,
       });
-      // Durable booking_created Kinex truth is emitted by the booking insert outbox trigger.
-      // This screen records funnel/navigation progress only; it does not author product truth.
       void recordBookingProgressEvent({
         eventType: "checkout_started_payment_not_completed",
         currentStep: "review",
@@ -68,7 +88,7 @@ export function StepReview({ onBack }: StepReviewProps) {
       const { url } = await createBookingCheckoutSession(bookingId);
       window.location.assign(url);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "We couldn't start payment. Please try again.";
+      const message = await checkoutErrorMessage(err);
       if (
         message.includes("PROVIDER_SUPPLY_BUILDING") ||
         message.includes("MARKET_NOT_ACTIVE") ||
@@ -87,13 +107,11 @@ export function StepReview({ onBack }: StepReviewProps) {
           metadata: { checkout_block_reason: activationReason },
         });
         void supabase.auth.getUser().then(({ data: { user } }) => {
-          if (user?.id) {
-            emitBookingAbandoned(user.id, "review_checkout_blocked", 0);
-          }
+          if (user?.id) emitBookingAbandoned(user.id, "review_checkout_blocked", 0);
         });
       }
       if (message.includes("PROVIDER_SUPPLY_BUILDING")) {
-        setSubmitError("Cleanr providers are being added in your area. Booking is not open here yet.");
+        setSubmitError("No eligible Cleanr provider is available for this selected time. Choose another arrival window.");
       } else if (message.includes("MARKET_NOT_ACTIVE")) {
         setSubmitError("Booking is not open in this area yet. Check back soon.");
       } else if (message.includes("UNSUPPORTED_SERVICE_AREA")) {
@@ -121,9 +139,7 @@ export function StepReview({ onBack }: StepReviewProps) {
 
       <div className="rounded-[14px] border border-[#E5E7EB] bg-white p-4 space-y-3 text-sm">
         <div>
-          <p className="text-[12px] font-medium text-[#667085] uppercase">
-            Service
-          </p>
+          <p className="text-[12px] font-medium text-[#667085] uppercase">Service</p>
           <p className="mt-1 text-[14px] font-medium text-[#0B1220]">
             {state.serviceType ? customerFacingServiceLabel(state.serviceType) : "Not selected"}
           </p>
@@ -131,113 +147,67 @@ export function StepReview({ onBack }: StepReviewProps) {
 
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <p className="text-[12px] font-medium text-[#667085] uppercase">
-              Home
-            </p>
+            <p className="text-[12px] font-medium text-[#667085] uppercase">Home</p>
             <p className="mt-1 text-[13px] font-medium text-[#0B1220]">
-              {state.homeDetails.bedrooms ?? "-"} bd •{" "}
-              {state.homeDetails.bathrooms ?? "-"} ba
+              {state.homeDetails.bedrooms ?? "-"} bd • {state.homeDetails.bathrooms ?? "-"} ba
             </p>
             {state.homeDetails.sqft && (
-              <p className="text-[12px] font-medium text-[#667085]">
-                Approx. {state.homeDetails.sqft} sq ft
-              </p>
+              <p className="text-[12px] font-medium text-[#667085]">Approx. {state.homeDetails.sqft} sq ft</p>
             )}
           </div>
-
           <div>
-            <p className="text-[12px] font-medium text-[#667085] uppercase">
-              Frequency
-            </p>
-            <p className="mt-1 text-[13px] font-medium text-[#0B1220]">
-              {state.frequency ?? "One-time"}
-            </p>
+            <p className="text-[12px] font-medium text-[#667085] uppercase">Frequency</p>
+            <p className="mt-1 text-[13px] font-medium text-[#0B1220]">{state.frequency ?? "One-time"}</p>
           </div>
         </div>
 
         <div>
-          <p className="text-[12px] font-medium text-[#667085] uppercase">
-            Extras
-          </p>
+          <p className="text-[12px] font-medium text-[#667085] uppercase">Extras</p>
           {state.extras.length === 0 ? (
             <p className="mt-1 text-[13px] font-medium text-[#0B1220]">No add-ons selected.</p>
           ) : (
             <ul className="mt-1 text-[13px] font-medium text-[#0B1220] list-disc list-inside space-y-0.5">
-              {state.extras.map((extra) => (
-                <li key={extra}>{extra}</li>
-              ))}
+              {state.extras.map((extra) => <li key={extra}>{extra}</li>)}
             </ul>
           )}
         </div>
 
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <p className="text-[12px] font-medium text-[#667085] uppercase">
-              When
-            </p>
-            <p className="mt-1 text-[13px] font-medium text-[#0B1220]">
-              {state.date ?? "Date not set"}
-            </p>
-            <p className="text-[12px] font-medium text-[#667085]">
-              {state.time ?? "Time window not set"}
-            </p>
+            <p className="text-[12px] font-medium text-[#667085] uppercase">When</p>
+            <p className="mt-1 text-[13px] font-medium text-[#0B1220]">{state.date ?? "Date not set"}</p>
+            <p className="text-[12px] font-medium text-[#667085]">{state.time ?? "Time window not set"}</p>
           </div>
-
           <div>
-            <p className="text-[12px] font-medium text-[#667085] uppercase">
-              Where
-            </p>
-            <p className="mt-1 text-[13px] font-medium text-[#0B1220]">
-              Zip code {state.zipcode || "—"}
-            </p>
+            <p className="text-[12px] font-medium text-[#667085] uppercase">Where</p>
+            <p className="mt-1 text-[13px] font-medium text-[#0B1220]">Zip code {state.zipcode || "—"}</p>
           </div>
         </div>
 
         <div>
-          <p className="text-[12px] font-medium text-[#667085] uppercase">
-            Contact
-          </p>
-          <p className="mt-1 text-[13px] font-medium text-[#0B1220]">
-            {state.contact.name || "Name not set"}
-          </p>
-          <p className="text-[12px] font-medium text-[#667085]">
-            {state.contact.email || "Email not set"}
-          </p>
-          <p className="text-[12px] font-medium text-[#667085]">
-            {state.contact.phone || "Phone not set"}
-          </p>
+          <p className="text-[12px] font-medium text-[#667085] uppercase">Contact</p>
+          <p className="mt-1 text-[13px] font-medium text-[#0B1220]">{state.contact.name || "Name not set"}</p>
+          <p className="text-[12px] font-medium text-[#667085]">{state.contact.email || "Email not set"}</p>
+          <p className="text-[12px] font-medium text-[#667085]">{state.contact.phone || "Phone not set"}</p>
         </div>
       </div>
 
       {submitError ? <p className="text-[12px] font-medium text-red-500">{submitError}</p> : null}
       {submitError?.toLowerCase().includes("sign in") ? (
-        <Button type="button" variant="secondary" size="md" fullWidth onClick={() => navigate("/signin")}>
-          Sign in to continue
-        </Button>
+        <Button type="button" variant="secondary" size="md" fullWidth onClick={() => navigate("/signin")}>Sign in to continue</Button>
       ) : null}
       <p className="text-[12px] text-center text-[#667085]">
         Final price is calculated and validated server-side before secure checkout.
       </p>
 
-      <Button
-        type="button"
-        onClick={handleConfirm}
-        disabled={isSubmitting}
-        loading={isSubmitting}
-        variant="primaryBlue"
-        size="lg"
-        fullWidth
-      >
+      <Button type="button" onClick={handleConfirm} disabled={isSubmitting} loading={isSubmitting} variant="primaryBlue" size="lg" fullWidth>
         {isSubmitting ? "Starting payment…" : "Continue to Secure Payment →"}
       </Button>
 
-      <Button type="button" onClick={onBack} variant="secondary" size="lg" fullWidth>
-        Back to make changes
-      </Button>
+      <Button type="button" onClick={onBack} variant="secondary" size="lg" fullWidth>Back to make changes</Button>
 
       <p className="text-[12px] font-medium text-center text-[#667085]">
-        By confirming, you agree to Cleanr&apos;s terms of service and
-        cancellation policy.
+        By confirming, you agree to Cleanr&apos;s terms of service and cancellation policy.
       </p>
     </div>
   );
