@@ -249,6 +249,16 @@ export async function getBooking(bookingId: string): Promise<Booking | null> {
   } as Booking;
 }
 
+/** Purpose-limited identity: assigned CSP gets only this booking customer's display name. */
+export async function getAssignedBookingCustomerDisplayName(bookingId: string): Promise<string | null> {
+  const { data, error } = await supabase.rpc("get_booking_customer_display_name", {
+    p_booking_id: bookingId,
+  });
+  if (error) return null;
+  const name = typeof data === "string" ? data.trim() : "";
+  return name || null;
+}
+
 function rowToBooking(row: Record<string, unknown>): Booking {
   const providerRow =
     row.provider && typeof row.provider === "object"
@@ -418,54 +428,15 @@ export async function acceptBookingAsProvider(bookingId: string): Promise<Bookin
     p_booking_id: bookingId,
   });
   if (error) throw error;
-  if (!data) throw new Error("No booking returned");
-  return rowToBooking(data as Record<string, unknown>);
+  return data as Booking;
 }
 
-export async function startBookingAsProvider(bookingId: string): Promise<Booking> {
-  const { data, error } = await supabase.rpc("start_booking_as_provider", {
-    p_booking_id: bookingId,
-  });
-  if (error) throw error;
-  if (!data) throw new Error("No booking returned");
-  return rowToBooking(data as Record<string, unknown>);
-}
-
-export async function completeBookingAsProvider(bookingId: string): Promise<Booking> {
-  const { data, error } = await supabase.rpc("complete_booking_as_provider", {
-    p_booking_id: bookingId,
-  });
-  if (error) throw error;
-  if (!data) throw new Error("No booking returned");
-  return rowToBooking(data as Record<string, unknown>);
-}
-
-export async function checkInBookingAsProvider(
-  bookingId: string,
-  lat: number,
-  lon: number
-): Promise<Booking> {
+export async function checkInBookingAsProvider(bookingId: string, lat: number, lon: number): Promise<Booking> {
   const { data, error } = await supabase.rpc("check_in_booking_as_provider", {
     p_booking_id: bookingId,
     p_lat: lat,
     p_lon: lon,
   });
   if (error) throw error;
-  if (!data) throw new Error("No booking returned");
-  return rowToBooking(data as Record<string, unknown>);
-}
-
-export async function checkOutBookingAsProvider(
-  bookingId: string,
-  lat: number,
-  lon: number
-): Promise<Booking> {
-  const { data, error } = await supabase.rpc("check_out_booking_as_provider", {
-    p_booking_id: bookingId,
-    p_lat: lat,
-    p_lon: lon,
-  });
-  if (error) throw error;
-  if (!data) throw new Error("No booking returned");
-  return rowToBooking(data as Record<string, unknown>);
+  return data as Booking;
 }
