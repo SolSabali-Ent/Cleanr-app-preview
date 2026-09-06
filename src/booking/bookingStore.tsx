@@ -34,6 +34,7 @@ export interface BookingState {
   extras: string[];
   date: string | null;
   time: string | null;
+  priorityRequested: boolean;
   contact: ContactInfo;
 }
 
@@ -68,6 +69,7 @@ const initialState: BookingState = {
   extras: [],
   date: null,
   time: null,
+  priorityRequested: false,
   contact: {
     name: "",
     email: "",
@@ -108,15 +110,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <BookingContext.Provider
-      value={{
-        state,
-        update,
-        updateHomeDetails,
-        toggleExtra,
-        reset,
-      }}
-    >
+    <BookingContext.Provider value={{ state, update, updateHomeDetails, toggleExtra, reset }}>
       {children}
     </BookingContext.Provider>
   );
@@ -124,8 +118,6 @@ export function BookingProvider({ children }: { children: ReactNode }) {
 
 export function useBooking() {
   const ctx = useContext(BookingContext);
-  if (!ctx) {
-    throw new Error("useBooking must be used within BookingProvider");
-  }
+  if (!ctx) throw new Error("useBooking must be used within BookingProvider");
   return ctx;
 }
