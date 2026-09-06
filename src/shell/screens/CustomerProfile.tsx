@@ -83,8 +83,8 @@ export function CustomerProfile() {
           <div className="flex items-center gap-3">
             <MapPin className="w-4 h-4 text-[#8DCC64]" />
             <div>
-              <p className="text-sm">Service addresses</p>
-              <p className="text-xs text-[#667085]">Your verified cleaning locations</p>
+              <p className="text-sm">Your places</p>
+              <p className="text-xs text-[#667085]">Homes you can book and pay for</p>
             </div>
           </div>
         </button>
