@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Compass, Handshake } from "lucide-react";
+import { ArrowRight, BriefcaseBusiness, CalendarClock, Compass, Handshake } from "lucide-react";
 import { findAvailableJobsForProvider, listMyJobsAsProvider, type AvailableJob } from "../../../lib/bookingApi";
 import type { Booking } from "../../../domain/booking";
 import { useStableSessionProfile } from "@/hooks/useStableSessionProfile";
@@ -37,6 +37,15 @@ function formatDistance(meters: number | undefined): string {
   if (meters == null) return "Distance unavailable";
   const miles = meters / 1609.34;
   return `${miles.toFixed(1)} mi away`;
+}
+
+function readableJobStatus(status: string | null | undefined): string {
+  if (!status) return "Scheduled";
+  const normalized = status.toLowerCase();
+  if (normalized === "en_route") return "On the way";
+  if (normalized === "in_progress") return "In progress";
+  if (normalized === "accepted") return "Scheduled";
+  return normalized.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
 export default function TodayScreen() {
@@ -91,6 +100,15 @@ export default function TodayScreen() {
     ];
   }, [displayProfile]);
 
+  const activeJobs = useMemo(() => {
+    const hiddenStatuses = new Set(["confirmed", "cancelled", "canceled", "completed", "completed_by_provider", "disputed", "refunded"]);
+    return [...myJobs]
+      .filter((job) => !hiddenStatuses.has(String(job.status ?? "").toLowerCase()))
+      .sort((a, b) => new Date(a.scheduled_start).getTime() - new Date(b.scheduled_start).getTime());
+  }, [myJobs]);
+
+  const nextJob = activeJobs[0] ?? null;
+
   useEffect(() => {
     if (!import.meta.env.DEV) return;
     if (showInitialBlocking) console.info("[today-screen] render initial loading");
@@ -126,22 +144,15 @@ export default function TodayScreen() {
         padding: CSP_CARD_PADDING,
       }}
     >
-      <div className="flex items-start gap-3">
-        <div
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
-          style={{ backgroundColor: `${CSP_PRIMARY_BUTTON}20` }}
-        >
+      <div className="flex items-center gap-3">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl" style={{ backgroundColor: `${CSP_PRIMARY_BUTTON}20` }}>
           <Handshake size={20} style={{ color: CSP_PRIMARY_BUTTON }} />
         </div>
-        <div className="flex-1">
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-sm font-semibold">Bring an existing client</p>
-            <span className="text-xs font-medium" style={{ color: CSP_PRIMARY_BUTTON }}>Start →</span>
-          </div>
-          <p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>
-            Already clean for a household you trust? Invite them to continue that real relationship through Cleanr. They choose whether to connect, and Cleanr preserves the relationship without inventing past bookings or locking either of you in.
-          </p>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold">Bring a client you already work with</p>
+          <p className="mt-1 text-xs" style={{ color: CSP_TEXT_SECONDARY }}>Invite an existing household to use Cleanr with you.</p>
         </div>
+        <ArrowRight size={17} className="shrink-0" style={{ color: CSP_PRIMARY_BUTTON }} />
       </div>
     </button>
   );
@@ -199,74 +210,108 @@ export default function TodayScreen() {
       ) : (
         <>
           <header style={{ marginBottom: CSP_SECTION_GAP }}>
-            <h1 className="text-2xl font-semibold">You&apos;re live in the marketplace.</h1>
-            <p className="text-sm mt-2" style={{ color: CSP_TEXT_SECONDARY }}>
-              Build a reliable service practice, create repeat household relationships, and choose work that fits your life.
-            </p>
+            <h1 className="text-2xl font-semibold">Home</h1>
+            <p className="mt-1 text-sm" style={{ color: CSP_TEXT_SECONDARY }}>Your work at a glance.</p>
           </header>
 
           <section style={{ marginBottom: CSP_SECTION_GAP }}>
-            {existingClientAction}
-          </section>
-
-          <section style={{ marginBottom: CSP_SECTION_GAP }}>
-            <button type="button" onClick={() => navigate(CSP_GROWTH_ROUTES.home)} className="w-full rounded-2xl border text-left transition-opacity hover:opacity-90" style={{ backgroundColor: "rgba(141, 204, 100, 0.08)", borderColor: "rgba(141, 204, 100, 0.24)", padding: CSP_CARD_PADDING }}>
-              <div className="flex items-start gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl" style={{ backgroundColor: `${CSP_PRIMARY_BUTTON}20` }}><Compass size={20} style={{ color: CSP_PRIMARY_BUTTON }} /></div>
-                <div className="flex-1">
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="text-sm font-semibold">Your North Star</p>
-                    <span className="text-xs font-medium" style={{ color: CSP_PRIMARY_BUTTON }}>Explore →</span>
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <h2 className="text-sm font-medium" style={{ color: CSP_TEXT_SECONDARY }}>Next visit</h2>
+              <button type="button" onClick={() => navigate("/csp/dashboard/jobs")} className="text-xs font-semibold" style={{ color: CSP_PRIMARY_BUTTON }}>All jobs</button>
+            </div>
+            {loading ? (
+              <div className="rounded-2xl border" style={{ backgroundColor: CSP_SURFACE, borderColor: "rgba(248, 250, 252, 0.08)", padding: CSP_CARD_PADDING }}>
+                <p className="text-sm" style={{ color: CSP_TEXT_SECONDARY }}>Loading your schedule...</p>
+              </div>
+            ) : nextJob ? (
+              <button
+                type="button"
+                onClick={() => navigate(`/csp/dashboard/jobs/${nextJob.id}`)}
+                className="w-full rounded-2xl border text-left transition-opacity hover:opacity-90"
+                style={{ backgroundColor: CSP_SURFACE, borderColor: "rgba(248, 250, 252, 0.08)", padding: CSP_CARD_PADDING }}
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-base font-semibold">{formatDateTime(nextJob.scheduled_start)}</p>
+                    <p className="mt-1 text-xs" style={{ color: CSP_TEXT_SECONDARY }}>{readableJobStatus(nextJob.status)}</p>
                   </div>
-                  <p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>
-                    Your service practice can be the destination or the engine for something else. Define what matters to you and let Cleanr help connect the work, capabilities, relationships, and opportunities that can move it forward.
-                  </p>
+                  <ArrowRight size={18} className="mt-1 shrink-0" style={{ color: CSP_PRIMARY_BUTTON }} />
                 </div>
+              </button>
+            ) : (
+              <div className="rounded-2xl border" style={{ backgroundColor: CSP_SURFACE, borderColor: "rgba(248, 250, 252, 0.08)", padding: CSP_CARD_PADDING }}>
+                <p className="text-sm font-medium">No scheduled visits right now.</p>
+                <button type="button" onClick={() => navigate("/csp/dashboard/jobs")} className="mt-2 text-xs font-semibold" style={{ color: CSP_PRIMARY_BUTTON }}>See available jobs →</button>
               </div>
-            </button>
-          </section>
-
-          <section style={{ marginBottom: CSP_SECTION_GAP }}>
-            <button
-              type="button"
-              onClick={() => navigate("/csp/dashboard/calendar?tab=availability")}
-              className="w-full rounded-2xl border text-left transition-opacity hover:opacity-90"
-              style={{ backgroundColor: CSP_SURFACE, borderColor: "rgba(248, 250, 252, 0.08)", padding: CSP_CARD_PADDING }}
-            >
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-sm font-medium">Availability</p>
-                  <p className="mt-2 text-xs" style={{ color: CSP_TEXT_SECONDARY }}>
-                    Set weekly hours, block time, and keep your schedule current.
-                  </p>
-                </div>
-                <span className="text-xs font-semibold" style={{ color: CSP_PRIMARY_BUTTON }}>Manage →</span>
-              </div>
-            </button>
-          </section>
-
-          <section style={{ marginBottom: CSP_SECTION_GAP }}>
-            <h2 className="text-sm font-medium mb-3" style={{ color: CSP_TEXT_SECONDARY }}>Available Jobs</h2>
-            {loading ? <p className="text-sm" style={{ color: CSP_TEXT_SECONDARY }}>Loading available jobs...</p> : error ? <p className="text-sm text-red-300">{error}</p> : availableJobs.length === 0 ? <p className="text-sm" style={{ color: CSP_TEXT_SECONDARY }}>No jobs near your service radius right now.</p> : (
-              <div className="space-y-3">{availableJobs.slice(0, 3).map((job) => (
-                <button key={job.id} type="button" onClick={() => navigate(`/csp/dashboard/jobs/${job.id}`)} className="w-full rounded-2xl border text-left" style={{ backgroundColor: CSP_SURFACE, borderColor: "rgba(248, 250, 252, 0.08)", padding: CSP_CARD_PADDING }}>
-                  <p className="font-medium">{formatDistance(job.distance_meters)}</p>
-                  <p className="text-sm mt-1" style={{ color: CSP_TEXT_SECONDARY }}>{formatDateTime(job.scheduled_start)}</p>
-                  <p className="text-sm" style={{ color: CSP_TEXT_SECONDARY }}>${(job.price_cents / 100).toFixed(0)}</p>
-                </button>
-              ))}</div>
             )}
           </section>
 
           <section style={{ marginBottom: CSP_SECTION_GAP }}>
-            <h2 className="text-sm font-medium mb-3" style={{ color: CSP_TEXT_SECONDARY }}>My Jobs</h2>
-            <p className="text-sm" style={{ color: CSP_TEXT_SECONDARY }}>{myJobs.length} assigned jobs in your queue.</p>
+            <h2 className="mb-3 text-sm font-medium" style={{ color: CSP_TEXT_SECONDARY }}>Work</h2>
+            <div className="grid grid-cols-2 gap-3">
+              <button type="button" onClick={() => navigate("/csp/dashboard/jobs")} className="rounded-2xl border p-4 text-left" style={{ backgroundColor: CSP_SURFACE, borderColor: "rgba(248, 250, 252, 0.08)" }}>
+                <BriefcaseBusiness size={19} style={{ color: CSP_PRIMARY_BUTTON }} />
+                <p className="mt-3 text-xl font-semibold">{loading ? "—" : activeJobs.length}</p>
+                <p className="mt-1 text-xs" style={{ color: CSP_TEXT_SECONDARY }}>Your jobs</p>
+              </button>
+              <button type="button" onClick={() => navigate("/csp/dashboard/jobs")} className="rounded-2xl border p-4 text-left" style={{ backgroundColor: CSP_SURFACE, borderColor: "rgba(248, 250, 252, 0.08)" }}>
+                <Compass size={19} style={{ color: CSP_PRIMARY_BUTTON }} />
+                <p className="mt-3 text-xl font-semibold">{loading ? "—" : availableJobs.length}</p>
+                <p className="mt-1 text-xs" style={{ color: CSP_TEXT_SECONDARY }}>Available nearby</p>
+              </button>
+            </div>
           </section>
-          <section>
-            <h2 className="text-sm font-medium mb-3" style={{ color: CSP_TEXT_SECONDARY }}>Today</h2>
-            <p className="text-sm leading-6" style={{ color: CSP_TEXT_SECONDARY }}>
-              Reliability compounds. Show up prepared, communicate early, learn the household, and let each good visit make the next one easier.
-            </p>
+
+          {error ? (
+            <section style={{ marginBottom: CSP_SECTION_GAP }}>
+              <div className="rounded-2xl border border-red-400/20 bg-red-400/5 px-4 py-3 text-sm text-red-200">{error}</div>
+            </section>
+          ) : availableJobs.length > 0 ? (
+            <section style={{ marginBottom: CSP_SECTION_GAP }}>
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <h2 className="text-sm font-medium" style={{ color: CSP_TEXT_SECONDARY }}>Available near you</h2>
+                <button type="button" onClick={() => navigate("/csp/dashboard/jobs")} className="text-xs font-semibold" style={{ color: CSP_PRIMARY_BUTTON }}>View all</button>
+              </div>
+              <div className="space-y-2">
+                {availableJobs.slice(0, 2).map((job) => (
+                  <button key={job.id} type="button" onClick={() => navigate(`/csp/dashboard/jobs/${job.id}`)} className="flex w-full items-center justify-between gap-4 rounded-2xl border px-4 py-3 text-left" style={{ backgroundColor: CSP_SURFACE, borderColor: "rgba(248, 250, 252, 0.08)" }}>
+                    <div>
+                      <p className="text-sm font-medium">{formatDateTime(job.scheduled_start)}</p>
+                      <p className="mt-1 text-xs" style={{ color: CSP_TEXT_SECONDARY }}>{formatDistance(job.distance_meters)}</p>
+                    </div>
+                    <ArrowRight size={17} className="shrink-0" style={{ color: CSP_PRIMARY_BUTTON }} />
+                  </button>
+                ))}
+              </div>
+            </section>
+          ) : null}
+
+          <section style={{ marginBottom: CSP_SECTION_GAP }}>
+            <h2 className="mb-3 text-sm font-medium" style={{ color: CSP_TEXT_SECONDARY }}>Quick actions</h2>
+            <div className="overflow-hidden rounded-2xl border" style={{ backgroundColor: CSP_SURFACE, borderColor: "rgba(248, 250, 252, 0.08)" }}>
+              <button type="button" onClick={() => navigate("/csp/dashboard/calendar?tab=availability")} className="flex w-full items-center gap-3 px-4 py-4 text-left">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl" style={{ backgroundColor: `${CSP_PRIMARY_BUTTON}18` }}><CalendarClock size={18} style={{ color: CSP_PRIMARY_BUTTON }} /></div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium">Availability</p>
+                  <p className="mt-0.5 text-xs" style={{ color: CSP_TEXT_SECONDARY }}>Update when you want to work</p>
+                </div>
+                <ArrowRight size={16} className="shrink-0" style={{ color: CSP_TEXT_SECONDARY }} />
+              </button>
+              <div className="border-t border-white/10" />
+              <button type="button" onClick={() => navigate(CSP_GROWTH_ROUTES.home)} className="flex w-full items-center gap-3 px-4 py-4 text-left">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl" style={{ backgroundColor: `${CSP_PRIMARY_BUTTON}18` }}><Compass size={18} style={{ color: CSP_PRIMARY_BUTTON }} /></div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium">Growth</p>
+                  <p className="mt-0.5 text-xs" style={{ color: CSP_TEXT_SECONDARY }}>Goals, progress, and opportunities</p>
+                </div>
+                <ArrowRight size={16} className="shrink-0" style={{ color: CSP_TEXT_SECONDARY }} />
+              </button>
+            </div>
+          </section>
+
+          <section style={{ marginBottom: CSP_SECTION_GAP }}>
+            <h2 className="mb-3 text-sm font-medium" style={{ color: CSP_TEXT_SECONDARY }}>Build your practice</h2>
+            {existingClientAction}
           </section>
         </>
       )}
