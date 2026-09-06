@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 import { supabase, isOfflinePreviewMode } from "@/lib/supabase";
 import { useSession } from "@/lib/useSession";
 import { attachRefereeByCode } from "@/lib/referralApi";
@@ -7,6 +7,7 @@ import { getStoredReferralCode, clearStoredReferralCode } from "@/lib/referralRe
 
 export function CustomerGate({ children }: { children: ReactNode }) {
   const { session, loading: sessionLoading } = useSession();
+  const { pathname } = useLocation();
   const [loading, setLoading] = useState(!isOfflinePreviewMode);
   const [redirectPath, setRedirectPath] = useState<string | null>(null);
   const hadAuthenticatedSessionRef = useRef(false);
@@ -60,18 +61,22 @@ export function CustomerGate({ children }: { children: ReactNode }) {
         return;
       }
 
-      // Resolve a stored invitation before mounting customer children. This is important for
-      // existing-client invitations because ProviderContext should see the durable relationship
-      // on its first read rather than briefly rendering booking-only/no-relationship state.
       if (profile.role === "customer") {
         const code = getStoredReferralCode();
         if (code) {
           try {
             const result = await attachRefereeByCode(code);
-            // A completed or definitively invalid/consumed code should not replay. On transport
-            // or server errors, leave the code stored so the customer can retry on a later entry.
             if (result.attached || result.attached === false) {
               clearStoredReferralCode();
+            }
+
+            // Affiliate invitations are customer-acquisition links, not CSP relationship
+            // invitations. If auth initially sent the customer toward the provider relationship
+            // surface, bring them home after the referral benefit has been attached.
+            if (result.attached && result.kind === "affiliate" && pathname === "/app/provider") {
+              setRedirectPath("/app");
+              setLoading(false);
+              return;
             }
           } catch {
             // Preserve the code for a future retry; customer access itself should still work.
@@ -89,7 +94,7 @@ export function CustomerGate({ children }: { children: ReactNode }) {
     return () => {
       mounted = false;
     };
-  }, [session?.user?.id, sessionLoading]);
+  }, [session?.user?.id, sessionLoading, pathname]);
 
   if (loading || sessionLoading) return null;
   if (redirectPath) return <Navigate to={redirectPath} replace />;
