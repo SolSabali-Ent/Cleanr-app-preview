@@ -73,8 +73,8 @@ export function CustomerProfile() {
           <div className="flex items-center gap-3">
             <CreditCard className="w-4 h-4 text-[#8DCC64]" />
             <div>
-              <p className="text-sm">Payments</p>
-              <p className="text-xs text-[#667085]">Payment features activate with checkout</p>
+              <p className="text-sm">Payment methods</p>
+              <p className="text-xs text-[#667085]">Saved cards and your default payment</p>
             </div>
           </div>
         </button>
