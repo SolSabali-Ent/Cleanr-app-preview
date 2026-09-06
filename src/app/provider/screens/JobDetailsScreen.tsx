@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { Camera, Check, ChevronDown } from "lucide-react";
 import {
   getBooking,
   acceptBookingAsProvider,
@@ -139,6 +140,7 @@ export default function JobDetailsScreen() {
   const [locationChecking, setLocationChecking] = useState(false);
   const [availabilityHint, setAvailabilityHint] = useState<string | null>(null);
   const [checkedItems, setCheckedItems] = useState<string[]>([]);
+  const [beforePhotoNames, setBeforePhotoNames] = useState<string[]>([]);
   const { unreadBookingIds, refetch: refetchUnread } = useUnreadBookingMessageIds();
 
   const checklist = checklistTemplates.default;
@@ -485,10 +487,51 @@ export default function JobDetailsScreen() {
         ) : null}
 
         {booking.status === "accepted" ? (
-          <details className="bg-white border border-slate-200 rounded-2xl mb-3 shadow-md overflow-hidden">
-            <summary className="cursor-pointer list-none p-4 text-xs font-semibold text-slate-600">Optional before-service evidence</summary>
-            <div className="px-4 pb-4">
-              <input type="file" multiple className="w-full text-xs text-slate-900" />
+          <details className="group mb-3 overflow-hidden rounded-2xl border border-slate-700/80 bg-slate-900/75 shadow-md">
+            <summary className="cursor-pointer list-none p-4 [&::-webkit-details-marker]:hidden">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#0A84FF]/15 text-[#7DBBFF]">
+                  <Camera size={20} strokeWidth={2} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-semibold text-white">Before-service photos</p>
+                    <span className="rounded-full border border-slate-600 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-slate-400">Optional</span>
+                  </div>
+                  <p className="mt-1 text-[11px] leading-4 text-slate-400">Document the starting condition when it helps protect you and the household.</p>
+                </div>
+                <ChevronDown size={18} className="shrink-0 text-slate-500 transition-transform group-open:rotate-180" />
+              </div>
+            </summary>
+            <div className="border-t border-slate-700/70 px-4 pb-4 pt-3">
+              <label className="flex min-h-[74px] cursor-pointer items-center gap-3 rounded-xl border border-dashed border-slate-600 bg-slate-950/50 px-4 py-3 transition hover:border-[#0A84FF]/70">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/5 text-slate-300">
+                  <Camera size={18} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-semibold text-white">Add photos</p>
+                  <p className="mt-0.5 text-[10px] leading-4 text-slate-400">Use clear photos only when there is something worth documenting.</p>
+                </div>
+                <input
+                  type="file"
+                  multiple
+                  accept="image/*"
+                  className="sr-only"
+                  onChange={(event) => setBeforePhotoNames(Array.from(event.target.files ?? []).map((file) => file.name))}
+                />
+              </label>
+
+              {beforePhotoNames.length > 0 ? (
+                <div className="mt-3 rounded-xl border border-emerald-500/20 bg-emerald-950/20 px-3 py-2.5">
+                  <div className="flex items-center gap-2 text-emerald-200">
+                    <Check size={14} />
+                    <p className="text-[11px] font-semibold">{beforePhotoNames.length} photo{beforePhotoNames.length === 1 ? "" : "s"} selected</p>
+                  </div>
+                  <p className="mt-1 truncate text-[10px] text-emerald-200/70">{beforePhotoNames.join(", ")}</p>
+                </div>
+              ) : (
+                <p className="mt-2 text-[10px] leading-4 text-slate-500">Skip this when the home is straightforward. Evidence should support trust, not create busywork.</p>
+              )}
             </div>
           </details>
         ) : null}
