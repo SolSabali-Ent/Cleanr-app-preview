@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { getBooking } from "../../lib/bookingApi";
+import { getAssignedBookingCustomerDisplayName, getBooking } from "../../lib/bookingApi";
 import { isProviderCustomerMessagingOpen } from "../../lib/providerCustomerMessaging";
 import { BookingMessageScreen } from "../shared/BookingMessageScreen";
 
@@ -13,30 +13,35 @@ export function JobMessagePage() {
   const navigate = useNavigate();
   /** `undefined` = still loading booking row */
   const [bookingStatus, setBookingStatus] = useState<string | null | undefined>(undefined);
+  const [customerName, setCustomerName] = useState<string | null>(null);
   const [notFound, setNotFound] = useState(false);
 
   useEffect(() => {
     if (!jobId) {
       setBookingStatus(undefined);
+      setCustomerName(null);
       setNotFound(false);
       return;
     }
     let mounted = true;
-    getBooking(jobId)
-      .then((b) => {
+    Promise.all([getBooking(jobId), getAssignedBookingCustomerDisplayName(jobId)])
+      .then(([b, name]) => {
         if (!mounted) return;
         if (!b) {
           setNotFound(true);
           setBookingStatus(null);
+          setCustomerName(null);
           return;
         }
         setNotFound(false);
         setBookingStatus(b.status);
+        setCustomerName(name);
       })
       .catch(() => {
         if (!mounted) return;
         setNotFound(true);
         setBookingStatus(null);
+        setCustomerName(null);
       });
     return () => {
       mounted = false;
@@ -101,7 +106,7 @@ export function JobMessagePage() {
       variant="csp"
       backPath={backPath}
       backLabel="Back to job"
-      title="Message customer"
+      title={customerName ? `Message ${customerName}` : "Message customer"}
       theme="dark"
     />
   );
