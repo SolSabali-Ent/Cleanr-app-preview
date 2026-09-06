@@ -44,6 +44,7 @@ export default function JobDetailsScreen() {
   const navigate = useNavigate();
   const [booking, setBooking] = useState<Booking | null>(null);
   const [providerId, setProviderId] = useState<string | null>(null);
+  const [platformFeeCents, setPlatformFeeCents] = useState<number | null>(null);
   const [householdContext, setHouseholdContext] = useState<HouseholdContext | null>(null);
   const [householdContinuity, setHouseholdContinuity] = useState<ProviderHouseholdRelationshipSummary | null>(null);
   const [loading, setLoading] = useState(true);
@@ -78,6 +79,26 @@ export default function JobDetailsScreen() {
       mounted = false;
     };
   }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    async function loadFinancialTruth() {
+      setPlatformFeeCents(null);
+      if (!booking?.id || !providerId || booking.provider_id !== providerId) return;
+      const { data, error } = await supabase
+        .from("bookings")
+        .select("platform_fee_cents")
+        .eq("id", booking.id)
+        .eq("provider_id", providerId)
+        .maybeSingle();
+      if (!mounted || error) return;
+      setPlatformFeeCents(data?.platform_fee_cents == null ? 0 : Number(data.platform_fee_cents));
+    }
+    void loadFinancialTruth();
+    return () => {
+      mounted = false;
+    };
+  }, [booking?.id, booking?.provider_id, providerId]);
 
   useEffect(() => {
     let mounted = true;
@@ -153,13 +174,13 @@ export default function JobDetailsScreen() {
   }, [providerId, booking]);
 
   const statusMap: Record<string, string> = {
-    created: "en_route",
-    accepted: "en_route",
+    created: "scheduled",
+    accepted: "scheduled",
     in_progress: "in_progress",
     completed_by_provider: "completed",
     confirmed: "completed",
   };
-  const jobStatus = booking ? (statusMap[booking.status] || "en_route") : "en_route";
+  const jobStatus = booking ? (statusMap[booking.status] || "scheduled") : "scheduled";
   const { isComplete } = useJobFlow(jobStatus);
 
   const methodPractices = useMemo(() => {
@@ -202,7 +223,12 @@ export default function JobDetailsScreen() {
       const b = await startBookingAsProvider(jobId);
       setBooking(b);
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : "Could not start job.");
+      const message = err instanceof Error ? err.message : "Could not start job.";
+      setActionError(
+        message.includes("provider_too_far_for_check_in")
+          ? "You need to be at the service location before starting this job."
+          : message
+      );
     }
   };
 
@@ -235,8 +261,10 @@ export default function JobDetailsScreen() {
     );
   }
 
+  const expectedEarningsCents = Math.max(0, (booking.price_cents ?? 0) - (platformFeeCents ?? 0));
+
   return (
-    <div className="text-white pb-24 relative min-h-[60vh]">
+    <div className="text-white pb-40 relative min-h-[60vh]">
       <img src="/cleanr_final-04.png" alt="" className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none" style={{ zIndex: 1, width: "360px", opacity: 0.08 }} />
       <div className="relative z-10">
         <button onClick={() => navigate(-1)} className="inline-flex items-center text-xs text-slate-400 mb-3">← Back</button>
@@ -247,7 +275,7 @@ export default function JobDetailsScreen() {
         <div className="mb-4"><JobStatusStepper currentStatus={jobStatus} /></div>
 
         <section className="bg-white border border-slate-200 rounded-2xl p-4 mb-3 shadow-md">
-          <p className="text-xs font-semibold text-slate-500 mb-1">Address</p>
+          <p className="text-xs font-semibold text-slate-500 mb-1">Service area</p>
           <p className="text-sm font-semibold text-slate-900">{booking.address}</p>
         </section>
 
@@ -257,8 +285,9 @@ export default function JobDetailsScreen() {
         </section>
 
         <section className="bg-white border border-slate-200 rounded-2xl p-4 mb-3 shadow-md">
-          <p className="text-xs font-semibold text-slate-500 mb-1">Payout</p>
-          <p className="text-sm font-semibold text-slate-900">${((booking.price_cents ?? 0) / 100).toFixed(0)}</p>
+          <p className="text-xs font-semibold text-slate-500 mb-1">Expected earnings</p>
+          <p className="text-sm font-semibold text-slate-900">${(expectedEarningsCents / 100).toFixed(0)}</p>
+          <p className="mt-1 text-[11px] text-slate-500">Customer total ${(booking.price_cents / 100).toFixed(0)} · Cleanr fee ${((platformFeeCents ?? 0) / 100).toFixed(0)}</p>
         </section>
 
         {householdContinuity ? (
