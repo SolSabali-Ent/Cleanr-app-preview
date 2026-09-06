@@ -51,6 +51,7 @@ import CSPSignup from "../app/provider/screens/CSPSignup";
 import GeoHarness from "../screens/admin/GeoHarness";
 import { AdminAccess } from "../screens/admin/AdminAccess";
 import { AdminAffiliateCashouts } from "../screens/admin/AdminAffiliateCashouts";
+import { AdminCollectiveCapacity } from "../screens/admin/AdminCollectiveCapacity";
 import { AdminBookingMessagesScreen } from "../screens/admin/AdminBookingMessagesScreen";
 import { FoundingCircle } from "../screens/admin/FoundingCircle";
 import { OperationsDashboard } from "../screens/admin/OperationsDashboard";
@@ -214,6 +215,7 @@ export function AppRouter() {
             <Route index element={<Navigate to="/admin/ops" replace />} />
             <Route path="geo" element={<GeoHarness />} />
             <Route path="ops" element={<OperationsDashboard />} />
+            <Route path="collective-capacity" element={<AdminCollectiveCapacity />} />
             <Route path="affiliate-cashouts" element={<AdminAffiliateCashouts />} />
             <Route path="founding-circle" element={<FoundingCircle />} />
             <Route path="access" element={<AdminAccess />} />
