@@ -1,8 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { listBookingsForCustomer } from "../../lib/bookingApi";
+import {
+  listMyRecurringCleaningPlans,
+  updateMyRecurringCleaningPlan,
+  type RecurringCleaningPlan,
+} from "../../lib/recurringCleaningApi";
 import type { Booking } from "../../domain/booking";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { CalendarClock, ChevronDown, ChevronRight, Pause, Play, Settings2 } from "lucide-react";
 import { useUnreadBookingMessageIds } from "../../hooks/useUnreadBookingMessageIds";
 import { customerFacingServiceLabel } from "../../lib/serviceCatalog";
 import {
@@ -29,6 +34,17 @@ function formatTime(iso: string) {
   } catch {
     return "";
   }
+}
+
+function firstName(value: string | null | undefined): string | null {
+  const clean = value?.trim();
+  return clean ? clean.split(/\s+/)[0] : null;
+}
+
+function cadenceLabel(cadence: RecurringCleaningPlan["cadence"]): string {
+  if (cadence === "weekly") return "Every week";
+  if (cadence === "bi-weekly") return "Every 2 weeks";
+  return "Every month";
 }
 
 function BookingRow({
@@ -82,20 +98,116 @@ function BookingRow({
   );
 }
 
+function RecurringPlanCard({
+  plan,
+  busy,
+  onUpdate,
+}: {
+  plan: RecurringCleaningPlan;
+  busy: boolean;
+  onUpdate: (planId: string, action: "pause" | "resume" | "end") => Promise<void>;
+}) {
+  const navigate = useNavigate();
+  const cleanerName = firstName(plan.preferredProviderName);
+  const paused = plan.status === "paused";
+
+  return (
+    <div className="mb-3 rounded-2xl border border-[#CFE8C3] bg-[#F7FBF4] p-4">
+      <div className="flex items-start gap-3">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#8DCC64]/15 text-[#166534]">
+          <CalendarClock className="h-5 w-5" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <p className="text-sm font-semibold">Your recurring cleaning</p>
+            <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${paused ? "bg-[#F2F4F7] text-[#667085]" : "bg-emerald-100 text-emerald-700"}`}>
+              {paused ? "Paused" : "Active"}
+            </span>
+          </div>
+          <p className="mt-1 text-sm text-[#475467]">{cadenceLabel(plan.cadence)}</p>
+          {cleanerName ? <p className="mt-0.5 text-xs text-[#667085]">With {cleanerName}</p> : null}
+        </div>
+      </div>
+
+      <div className="mt-4 rounded-xl bg-white/80 px-3 py-3">
+        <p className="text-[11px] font-medium uppercase tracking-wide text-[#667085]">
+          {plan.currentBookingId ? "Next visit" : paused ? "Next visit after you resume" : "Next visit"}
+        </p>
+        <p className="mt-1 text-sm font-semibold">
+          {formatDate(plan.nextExpectedAt)} · {formatTime(plan.nextExpectedAt)}
+        </p>
+      </div>
+
+      {plan.currentBookingId ? (
+        <button
+          type="button"
+          onClick={() => navigate(`/app/bookings/${plan.currentBookingId}`)}
+          className="mt-3 flex w-full items-center justify-between rounded-xl border border-[#D0D5DD] bg-white px-3 py-3 text-left"
+        >
+          <div>
+            <p className="text-sm font-semibold">View or change next visit</p>
+            <p className="mt-0.5 text-xs text-[#667085]">Reschedule from the visit details.</p>
+          </div>
+          <ChevronRight className="h-4 w-4 text-[#667085]" />
+        </button>
+      ) : null}
+
+      <details className="mt-3">
+        <summary className="flex cursor-pointer list-none items-center justify-center gap-2 py-2 text-xs font-semibold text-[#475467] [&::-webkit-details-marker]:hidden">
+          <Settings2 className="h-4 w-4" /> Manage recurring cleaning
+        </summary>
+        <div className="mt-2 grid gap-2 border-t border-[#E4E7EC] pt-3">
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => void onUpdate(plan.id, paused ? "resume" : "pause")}
+            className="flex min-h-[44px] items-center justify-center gap-2 rounded-xl border border-[#D0D5DD] bg-white px-3 py-2 text-sm font-semibold disabled:opacity-50"
+          >
+            {paused ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
+            {paused ? "Resume recurring cleaning" : "Pause recurring cleaning"}
+          </button>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => {
+              if (window.confirm("End this recurring cleaning? Your existing scheduled visit will not be canceled automatically.")) {
+                void onUpdate(plan.id, "end");
+              }
+            }}
+            className="min-h-[44px] rounded-xl px-3 py-2 text-sm font-medium text-[#B42318] disabled:opacity-50"
+          >
+            End recurring cleaning
+          </button>
+          <p className="text-center text-[10px] leading-4 text-[#98A2B3]">
+            Pausing or ending the plan does not cancel a visit that is already scheduled.
+          </p>
+        </div>
+      </details>
+    </div>
+  );
+}
+
 type BookingTab = "upcoming" | "history";
 
 export function CustomerBookings() {
   const [bookings, setBookings] = useState<Booking[]>([]);
+  const [plans, setPlans] = useState<RecurringCleaningPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [planError, setPlanError] = useState<string | null>(null);
+  const [planBusyId, setPlanBusyId] = useState<string | null>(null);
   const [tab, setTab] = useState<BookingTab>("upcoming");
   const [showAllUpcoming, setShowAllUpcoming] = useState(false);
+  const [showAllPlans, setShowAllPlans] = useState(false);
   const [historyLimit, setHistoryLimit] = useState(10);
   const { unreadBookingIds } = useUnreadBookingMessageIds();
 
   useEffect(() => {
-    listBookingsForCustomer()
-      .then(setBookings)
+    Promise.all([listBookingsForCustomer(), listMyRecurringCleaningPlans()])
+      .then(([bookingRows, planRows]) => {
+        setBookings(bookingRows);
+        setPlans(planRows);
+      })
       .catch((err) => setError(err?.message ?? "Failed to load bookings"))
       .finally(() => setLoading(false));
   }, []);
@@ -104,7 +216,6 @@ export function CustomerBookings() {
     () =>
       bookings
         .filter((booking) => isUpcomingBookingStatus(booking.status))
-        // A zero-dollar created row is an unfinished booking attempt, not a scheduled cleaning.
         .filter((booking) => !(booking.status === "created" && (booking.price_cents ?? 0) <= 0))
         .sort((a, b) => new Date(a.scheduled_start).getTime() - new Date(b.scheduled_start).getTime()),
     [bookings]
@@ -119,8 +230,26 @@ export function CustomerBookings() {
   );
 
   useEffect(() => {
-    if (!loading && upcoming.length === 0 && history.length > 0) setTab("history");
-  }, [loading, upcoming.length, history.length]);
+    if (!loading && upcoming.length === 0 && plans.length === 0 && history.length > 0) setTab("history");
+  }, [loading, upcoming.length, plans.length, history.length]);
+
+  async function handlePlanUpdate(planId: string, action: "pause" | "resume" | "end") {
+    if (planBusyId) return;
+    setPlanBusyId(planId);
+    setPlanError(null);
+    try {
+      const updated = await updateMyRecurringCleaningPlan(planId, action);
+      setPlans((current) =>
+        action === "end"
+          ? current.filter((plan) => plan.id !== planId)
+          : current.map((plan) => (plan.id === planId ? updated : plan))
+      );
+    } catch (err) {
+      setPlanError(err instanceof Error ? err.message : "Could not update recurring cleaning.");
+    } finally {
+      setPlanBusyId(null);
+    }
+  }
 
   if (loading) {
     return <div className="p-4"><p className="text-sm text-[#667085]">Loading bookings…</p></div>;
@@ -130,10 +259,13 @@ export function CustomerBookings() {
     return <div className="p-4"><p className="text-sm text-red-400">{error}</p></div>;
   }
 
-  const nextBooking = upcoming[0] ?? null;
-  const laterBookings = upcoming.slice(1);
+  const recurringBookingIds = new Set(plans.flatMap((plan) => (plan.currentBookingId ? [plan.currentBookingId] : [])));
+  const standaloneUpcoming = upcoming.filter((booking) => !recurringBookingIds.has(booking.id));
+  const nextBooking = standaloneUpcoming[0] ?? null;
+  const laterBookings = standaloneUpcoming.slice(1);
   const visibleLater = showAllUpcoming ? laterBookings : [];
   const visibleHistory = history.slice(0, historyLimit);
+  const visiblePlans = showAllPlans ? plans : plans.slice(0, 1);
 
   return (
     <div className="text-[#0B1220]">
@@ -148,7 +280,7 @@ export function CustomerBookings() {
           onClick={() => setTab("upcoming")}
           className={`rounded-lg px-3 py-2.5 text-sm font-semibold ${tab === "upcoming" ? "bg-white text-[#0B1220] shadow-sm" : "text-[#667085]"}`}
         >
-          Upcoming {upcoming.length > 0 ? `(${upcoming.length})` : ""}
+          Upcoming
         </button>
         <button
           type="button"
@@ -161,9 +293,34 @@ export function CustomerBookings() {
 
       {tab === "upcoming" ? (
         <section className="section">
+          {plans.length > 0 ? (
+            <div className="mb-5">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[#166534]">Recurring cleaning</p>
+              {visiblePlans.map((plan) => (
+                <RecurringPlanCard
+                  key={plan.id}
+                  plan={plan}
+                  busy={planBusyId === plan.id}
+                  onUpdate={handlePlanUpdate}
+                />
+              ))}
+              {plans.length > 1 ? (
+                <button
+                  type="button"
+                  onClick={() => setShowAllPlans((current) => !current)}
+                  className="flex w-full items-center justify-center gap-2 py-2 text-xs font-semibold text-[#667085]"
+                >
+                  {showAllPlans ? "Show less" : `${plans.length - 1} more recurring cleaning${plans.length - 1 === 1 ? "" : "s"}`}
+                  <ChevronDown className={`h-4 w-4 transition-transform ${showAllPlans ? "rotate-180" : ""}`} />
+                </button>
+              ) : null}
+              {planError ? <p className="mt-2 text-xs text-[#B42318]">{planError}</p> : null}
+            </div>
+          ) : null}
+
           {nextBooking ? (
             <>
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[#166534]">Next cleaning</p>
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[#166534]">Next one-time cleaning</p>
               <BookingRow booking={nextBooking} hasUnreadMessages={unreadBookingIds.has(nextBooking.id)} />
 
               {laterBookings.length > 0 ? (
@@ -174,12 +331,8 @@ export function CustomerBookings() {
                     className="flex w-full items-center justify-between rounded-xl border border-[#E4E7EC] bg-white px-4 py-3 text-left"
                   >
                     <div>
-                      <p className="text-sm font-semibold">
-                        {laterBookings.length} more scheduled
-                      </p>
-                      <p className="mt-0.5 text-xs text-[#667085]">
-                        Kept out of the way until you need them.
-                      </p>
+                      <p className="text-sm font-semibold">{laterBookings.length} more scheduled</p>
+                      <p className="mt-0.5 text-xs text-[#667085]">Kept out of the way until you need them.</p>
                     </div>
                     <ChevronDown className={`h-4 w-4 text-[#667085] transition-transform ${showAllUpcoming ? "rotate-180" : ""}`} />
                   </button>
@@ -199,12 +352,12 @@ export function CustomerBookings() {
                 </div>
               ) : null}
             </>
-          ) : (
+          ) : plans.length === 0 ? (
             <div className="rounded-2xl border border-[#E4E7EC] bg-white p-5">
               <p className="text-sm font-semibold">Nothing scheduled right now.</p>
               <p className="mt-1 text-xs text-[#667085]">When you book again, your next cleaning will show here.</p>
             </div>
-          )}
+          ) : null}
         </section>
       ) : (
         <section className="section">
