@@ -32,17 +32,21 @@ export default function PayoutSetupScreen() {
     let mounted = true;
     setSyncing(true);
     setError(null);
+    setMessage(null);
+
     syncStripeConnectStatus()
       .then(async (res) => {
         if (!mounted) return;
         await refresh();
-        if (res.activated) {
-          setMessage("Payout setup complete. Your provider account is active.");
-        } else if (res.ready) {
-          setMessage("Payout setup is complete. Your marketplace access remains restricted pending Cleanr review.");
-        } else {
+        if (!mounted) return;
+
+        if (!res.ready) {
           setMessage("We’re still processing your payout details. This may take a moment.");
         }
+
+        // Stripe return is a one-shot sync signal. Remove it after the sync so refreshes and
+        // revisits do not repeatedly call the readiness/activation transition.
+        navigate("/csp/dashboard/application/payout-setup", { replace: true });
       })
       .catch((e) => {
         if (!mounted) return;
@@ -51,8 +55,9 @@ export default function PayoutSetupScreen() {
       .finally(() => {
         if (mounted) setSyncing(false);
       });
+
     return () => { mounted = false; };
-  }, [isReturn, profile?.id, refresh]);
+  }, [isReturn, profile?.id, refresh, navigate]);
 
   async function handleConnect() {
     setLoading(true);
@@ -89,12 +94,12 @@ export default function PayoutSetupScreen() {
         </div>
       )}
 
-      {isReturn && syncing && (
+      {isReturn && syncing && !ready && (
         <p className="text-sm mb-4" style={{ color: CSP_TEXT_SECONDARY }}>
           Syncing your payout status…
         </p>
       )}
-      {message && <p className="text-sm mb-4 text-emerald-300">{message}</p>}
+      {!ready && message && <p className="text-sm mb-4 text-emerald-300">{message}</p>}
       {error && <p className="text-sm mb-4 text-red-300">{error}</p>}
 
       {!ready && (
