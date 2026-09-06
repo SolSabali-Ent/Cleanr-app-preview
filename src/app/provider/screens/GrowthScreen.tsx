@@ -46,7 +46,7 @@ const emptyServicePractice: ServicePracticeSnapshot = {
 };
 
 function categoryLabel(category: NorthStarCategory): string {
-  return northStarOptions.find((option) => option.value === category)?.label ?? "Personal North Star";
+  return northStarOptions.find((option) => option.value === category)?.label ?? "Personal goal";
 }
 
 export default function GrowthScreen() {
@@ -86,6 +86,7 @@ export default function GrowthScreen() {
           listProviderEarningsBookings(),
         ]);
         if (!active) return;
+
         setCapabilityCount(capabilities.length);
         setMatchedOpportunityCount(matches.length);
         setContributionCount(contributions.length);
@@ -106,13 +107,15 @@ export default function GrowthScreen() {
         }
       } catch (err) {
         if (!active) return;
-        setError(err instanceof Error ? err.message : "Unable to load your growth profile");
+        setError(err instanceof Error ? err.message : "Unable to load Growth");
       } finally {
         if (active) setLoading(false);
       }
     })();
 
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -141,90 +144,163 @@ export default function GrowthScreen() {
     }
   }
 
+  const navItems = [
+    {
+      label: "Milestones",
+      description: "Track your progress",
+      count: milestoneCount,
+      icon: Sparkles,
+      route: CSP_GROWTH_ROUTES.milestones,
+    },
+    {
+      label: "Skills & strengths",
+      description: "Keep track of what you can do",
+      count: capabilityCount,
+      icon: Lightbulb,
+      route: CSP_GROWTH_ROUTES.capabilities,
+    },
+    {
+      label: "Opportunities",
+      description: "See what could be next",
+      count: matchedOpportunityCount,
+      icon: Compass,
+      route: CSP_GROWTH_ROUTES.opportunities,
+    },
+    {
+      label: "Your Network",
+      description: "People and relationships around you",
+      count: null,
+      icon: Users,
+      route: CSP_GROWTH_ROUTES.network,
+    },
+    {
+      label: "What you've helped build",
+      description: "See how you've helped others",
+      count: contributionCount,
+      icon: Network,
+      route: CSP_GROWTH_ROUTES.contributions,
+    },
+  ];
+
   return (
     <div className="pb-24" style={{ color: CSP_TEXT_PRIMARY }}>
       <header style={{ marginBottom: CSP_SECTION_GAP }}>
-        <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs">
-          <Sparkles size={14} style={{ color: CSP_PRIMARY_BUTTON }} />
-          <span style={{ color: CSP_TEXT_SECONDARY }}>Your growth inside Cleanr</span>
-        </div>
-        <h1 className="text-2xl font-semibold">Your North Star</h1>
-        <p className="mt-2 text-sm leading-6" style={{ color: CSP_TEXT_SECONDARY }}>
-          Cleaning can be a strong practice, a source of stability, or the beginning of something else. You decide what you&apos;re building toward.
+        <h1 className="text-2xl font-semibold">Growth</h1>
+        <p className="mt-1 text-sm" style={{ color: CSP_TEXT_SECONDARY }}>
+          Your goal, progress, and next steps.
         </p>
       </header>
 
-      {error ? <div className="mb-4 rounded-xl border px-4 py-3 text-sm" style={{ borderColor: "rgba(248,113,113,.25)", backgroundColor: "rgba(248,113,113,.08)" }}>{error}</div> : null}
+      {error ? (
+        <div className="mb-4 rounded-xl border px-4 py-3 text-sm" style={{ borderColor: "rgba(248,113,113,.25)", backgroundColor: "rgba(248,113,113,.08)" }}>
+          {error}
+        </div>
+      ) : null}
 
       <section style={{ marginBottom: CSP_SECTION_GAP }}>
         <div className="rounded-2xl border" style={{ backgroundColor: CSP_SURFACE, borderColor: "rgba(248,250,252,.08)", padding: CSP_CARD_PADDING }}>
-          <div className="mb-3 flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl" style={{ backgroundColor: `${CSP_PRIMARY_BUTTON}20` }}><Compass size={20} style={{ color: CSP_PRIMARY_BUTTON }} /></div>
-            <div>
-              <p className="text-sm font-medium">{northStar && !editing ? categoryLabel(northStar.category) : "What are you building toward?"}</p>
-              <p className="text-xs" style={{ color: CSP_TEXT_SECONDARY }}>Your answer belongs to you.</p>
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex min-w-0 items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl" style={{ backgroundColor: `${CSP_PRIMARY_BUTTON}20` }}>
+                <Compass size={20} style={{ color: CSP_PRIMARY_BUTTON }} />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-medium" style={{ color: CSP_TEXT_SECONDARY }}>North Star</p>
+                {northStar && !editing ? (
+                  <>
+                    <p className="mt-1 text-lg font-semibold leading-6">{northStar.goal}</p>
+                    <p className="mt-1 text-xs" style={{ color: CSP_TEXT_SECONDARY }}>{categoryLabel(northStar.category)}</p>
+                  </>
+                ) : !editing ? (
+                  <p className="mt-1 text-sm font-medium">What are you building toward?</p>
+                ) : null}
+              </div>
             </div>
+            {northStar && !editing ? (
+              <button type="button" onClick={() => setEditing(true)} className="shrink-0 text-xs font-semibold" style={{ color: CSP_PRIMARY_BUTTON }}>
+                Edit
+              </button>
+            ) : null}
           </div>
 
           {loading ? (
-            <p className="text-sm" style={{ color: CSP_TEXT_SECONDARY }}>Loading your North Star...</p>
-          ) : northStar && !editing ? (
-            <>
-              <p className="text-lg font-semibold leading-7">{northStar.goal}</p>
-              <p className="mt-2 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>This is your current direction, not a requirement. You can change it as your life changes.</p>
-              <button type="button" onClick={() => setEditing(true)} className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold">Update my North Star <ArrowRight size={16} /></button>
-            </>
-          ) : isOfflinePreviewMode ? (
-            <>
-              <p className="text-sm leading-6" style={{ color: CSP_TEXT_SECONDARY }}>A North Star can be a thriving cleaning practice, homeownership, education, a business, another career, investing, more family time, or something Cleanr never predicted.</p>
-              <button type="button" disabled className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold opacity-70">Define my North Star <ArrowRight size={16} /></button>
-            </>
-          ) : (
-            <div className="space-y-3">
-              <label className="block"><span className="mb-1 block text-xs" style={{ color: CSP_TEXT_SECONDARY }}>Direction</span><select value={category} onChange={(event) => setCategory(event.target.value as NorthStarCategory)} className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-sm outline-none">{northStarOptions.map((option) => <option key={option.value} value={option.value} className="text-black">{option.label}</option>)}</select></label>
-              <label className="block"><span className="mb-1 block text-xs" style={{ color: CSP_TEXT_SECONDARY }}>In your words</span><textarea value={goal} onChange={(event) => setGoal(event.target.value)} rows={3} maxLength={500} placeholder="What are you trying to build or make possible?" className="w-full resize-none rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-sm outline-none" /></label>
-              <button type="button" disabled={!canSave} onClick={() => void handleSaveNorthStar()} className="flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold text-white disabled:opacity-50" style={{ backgroundColor: CSP_PRIMARY_BUTTON }}>{saving ? "Saving..." : northStar ? "Save changes" : "Set my North Star"}{!saving ? <ArrowRight size={16} /> : null}</button>
-              {northStar ? <button type="button" onClick={() => { setEditing(false); setCategory(northStar.category); setGoal(northStar.goal); }} className="w-full py-2 text-xs" style={{ color: CSP_TEXT_SECONDARY }}>Cancel</button> : null}
+            <p className="mt-4 text-sm" style={{ color: CSP_TEXT_SECONDARY }}>Loading...</p>
+          ) : editing || (!northStar && !isOfflinePreviewMode) ? (
+            <div className="mt-4 space-y-3 border-t border-white/10 pt-4">
+              <label className="block">
+                <span className="mb-1 block text-xs" style={{ color: CSP_TEXT_SECONDARY }}>Direction</span>
+                <select value={category} onChange={(event) => setCategory(event.target.value as NorthStarCategory)} className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-sm outline-none">
+                  {northStarOptions.map((option) => <option key={option.value} value={option.value} className="text-black">{option.label}</option>)}
+                </select>
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-xs" style={{ color: CSP_TEXT_SECONDARY }}>In your words</span>
+                <textarea value={goal} onChange={(event) => setGoal(event.target.value)} rows={3} maxLength={500} placeholder="What are you trying to make possible?" className="w-full resize-none rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-sm outline-none" />
+              </label>
+              <button type="button" disabled={!canSave} onClick={() => void handleSaveNorthStar()} className="flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold text-white disabled:opacity-50" style={{ backgroundColor: CSP_PRIMARY_BUTTON }}>
+                {saving ? "Saving..." : northStar ? "Save changes" : "Set my North Star"}
+              </button>
+              {northStar ? (
+                <button type="button" onClick={() => { setEditing(false); setCategory(northStar.category); setGoal(northStar.goal); }} className="w-full py-1 text-xs" style={{ color: CSP_TEXT_SECONDARY }}>
+                  Cancel
+                </button>
+              ) : null}
             </div>
-          )}
+          ) : !northStar && isOfflinePreviewMode ? (
+            <button type="button" disabled className="mt-4 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold opacity-70">
+              Set my North Star
+            </button>
+          ) : null}
         </div>
       </section>
 
       <section style={{ marginBottom: CSP_SECTION_GAP }}>
-        <div className="rounded-2xl border" style={{ backgroundColor: "rgba(141,204,100,.08)", borderColor: "rgba(141,204,100,.22)", padding: CSP_CARD_PADDING }}>
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="text-sm font-medium">More room to choose.</p>
-              {isOfflinePreviewMode ? (
-                <p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>
-                  Repeat service can create stability and breathing room. Cleanr can recognize that continuity without deciding what it should mean for you.
-                </p>
-              ) : (
-                <p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>
-                  Your current service history includes {servicePractice.repeatHouseholdsCount} repeat household{servicePractice.repeatHouseholdsCount === 1 ? "" : "s"} and {servicePractice.returningHouseholdsScheduledCount} returning household{servicePractice.returningHouseholdsScheduledCount === 1 ? "" : "s"} already scheduled. That continuity may create more room to choose what comes next.
-                </p>
-              )}
-            </div>
-            <Compass size={19} style={{ color: CSP_PRIMARY_BUTTON, marginTop: 2 }} />
+        <div className="grid grid-cols-3 gap-2">
+          <div className="rounded-xl border px-3 py-3 text-center" style={{ backgroundColor: CSP_SURFACE, borderColor: "rgba(248,250,252,.08)" }}>
+            <p className="text-lg font-semibold">{isOfflinePreviewMode ? "—" : servicePractice.repeatHouseholdsCount}</p>
+            <p className="mt-1 text-[10px] leading-4" style={{ color: CSP_TEXT_SECONDARY }}>Repeat homes</p>
           </div>
-          <p className="mt-3 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>
-            Cleanr does not infer your North Star from earnings or repeat work. If you want paths beyond Jobs, Opportunities is the one place to choose what fits your life and see what the network can make possible.
-          </p>
+          <div className="rounded-xl border px-3 py-3 text-center" style={{ backgroundColor: CSP_SURFACE, borderColor: "rgba(248,250,252,.08)" }}>
+            <p className="text-lg font-semibold">{isOfflinePreviewMode ? "—" : milestoneCount}</p>
+            <p className="mt-1 text-[10px] leading-4" style={{ color: CSP_TEXT_SECONDARY }}>Milestones</p>
+          </div>
+          <div className="rounded-xl border px-3 py-3 text-center" style={{ backgroundColor: CSP_SURFACE, borderColor: "rgba(248,250,252,.08)" }}>
+            <p className="text-lg font-semibold">{isOfflinePreviewMode ? "—" : matchedOpportunityCount}</p>
+            <p className="mt-1 text-[10px] leading-4" style={{ color: CSP_TEXT_SECONDARY }}>Matches</p>
+          </div>
         </div>
       </section>
 
-      <section style={{ marginBottom: CSP_SECTION_GAP }}>
-        <h2 className="mb-3 text-sm font-medium" style={{ color: CSP_TEXT_SECONDARY }}>Your growth system</h2>
-        <div className="space-y-3">
-          <button type="button" onClick={() => navigate(CSP_GROWTH_ROUTES.milestones)} className="w-full rounded-2xl border text-left" style={{ backgroundColor: CSP_SURFACE, borderColor: "rgba(248,250,252,.08)", padding: CSP_CARD_PADDING }}><div className="flex items-start gap-3"><Sparkles size={19} style={{ color: CSP_PRIMARY_BUTTON, marginTop: 2 }} /><div className="flex-1"><div className="flex items-center justify-between gap-3"><p className="text-sm font-medium">Milestones</p><span className="text-xs" style={{ color: CSP_TEXT_SECONDARY }}>{isOfflinePreviewMode ? "Open" : milestoneCount}</span></div><p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>Break your North Star into progress you can actually see.</p></div><ArrowRight size={16} style={{ color: CSP_TEXT_SECONDARY }} /></div></button>
-          <button type="button" onClick={() => navigate(CSP_GROWTH_ROUTES.capabilities)} className="w-full rounded-2xl border text-left" style={{ backgroundColor: CSP_SURFACE, borderColor: "rgba(248,250,252,.08)", padding: CSP_CARD_PADDING }}><div className="flex items-start gap-3"><Lightbulb size={19} style={{ color: CSP_PRIMARY_BUTTON, marginTop: 2 }} /><div className="flex-1"><div className="flex items-center justify-between gap-3"><p className="text-sm font-medium">Capabilities</p><span className="text-xs" style={{ color: CSP_TEXT_SECONDARY }}>{isOfflinePreviewMode ? "Open" : capabilityCount}</span></div><p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>Track what you can do beyond a cleaner-only identity, with clear provenance for self-declared and verified strengths.</p></div><ArrowRight size={16} style={{ color: CSP_TEXT_SECONDARY }} /></div></button>
-          <button type="button" onClick={() => navigate(CSP_GROWTH_ROUTES.opportunities)} className="w-full rounded-2xl border text-left" style={{ backgroundColor: CSP_SURFACE, borderColor: "rgba(248,250,252,.08)", padding: CSP_CARD_PADDING }}><div className="flex items-start gap-3"><Compass size={19} style={{ color: CSP_PRIMARY_BUTTON, marginTop: 2 }} /><div className="flex-1"><div className="flex items-center justify-between gap-3"><p className="text-sm font-medium">Opportunities</p><span className="text-xs" style={{ color: CSP_TEXT_SECONDARY }}>{isOfflinePreviewMode ? "Open" : matchedOpportunityCount}</span></div><p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>Choose what fits your life and see useful paths beyond a cleaning assignment—coverage, referrals, training, leadership, business, vendor, education, external, investment, or something the network makes possible later.</p></div><ArrowRight size={16} style={{ color: CSP_TEXT_SECONDARY }} /></div></button>
-          <button type="button" onClick={() => navigate(CSP_GROWTH_ROUTES.network)} className="w-full rounded-2xl border text-left" style={{ backgroundColor: CSP_SURFACE, borderColor: "rgba(248,250,252,.08)", padding: CSP_CARD_PADDING }}><div className="flex items-start gap-3"><Users size={19} style={{ color: CSP_PRIMARY_BUTTON, marginTop: 2 }} /><div className="flex-1"><div className="flex items-center justify-between gap-3"><p className="text-sm font-medium">Your Network</p><span className="text-xs" style={{ color: CSP_TEXT_SECONDARY }}>Open</span></div><p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>Households, trusted coverage, peers, collaborators, and useful introductions when you want them—purposeful relationships, not a social feed.</p></div><ArrowRight size={16} style={{ color: CSP_TEXT_SECONDARY }} /></div></button>
-          <button type="button" onClick={() => navigate(CSP_GROWTH_ROUTES.contributions)} className="w-full rounded-2xl border text-left" style={{ backgroundColor: CSP_SURFACE, borderColor: "rgba(248,250,252,.08)", padding: CSP_CARD_PADDING }}><div className="flex items-start gap-3"><Network size={19} style={{ color: CSP_PRIMARY_BUTTON, marginTop: 2 }} /><div className="flex-1"><div className="flex items-center justify-between gap-3"><p className="text-sm font-medium">Contribution</p><span className="text-xs" style={{ color: CSP_TEXT_SECONDARY }}>{isOfflinePreviewMode ? "Open" : contributionCount}</span></div><p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>See durable evidence of value you helped create for another person or the collective. No points, no self-awarded badges.</p></div><ArrowRight size={16} style={{ color: CSP_TEXT_SECONDARY }} /></div></button>
+      <section>
+        <h2 className="mb-3 text-sm font-medium" style={{ color: CSP_TEXT_SECONDARY }}>Explore</h2>
+        <div className="overflow-hidden rounded-2xl border" style={{ backgroundColor: CSP_SURFACE, borderColor: "rgba(248,250,252,.08)" }}>
+          {navItems.map((item, index) => {
+            const Icon = item.icon;
+            return (
+              <button
+                key={item.label}
+                type="button"
+                onClick={() => navigate(item.route)}
+                className={`flex w-full items-center gap-3 px-4 py-4 text-left ${index > 0 ? "border-t border-white/10" : ""}`}
+              >
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl" style={{ backgroundColor: `${CSP_PRIMARY_BUTTON}18` }}>
+                  <Icon size={18} style={{ color: CSP_PRIMARY_BUTTON }} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-medium">{item.label}</p>
+                    {item.count !== null && !isOfflinePreviewMode ? (
+                      <span className="rounded-full border border-white/10 px-2 py-0.5 text-[10px]" style={{ color: CSP_TEXT_SECONDARY }}>{item.count}</span>
+                    ) : null}
+                  </div>
+                  <p className="mt-0.5 text-xs" style={{ color: CSP_TEXT_SECONDARY }}>{item.description}</p>
+                </div>
+                <ArrowRight size={16} className="shrink-0" style={{ color: CSP_TEXT_SECONDARY }} />
+              </button>
+            );
+          })}
         </div>
       </section>
-
-      <section><div className="rounded-2xl border" style={{ backgroundColor: "rgba(141,204,100,.08)", borderColor: "rgba(141,204,100,.22)", padding: CSP_CARD_PADDING }}><p className="text-sm font-medium">Cleanr grows when you gain more choices.</p><p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>A profitable cleaning practice may be your destination. It may also be the economic engine that helps you reach something else. Cleanr is designed to support either path.</p></div></section>
     </div>
   );
 }
