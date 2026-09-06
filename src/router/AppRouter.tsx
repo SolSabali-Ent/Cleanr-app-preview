@@ -49,6 +49,7 @@ import CSPLogin from "../app/provider/screens/CSPLogin";
 import CSPSignup from "../app/provider/screens/CSPSignup";
 import GeoHarness from "../screens/admin/GeoHarness";
 import { AdminAccess } from "../screens/admin/AdminAccess";
+import { AdminAffiliateCashouts } from "../screens/admin/AdminAffiliateCashouts";
 import { AdminBookingMessagesScreen } from "../screens/admin/AdminBookingMessagesScreen";
 import { FoundingCircle } from "../screens/admin/FoundingCircle";
 import { OperationsDashboard } from "../screens/admin/OperationsDashboard";
@@ -160,10 +161,7 @@ export function AppRouter() {
             <Route path="public/csp/signup" element={<CSPSignup />} />
             <Route path="public/booking-confirmed" element={<BookingConfirmation />} />
             <Route path="public/trust-safety" element={<TrustSafety />} />
-            <Route path="public/book" element={<CustomerLayout />}>
-              <Route index element={<BookService />} />
-            </Route>
-
+            <Route path="public/book" element={<CustomerLayout />}><Route index element={<BookService />} /></Route>
             <Route path="customer" element={<CustomerLayout />}>
               <Route index element={<CustomerHome />} />
               <Route path="bookings" element={<Schedule />} />
@@ -180,7 +178,6 @@ export function AppRouter() {
               <Route path="support" element={<Support />} />
               <Route path="emergency" element={<EmergencyContact />} />
             </Route>
-
             <Route path="csp" element={<ProviderLayout />}>
               <Route element={<AdminProviderPreviewOutlet />}>
                 <Route index element={<ProviderHome />} />
@@ -214,11 +211,11 @@ export function AppRouter() {
             <Route index element={<Navigate to="/admin/ops" replace />} />
             <Route path="geo" element={<GeoHarness />} />
             <Route path="ops" element={<OperationsDashboard />} />
+            <Route path="affiliate-cashouts" element={<AdminAffiliateCashouts />} />
             <Route path="founding-circle" element={<FoundingCircle />} />
             <Route path="access" element={<AdminAccess />} />
             <Route path="booking/:bookingId/messages" element={<AdminBookingMessagesScreen />} />
             <Route path="providers" element={<ProviderApplications />} />
-
             <Route path="full-app" element={<AdminFullAppShell />}>
               <Route index element={<AdminFullAppIndex />} />
               <Route path="public/*" element={<AdminIframePreviewFrame />} />
