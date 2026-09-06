@@ -28,6 +28,20 @@ export type CustomerAffiliateDashboard = {
   readyRewards: ReadyAffiliateReward[];
 };
 
+export type CustomerAffiliatePayoutStatus = {
+  setupStarted: boolean;
+  payoutReady: boolean;
+  availableCashCents: number;
+  cashoutThresholdCents: number;
+  cashoutEligible: boolean;
+  pendingRequest: null | {
+    id: string;
+    amountCents: number;
+    status: "requested" | "approved" | "processing";
+    requestedAt: string | null;
+  };
+};
+
 type RawDashboard = {
   active?: boolean;
   code?: string | null;
@@ -100,6 +114,55 @@ export async function chooseCustomerAffiliateReward(
   });
   if (error) throw error;
   return getCustomerAffiliateDashboard();
+}
+
+export async function getCustomerAffiliatePayoutStatus(): Promise<CustomerAffiliatePayoutStatus> {
+  const { data, error } = await supabase.rpc("get_my_customer_affiliate_payout_status");
+  if (error) throw error;
+  const raw = (data ?? {}) as Record<string, unknown>;
+  const pending = raw.pending_request && typeof raw.pending_request === "object"
+    ? (raw.pending_request as Record<string, unknown>)
+    : null;
+  return {
+    setupStarted: Boolean(raw.setup_started),
+    payoutReady: Boolean(raw.payout_ready),
+    availableCashCents: Number(raw.available_cash_cents ?? 0),
+    cashoutThresholdCents: Number(raw.cashout_threshold_cents ?? 5000),
+    cashoutEligible: Boolean(raw.cashout_eligible),
+    pendingRequest: pending
+      ? {
+          id: String(pending.id ?? ""),
+          amountCents: Number(pending.amount_cents ?? 0),
+          status: String(pending.status ?? "requested") as "requested" | "approved" | "processing",
+          requestedAt: typeof pending.requested_at === "string" ? pending.requested_at : null,
+        }
+      : null,
+  };
+}
+
+export async function startCustomerAffiliatePayoutSetup(): Promise<string> {
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  const returnUrl = `${origin}/app/affiliate?payout=return`;
+  const refreshUrl = `${origin}/app/affiliate?payout=refresh`;
+  const { data, error } = await supabase.functions.invoke("customer-affiliate-payout-link", {
+    body: { return_url: returnUrl, refresh_url: refreshUrl },
+  });
+  if (error) throw error;
+  const url = (data as { url?: string } | null)?.url;
+  if (!url) throw new Error("Stripe payout setup link unavailable.");
+  return url;
+}
+
+export async function syncCustomerAffiliatePayoutSetup(): Promise<CustomerAffiliatePayoutStatus> {
+  const { error } = await supabase.functions.invoke("customer-affiliate-payout-sync", { body: {} });
+  if (error) throw error;
+  return getCustomerAffiliatePayoutStatus();
+}
+
+export async function requestCustomerAffiliateCashout(): Promise<CustomerAffiliatePayoutStatus> {
+  const { error } = await supabase.rpc("request_my_customer_affiliate_cashout");
+  if (error) throw error;
+  return getCustomerAffiliatePayoutStatus();
 }
 
 export async function getMyCustomerValueSummary(): Promise<{
