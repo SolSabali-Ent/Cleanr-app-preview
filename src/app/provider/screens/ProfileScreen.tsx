@@ -145,6 +145,9 @@ export default function ProfileScreen() {
 
   if (!profile) return null;
 
+  const applicationApproved = (profile.application_status ?? "").toLowerCase() === "approved";
+  const payoutReady = profile.stripe_connect_ready === true && Boolean(profile.stripe_connect_account_id?.trim());
+
   async function handleSave() {
     if (!profile) return;
     const clampedRadius = clampServiceRadiusMiles(radius) ?? SERVICE_RADIUS_MILES_MIN;
@@ -342,7 +345,33 @@ export default function ProfileScreen() {
 
       <section style={{ marginBottom: CSP_SECTION_GAP }}>
         <h2 className="text-sm font-medium mb-3" style={{ color: CSP_TEXT_SECONDARY }}>Payout Setup (Stripe)</h2>
-        <div className="rounded-2xl border" style={{ backgroundColor: CSP_SURFACE, padding: CSP_CARD_PADDING, borderColor: "rgba(248, 250, 252, 0.08)" }}><p className="text-sm" style={{ color: CSP_TEXT_SECONDARY }}>Connect Stripe to receive weekly payouts once your verification is approved.</p></div>
+        <div className="rounded-2xl border" style={{ backgroundColor: CSP_SURFACE, padding: CSP_CARD_PADDING, borderColor: "rgba(248, 250, 252, 0.08)" }}>
+          {payoutReady ? (
+            <>
+              <p className="text-sm font-medium">Stripe payout setup complete</p>
+              <p className="mt-1 text-sm" style={{ color: CSP_TEXT_SECONDARY }}>
+                Your payout account is connected and ready.
+              </p>
+              <button type="button" onClick={() => navigate("/csp/dashboard/application/payout-setup")} className="mt-4 w-full py-3 rounded-xl font-medium text-sm transition-opacity hover:opacity-90 active:opacity-85" style={{ backgroundColor: CSP_INPUT, color: CSP_TEXT_PRIMARY, border: "1px solid rgba(248, 250, 252, 0.08)" }}>
+                View payout setup
+              </button>
+            </>
+          ) : applicationApproved ? (
+            <>
+              <p className="text-sm font-medium">Connect Stripe to receive payouts</p>
+              <p className="mt-1 text-sm" style={{ color: CSP_TEXT_SECONDARY }}>
+                Your application is approved. Complete Stripe payout setup to finish activation.
+              </p>
+              <button type="button" onClick={() => navigate("/csp/dashboard/application/payout-setup")} className="mt-4 w-full py-3 rounded-xl font-semibold text-sm text-white transition-opacity hover:opacity-90 active:opacity-85" style={{ backgroundColor: CSP_PRIMARY_BUTTON }}>
+                Connect with Stripe
+              </button>
+            </>
+          ) : (
+            <p className="text-sm" style={{ color: CSP_TEXT_SECONDARY }}>
+              Stripe payout setup unlocks after your application is approved.
+            </p>
+          )}
+        </div>
       </section>
 
       <ContinuumParticipationCard />
