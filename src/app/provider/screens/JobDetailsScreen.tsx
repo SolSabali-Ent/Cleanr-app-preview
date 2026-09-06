@@ -248,7 +248,7 @@ export default function JobDetailsScreen() {
       const message = err instanceof Error ? err.message : "Could not start job.";
       setActionError(
         message.includes("provider_too_far_for_check_in")
-          ? "You need to be at the service location before starting this job."
+          ? "You need to be at the service address before starting this job."
           : message
       );
     }
@@ -285,6 +285,8 @@ export default function JobDetailsScreen() {
 
   const expectedEarningsCents = Math.max(0, (booking.price_cents ?? 0) - (platformFeeCents ?? 0));
   const jobReference = booking.id.slice(0, 8).toUpperCase();
+  const isWorking = booking.status === "in_progress";
+  const isFinished = booking.status === "completed_by_provider" || booking.status === "confirmed";
 
   return (
     <div className="text-white pb-56 relative min-h-[60vh]">
@@ -324,7 +326,6 @@ export default function JobDetailsScreen() {
             ) : (
               <p className="mt-1 text-xs leading-5 text-slate-600">This is the beginning of the relationship. Learn the household, communicate clearly, and leave useful continuity for the next visit.</p>
             )}
-            <p className="mt-2 text-[11px] leading-4 text-sky-800">The booking is today&apos;s transaction. The relationship is what can compound across visits.</p>
           </section>
         ) : null}
 
@@ -343,14 +344,13 @@ export default function JobDetailsScreen() {
               {householdContext.surfacesToAvoid ? <div><dt className="text-xs text-slate-500">Surfaces / items to avoid</dt><dd className="whitespace-pre-wrap">{householdContext.surfacesToAvoid}</dd></div> : null}
               {householdContext.communicationPreferences ? <div><dt className="text-xs text-slate-500">Communication</dt><dd className="whitespace-pre-wrap">{householdContext.communicationPreferences}</dd></div> : null}
             </dl>
-            <p className="mt-3 text-[10px] leading-4 text-emerald-700">Access codes and one-visit entry instructions are never stored here. Check this visit&apos;s details below for anything time-specific.</p>
           </section>
         ) : null}
 
         {(booking.access_notes || booking.gate_code || booking.parking_notes || booking.entry_instructions || booking.pet_notes || booking.surfaces_to_avoid) && (
           <section className="bg-white border border-slate-200 rounded-2xl p-4 mb-3 shadow-md">
             <p className="text-xs font-semibold text-slate-500 mb-1">This visit</p>
-            <p className="text-[11px] text-slate-500 mb-2">Current booking details from the customer. These can differ from remembered household preferences.</p>
+            <p className="text-[11px] text-slate-500 mb-2">Current booking details from the customer.</p>
             <dl className="space-y-2 text-sm text-slate-900">
               {booking.access_notes ? <div><dt className="text-xs text-slate-500">Access notes</dt><dd className="whitespace-pre-wrap">{booking.access_notes}</dd></div> : null}
               {booking.gate_code ? <div><dt className="text-xs text-slate-500">Gate / door code</dt><dd>{booking.gate_code}</dd></div> : null}
@@ -359,14 +359,18 @@ export default function JobDetailsScreen() {
               {booking.pet_notes ? <div><dt className="text-xs text-slate-500">Pets</dt><dd className="whitespace-pre-wrap">{booking.pet_notes}</dd></div> : null}
               {booking.surfaces_to_avoid ? <div><dt className="text-xs text-slate-500">Surfaces to avoid</dt><dd className="whitespace-pre-wrap">{booking.surfaces_to_avoid}</dd></div> : null}
             </dl>
-            {booking.customer_access_updated_at ? <p className="text-[10px] text-slate-400 mt-2">Customer last updated {new Date(booking.customer_access_updated_at).toLocaleString()}</p> : null}
           </section>
         )}
 
-        <section className="bg-violet-50 border border-violet-200 rounded-2xl p-4 mb-3 shadow-md">
-          <p className="text-xs font-semibold text-violet-900">Cleanr Method</p>
-          <p className="mt-1 text-[11px] leading-4 text-violet-800">Use the information Cleanr handles so you can pay attention to the person and the home. These are relationship practices, not extra cleaning tasks.</p>
-          <div className="mt-3 space-y-3">
+        <details className="bg-violet-50 border border-violet-200 rounded-2xl mb-3 shadow-md overflow-hidden">
+          <summary className="cursor-pointer list-none p-4 flex items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold text-violet-900">Cleanr Method · visit practices</p>
+              <p className="mt-1 text-[11px] leading-4 text-violet-800">Carry the relationship context into the service without turning it into extra administrative work.</p>
+            </div>
+            <span className="text-xs font-semibold text-violet-700">View</span>
+          </summary>
+          <div className="px-4 pb-4 space-y-3">
             {methodPractices.map((practice) => (
               <div key={practice.key} className="rounded-xl border border-violet-200/80 bg-white/70 p-3">
                 <p className="text-xs font-semibold text-slate-900">{practice.label}</p>
@@ -374,47 +378,86 @@ export default function JobDetailsScreen() {
               </div>
             ))}
           </div>
-        </section>
-
-        <section className="bg-white border border-slate-200 rounded-2xl p-4 mb-3 shadow-md">
-          <p className="text-xs font-semibold text-slate-500 mb-2">Cleaning checklist</p>
-          <ul className="space-y-2">
-            {checklist.map((item) => (
-              <li key={item} className="flex items-center gap-2">
-                <input type="checkbox" checked={checkedItems.includes(item)} onChange={() => handleCheck(item)} className="w-4 h-4" />
-                <label className={`text-sm ${checkedItems.includes(item) ? "line-through text-slate-400" : "text-slate-900"}`}>{item}</label>
-              </li>
-            ))}
-          </ul>
-        </section>
-
-        <section className="bg-white border border-slate-200 rounded-2xl p-4 mb-3 shadow-md">
-          <p className="text-xs font-semibold text-slate-500 mb-2">Upload Before Photos</p>
-          <input type="file" multiple className="w-full text-xs" />
-        </section>
-
-        <section className="bg-white border border-slate-200 rounded-2xl p-4 mb-3 shadow-md">
-          <p className="text-xs font-semibold text-slate-500 mb-2">Upload After Photos</p>
-          <input type="file" multiple className="w-full text-xs" />
-        </section>
+        </details>
 
         {actionError && <p className="text-sm text-red-400 mb-3">{actionError}</p>}
         {availabilityHint && booking.status === "created" && <p className="text-sm text-amber-300 mb-3">{availabilityHint}</p>}
 
-        <div className="space-y-3 mt-4">
-          {booking.status === "created" && <button onClick={handleAccept} className="w-full bg-[#0A84FF] text-white py-3 rounded-xl text-sm font-semibold shadow-md shadow-[#0A84FF]/40">Accept Job</button>}
-          {booking.status === "accepted" && <button onClick={handleStart} className="w-full bg-[#0A84FF] text-white py-3 rounded-xl text-sm font-semibold shadow-md shadow-[#0A84FF]/40">Start Job</button>}
+        {(booking.status === "created" || booking.status === "accepted") && (
+          <section className="rounded-2xl border border-slate-700 bg-slate-900/70 p-4 mb-3 shadow-md">
+            <p className="text-xs font-semibold text-white">{booking.status === "accepted" ? "Ready for the visit?" : "Ready to take this job?"}</p>
+            <p className="mt-1 text-[11px] leading-4 text-slate-300">
+              {booking.status === "accepted"
+                ? "Start Job verifies that you are at the service address before the visit moves into progress."
+                : "Accepting reserves this visit to your schedule."}
+            </p>
+            {booking.status === "created" ? (
+              <button onClick={handleAccept} className="mt-3 w-full bg-[#0A84FF] text-white py-3 rounded-xl text-sm font-semibold shadow-md shadow-[#0A84FF]/40">Accept Job</button>
+            ) : (
+              <button onClick={handleStart} className="mt-3 w-full bg-[#0A84FF] text-white py-3 rounded-xl text-sm font-semibold shadow-md shadow-[#0A84FF]/40">Start Job</button>
+            )}
+          </section>
+        )}
 
-          {isProviderCustomerMessagingOpen(booking.status) ? (
+        {isProviderCustomerMessagingOpen(booking.status) ? (
+          <div className="grid gap-3 mb-3">
             <button type="button" onClick={() => { refetchUnread(); navigate(`/csp/dashboard/jobs/${jobId}/message`); }} className="w-full bg-white border border-slate-200 py-3 rounded-xl text-sm font-semibold text-slate-900 shadow-md relative">
               Message customer
-              {booking && unreadBookingIds.has(booking.id) ? <span className="absolute top-1/2 right-4 -translate-y-1/2 w-2 h-2 rounded-full bg-[#0A84FF]" aria-hidden /> : null}
+              {unreadBookingIds.has(booking.id) ? <span className="absolute top-1/2 right-4 -translate-y-1/2 w-2 h-2 rounded-full bg-[#0A84FF]" aria-hidden /> : null}
             </button>
-          ) : null}
+            <button onClick={() => navigate(`/csp/dashboard/jobs/${jobId}/incident`)} className="w-full bg-white border border-slate-200 py-3 rounded-xl text-sm font-semibold text-slate-900 shadow-md">Report Incident</button>
+          </div>
+        ) : null}
 
-          <button onClick={() => navigate(`/csp/dashboard/jobs/${jobId}/incident`)} className="w-full bg-white border border-slate-200 py-3 rounded-xl text-sm font-semibold text-slate-900 shadow-md">Report Incident</button>
-          {booking.status === "in_progress" && !isComplete && <button onClick={handleComplete} className="w-full bg-green-600 text-white py-3 rounded-xl text-sm font-semibold shadow-md">Mark Job Complete</button>}
-        </div>
+        {booking.status === "accepted" ? (
+          <details className="bg-white border border-slate-200 rounded-2xl mb-3 shadow-md overflow-hidden">
+            <summary className="cursor-pointer list-none p-4 text-xs font-semibold text-slate-600">Optional before-service evidence</summary>
+            <div className="px-4 pb-4">
+              <input type="file" multiple className="w-full text-xs text-slate-900" />
+            </div>
+          </details>
+        ) : null}
+
+        {(isWorking || isFinished) && (
+          <section className="bg-white border border-slate-200 rounded-2xl p-4 mb-3 shadow-md">
+            <p className="text-xs font-semibold text-slate-500 mb-1">Service checklist</p>
+            <p className="text-[11px] text-slate-500 mb-3">Use the checklist during the visit. All items must be complete before checkout.</p>
+            <ul className="space-y-2">
+              {checklist.map((item) => (
+                <li key={item} className="flex items-center gap-2">
+                  <input type="checkbox" checked={checkedItems.includes(item)} onChange={() => handleCheck(item)} disabled={isFinished} className="w-4 h-4" />
+                  <label className={`text-sm ${checkedItems.includes(item) ? "line-through text-slate-400" : "text-slate-900"}`}>{item}</label>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        {isWorking && (
+          <>
+            <details className="bg-white border border-slate-200 rounded-2xl mb-3 shadow-md overflow-hidden">
+              <summary className="cursor-pointer list-none p-4 text-xs font-semibold text-slate-600">Visit photos</summary>
+              <div className="px-4 pb-4 space-y-4">
+                <div>
+                  <p className="text-[11px] font-semibold text-slate-500 mb-2">Before photos</p>
+                  <input type="file" multiple className="w-full text-xs text-slate-900" />
+                </div>
+                <div>
+                  <p className="text-[11px] font-semibold text-slate-500 mb-2">After photos</p>
+                  <input type="file" multiple className="w-full text-xs text-slate-900" />
+                </div>
+              </div>
+            </details>
+
+            {!isComplete && (
+              <section className="rounded-2xl border border-emerald-700/40 bg-emerald-950/30 p-4 mb-3 shadow-md">
+                <p className="text-xs font-semibold text-emerald-100">Finish the visit</p>
+                <p className="mt-1 text-[11px] leading-4 text-emerald-200/80">Complete the checklist, then check out from the service address.</p>
+                <button onClick={handleComplete} className="mt-3 w-full bg-green-600 text-white py-3 rounded-xl text-sm font-semibold shadow-md">Mark Job Complete</button>
+              </section>
+            )}
+          </>
+        )}
       </div>
     </div>
   );
