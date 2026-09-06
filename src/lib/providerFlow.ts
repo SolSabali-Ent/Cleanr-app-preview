@@ -28,6 +28,7 @@ const P = {
   onboarding: `${DASH}/onboarding`,
   terms: `${DASH}/terms`,
   application: `${DASH}/application`,
+  payoutSetup: `${DASH}/application/payout-setup`,
   verification: `${DASH}/verification`,
   applicationStatus: `${DASH}/application-status`,
   index: DASH,
@@ -165,6 +166,8 @@ export function getCspFlowRedirectTarget(pathname: string, p: ProviderFlowProfil
   if (!verificationSubmitted(p)) return pathname.startsWith(P.verification) ? null : P.verification;
   if (isApplicationUnderReviewLike(p)) return pathname.startsWith(P.applicationStatus) ? null : P.applicationStatus;
   if (isApplicationApprovedLike(p)) {
+    if (norm(p.application_status) === "approved" && pathname.startsWith(P.payoutSetup)) return null;
+
     const onSetupFunnel =
       pathname.startsWith(P.candidate) ||
       pathname.startsWith(P.onboarding) ||
