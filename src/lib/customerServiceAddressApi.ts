@@ -1,101 +1,95 @@
 import { supabase } from "@/lib/supabase";
 
 export type CustomerServiceAddress = {
-  key: string;
-  line1: string;
-  line2: string | null;
-  lastUsedAt: string;
-};
-
-type BookingAddressRow = {
   id: string;
-  address: unknown;
-  scheduled_start: string;
-  stripe_payment_intent_id: string | null;
+  label: string;
+  street: string;
+  unit: string | null;
+  city: string;
+  state: string;
+  zip: string;
+  formattedAddress: string;
+  isDefault: boolean;
+  lastUsedAt: string | null;
+  createdAt: string;
 };
 
-function text(value: unknown): string {
-  return typeof value === "string" ? value.trim() : "";
+export type BookingServiceAddress = CustomerServiceAddress & {
+  lat: number;
+  lng: number;
+};
+
+type AddressRow = {
+  id: string;
+  label: string;
+  street: string;
+  unit: string | null;
+  city: string;
+  state: string;
+  zip_code: string;
+  formatted_address: string;
+  is_default: boolean;
+  last_used_at: string | null;
+  created_at?: string;
+  lat?: number;
+  lng?: number;
+};
+
+function mapAddress(row: AddressRow): CustomerServiceAddress {
+  return {
+    id: row.id,
+    label: row.label,
+    street: row.street,
+    unit: row.unit,
+    city: row.city,
+    state: row.state,
+    zip: row.zip_code,
+    formattedAddress: row.formatted_address,
+    isDefault: row.is_default,
+    lastUsedAt: row.last_used_at,
+    createdAt: row.created_at ?? row.last_used_at ?? new Date(0).toISOString(),
+  };
 }
 
-function cleanStreet(value: string): string {
-  return value
-    .split(/\s+/)
-    .filter(Boolean)
-    .map((word) => {
-      const lower = word.toLowerCase();
-      if (["nw", "ne", "sw", "se", "n", "s", "e", "w"].includes(lower)) return lower.toUpperCase();
-      if (/^\d+[a-z]?$/i.test(word)) return word.toUpperCase();
-      return `${lower.charAt(0).toUpperCase()}${lower.slice(1)}`;
-    })
-    .join(" ");
-}
-
-function parseVerifiedAddress(value: unknown): { line1: string; line2: string | null; key: string } | null {
-  if (!value || typeof value !== "object") return null;
-  const address = value as Record<string, unknown>;
-
-  if (text(address.location_precision) !== "verified_street_address") return null;
-
-  const street = text(address.street);
-  const unit = text(address.unit);
-  const city = text(address.city);
-  const state = text(address.state).toUpperCase();
-  const zip = text(address.zip_code || address.zip);
-
-  let line1 = street ? cleanStreet(street) : "";
-  if (line1 && unit) line1 = `${line1}, Unit ${unit}`;
-
-  const line2Parts = [city ? cleanStreet(city) : "", state, zip].filter(Boolean);
-  const line2 = line2Parts.length ? `${line2Parts.slice(0, 2).join(", ")}${zip ? ` ${zip}` : ""}`.trim() : null;
-
-  if (!line1) {
-    const fallback = text(address.address);
-    if (!fallback) return null;
-    line1 = fallback;
-  }
-
-  const key = `${line1}|${line2 ?? ""}`.toLowerCase();
-  return { line1, line2, key };
-}
-
-/**
- * Customer-only address summary derived from paid, verified bookings.
- * The UI receives only human-readable address lines and last-used time — never coordinates,
- * access instructions, pricing metadata, or the raw booking address JSON.
- */
 export async function listMyVerifiedServiceAddresses(): Promise<CustomerServiceAddress[]> {
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser();
+  const { data, error } = await supabase.rpc("list_my_service_addresses");
+  if (error) throw error;
+  return ((data ?? []) as AddressRow[]).map(mapAddress);
+}
 
-  if (userError) throw userError;
-  if (!user) return [];
-
-  const { data, error } = await supabase
-    .from("bookings")
-    .select("id,address,scheduled_start,stripe_payment_intent_id")
-    .eq("customer_id", user.id)
-    .not("stripe_payment_intent_id", "is", null)
-    .order("scheduled_start", { ascending: false })
-    .limit(100);
-
+export async function listMyServiceAddressesForBooking(zip?: string | null): Promise<BookingServiceAddress[]> {
+  const { data, error } = await supabase.rpc("list_my_service_addresses_for_booking", {
+    p_zip: zip?.trim() || null,
+  });
   if (error) throw error;
 
-  const deduped = new Map<string, CustomerServiceAddress>();
-  for (const row of (data ?? []) as BookingAddressRow[]) {
-    if (!row.stripe_payment_intent_id) continue;
-    const parsed = parseVerifiedAddress(row.address);
-    if (!parsed || deduped.has(parsed.key)) continue;
+  return ((data ?? []) as AddressRow[])
+    .filter((row) => typeof row.lat === "number" && typeof row.lng === "number")
+    .map((row) => ({
+      ...mapAddress(row),
+      lat: row.lat as number,
+      lng: row.lng as number,
+    }));
+}
 
-    deduped.set(parsed.key, {
-      key: parsed.key,
-      line1: parsed.line1,
-      line2: parsed.line2,
-      lastUsedAt: row.scheduled_start,
-    });
-  }
+export async function renameMyServiceAddress(addressId: string, label: string): Promise<void> {
+  const { error } = await supabase.rpc("rename_my_service_address", {
+    p_address_id: addressId,
+    p_label: label.trim(),
+  });
+  if (error) throw error;
+}
 
-  return [...deduped.values()];
+export async function setMyDefaultServiceAddress(addressId: string): Promise<void> {
+  const { error } = await supabase.rpc("set_my_default_service_address", {
+    p_address_id: addressId,
+  });
+  if (error) throw error;
+}
+
+export async function archiveMyServiceAddress(addressId: string): Promise<void> {
+  const { error } = await supabase.rpc("archive_my_service_address", {
+    p_address_id: addressId,
+  });
+  if (error) throw error;
 }
