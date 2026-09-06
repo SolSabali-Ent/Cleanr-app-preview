@@ -35,9 +35,7 @@ export function JobDetails() {
     return () => { active = false; };
   }, [jobId]);
 
-  // Schedule negotiation and trusted coverage are both pre-service continuity tools.
-  // Rescheduling keeps the same CSP relationship when timing can be resolved; coverage is
-  // the next continuity option when it cannot. Neither path mutates an in-progress visit.
+  // Internal names stay precise even when CSP-facing copy uses everyday language.
   const canMutuallyReschedule =
     Boolean(jobId) &&
     Boolean(booking?.provider_id) &&
@@ -63,19 +61,15 @@ export function JobDetails() {
         <JobDetailsScreen key={`${jobId ?? "job"}:${booking?.updated_at ?? "initial"}`} />
       </div>
 
-      {/*
-        JobDetailsScreen historically rendered local-only file inputs. Until that large screen
-        is decomposed, suppress those legacy controls here so CSPs see only the durable evidence
-        path below. :has is supported by the mobile browsers used for the limited release.
-      */}
+      {/* Keep the old local-only photo inputs hidden so CSPs see only the saved-photo path below. */}
       <style>{`.job-details-shell details:has(input[type="file"]) { display: none; }`}</style>
 
       {jobId && canUseVisitEvidence ? (
         <section className="space-y-3 pb-6">
           <div className="px-1">
-            <p className="text-xs font-semibold text-slate-300">Visit evidence</p>
+            <p className="text-xs font-semibold text-slate-300">Photos for this visit</p>
             <p className="mt-1 text-[11px] leading-4 text-slate-500">
-              Optional, private service-condition records. Photos are stored only when you choose to add them.
+              Optional and private by default. Add photos only when there is something useful to show.
             </p>
           </div>
           <VisitEvidencePanel

@@ -62,7 +62,7 @@ function formatClockTime(timestamp: number): string {
 
 function formatDistance(distanceMeters: number | null): string | null {
   if (distanceMeters == null || !Number.isFinite(distanceMeters)) return null;
-  if (distanceMeters <= 150) return "Within the arrival zone";
+  if (distanceMeters <= 150) return "At the service address";
   if (distanceMeters < 1000) return `${Math.round(distanceMeters)} m away`;
   const miles = distanceMeters / 1609.344;
   return `${miles < 10 ? miles.toFixed(1) : Math.round(miles)} mi away`;
@@ -97,11 +97,11 @@ function formatServiceAddress(address: string): string {
     .join(", ");
 }
 
-function relationshipHeading(continuity: ProviderHouseholdRelationshipSummary): string {
-  if (continuity.relationship?.customerPreferred) return "A household that prefers working with you";
-  if (continuity.completedServicesCount >= 2) return "A household you know";
-  if (continuity.completedServicesCount === 1) return "A returning household";
-  return "A new household relationship";
+function relationshipHeading(relationship: ProviderHouseholdRelationshipSummary): string {
+  if (relationship.relationship?.customerPreferred) return "A household that prefers working with you";
+  if (relationship.completedServicesCount >= 2) return "A household you know";
+  if (relationship.completedServicesCount === 1) return "A returning household";
+  return "Your first visit with this household";
 }
 
 function getLivePosition(): Promise<{ lat: number; lon: number }> {
@@ -147,23 +147,23 @@ function visitLocationErrorMessage(error: unknown): string {
     const distance = distanceFromRpcError(message);
     const context = formatDistance(distance);
     return context
-      ? `You're ${context.toLowerCase()}. Start Job becomes available inside the 150-meter arrival zone.`
-      : "You're not close enough yet. Start Job requires you to be within 150 meters of the service address.";
+      ? `You're ${context.toLowerCase()}. Move closer to the service address, then try Start Job again.`
+      : "You're not close enough yet. You need to be at or very near the service address to start the job.";
   }
   if (message.includes("location_permission_denied")) {
-    return "Location access is required to verify that you are at the service address. Allow location access and try again.";
+    return "Location access is needed to confirm that you are at the service address. Allow location access and try again.";
   }
   if (message.includes("location_timeout")) {
-    return "We couldn't verify your location in time. Make sure location services are on and try again.";
+    return "We couldn't confirm your location in time. Make sure location services are on and try again.";
   }
   if (message.includes("location_unavailable")) {
     return "We couldn't access your current location. Turn on location services and try again.";
   }
   if (message.includes("verified_service_address_required")) {
-    return "This visit is missing a verified service address. Contact Cleanr support before continuing.";
+    return "This visit is missing a confirmed service address. Contact Cleanr support before continuing.";
   }
   if (message.includes("missing_booking_geo_location") || message.includes("missing_geo_location")) {
-    return "Cleanr could not verify the service location for this visit. Contact support before continuing.";
+    return "Cleanr could not confirm the service location for this visit. Contact support before continuing.";
   }
   return `Could not start job${message ? `: ${message}` : "."}`;
 }
@@ -171,18 +171,18 @@ function visitLocationErrorMessage(error: unknown): string {
 function travelErrorMessage(error: unknown): string {
   const message = providerRpcErrorMessage(error);
   if (message.includes("en_route_too_early")) {
-    return "The travel window opens 90 minutes before the scheduled visit.";
+    return "You can mark yourself on the way 90 minutes before the scheduled visit.";
   }
   if (message.includes("location_permission_denied")) {
-    return "Location access is required to mark yourself on the way. Allow location access and try again.";
+    return "Location access is needed when you mark yourself on the way. Allow location access and try again.";
   }
   if (message.includes("location_timeout")) {
-    return "We couldn't verify your location in time. Make sure location services are on and try again.";
+    return "We couldn't confirm your location in time. Make sure location services are on and try again.";
   }
   if (message.includes("location_unavailable")) {
     return "We couldn't access your current location. Turn on location services and try again.";
   }
-  return `Could not start travel tracking${message ? `: ${message}` : "."}`;
+  return `Could not mark you on the way${message ? `: ${message}` : "."}`;
 }
 
 export default function JobDetailsScreen() {
@@ -516,14 +516,14 @@ export default function JobDetailsScreen() {
 
         {householdContinuity ? (
           <section className="bg-sky-50 border border-sky-200 rounded-2xl p-4 mb-3 shadow-md">
-            <p className="text-xs font-semibold text-sky-900">Relationship continuity</p>
+            <p className="text-xs font-semibold text-sky-900">Your history with this household</p>
             <p className="mt-1 text-sm font-semibold text-slate-900">{relationshipHeading(householdContinuity)}</p>
             {householdContinuity.completedServicesCount > 0 ? (
               <p className="mt-1 text-xs leading-5 text-slate-600">
                 You have completed {householdContinuity.completedServicesCount} prior service{householdContinuity.completedServicesCount === 1 ? "" : "s"} with this household{householdContinuity.lastServedAt ? ` · last visit ${formatDate(householdContinuity.lastServedAt)}` : ""}.
               </p>
             ) : (
-              <p className="mt-1 text-xs leading-5 text-slate-600">This is the beginning of the relationship. Learn the household, communicate clearly, and leave useful continuity for the next visit.</p>
+              <p className="mt-1 text-xs leading-5 text-slate-600">This is your first visit with this household. Learn what matters to them, communicate clearly, and leave helpful notes for next time.</p>
             )}
           </section>
         ) : null}
@@ -532,10 +532,10 @@ export default function JobDetailsScreen() {
           <section className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 mb-3 shadow-md">
             <div className="flex items-start justify-between gap-3 mb-2">
               <div>
-                <p className="text-xs font-semibold text-emerald-800">Household memory</p>
-                <p className="text-[11px] text-emerald-700 mt-1">Reusable preferences this household chose to remember with Cleanr.</p>
+                <p className="text-xs font-semibold text-emerald-800">Saved household preferences</p>
+                <p className="text-[11px] text-emerald-700 mt-1">Preferences this household chose to save for future visits.</p>
               </div>
-              <span className="rounded-full bg-emerald-100 px-2 py-1 text-[10px] font-semibold text-emerald-800">Consented</span>
+              <span className="rounded-full bg-emerald-100 px-2 py-1 text-[10px] font-semibold text-emerald-800">Saved with permission</span>
             </div>
             <dl className="space-y-2 text-sm text-slate-900">
               {householdContext.servicePreferences ? <div><dt className="text-xs text-slate-500">Service preferences</dt><dd className="whitespace-pre-wrap">{householdContext.servicePreferences}</dd></div> : null}
@@ -564,8 +564,8 @@ export default function JobDetailsScreen() {
         <details className="bg-violet-50 border border-violet-200 rounded-2xl mb-3 shadow-md overflow-hidden">
           <summary className="cursor-pointer list-none p-4 flex items-center justify-between gap-3">
             <div>
-              <p className="text-xs font-semibold text-violet-900">Cleanr Method · visit practices</p>
-              <p className="mt-1 text-[11px] leading-4 text-violet-800">Carry the relationship context into the service without turning it into extra administrative work.</p>
+              <p className="text-xs font-semibold text-violet-900">Cleanr Method · for this visit</p>
+              <p className="mt-1 text-[11px] leading-4 text-violet-800">Simple reminders to help you give good service and build trust.</p>
             </div>
             <span className="text-xs font-semibold text-violet-700">View</span>
           </summary>
@@ -602,16 +602,16 @@ export default function JobDetailsScreen() {
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-semibold text-white">
-                      {arrivalVerified ? "Arrival verified" : travelState.trackingActive ? "You're on the way" : "Getting to the visit"}
+                      {arrivalVerified ? "You're at the service address" : travelState.trackingActive ? "You're on the way" : "Getting to the visit"}
                     </p>
                     <p className="mt-1 text-[11px] leading-4 text-slate-300">
                       {arrivalVerified
-                        ? "Cleanr verified that you entered the 150-meter service-address zone. You're ready for the next step when the start window is open."
+                        ? "Cleanr confirmed you're close enough to the service address. You can start when the start time opens."
                         : travelState.trackingActive
-                          ? "Cleanr is using your current device location while this job page is active. Only the latest travel location is retained; the customer sees milestones, not your exact location."
+                          ? "Cleanr uses your phone's location while this job page is open to know when you've arrived. We keep only your latest location for this trip. The customer sees updates like on the way and arrived, not your exact location."
                           : travelWindowOpen
-                            ? "When you leave, mark yourself on the way. This starts live arrival verification for this visit."
-                            : `Travel tracking opens at ${formatClockTime(travelOpensAt)} — 90 minutes before the visit.`}
+                            ? "When you leave, tap I'm on my way. Cleanr will use your phone's location while this page is open so it can tell when you've arrived."
+                            : `You can tap I'm on my way at ${formatClockTime(travelOpensAt)} — 90 minutes before the visit.`}
                     </p>
                     {distanceLabel && travelState.enRouteAt ? (
                       <p className={`mt-2 text-[11px] font-semibold ${arrivalVerified ? "text-emerald-300" : "text-sky-300"}`}>{distanceLabel}</p>
@@ -623,7 +623,7 @@ export default function JobDetailsScreen() {
                   <>
                     <div className="mt-3 rounded-xl border border-slate-700/80 bg-slate-950/40 px-3 py-2.5">
                       <p className="text-[10px] leading-4 text-slate-400">
-                        By tapping <span className="font-semibold text-slate-300">I'm on my way</span>, you allow Cleanr to use your live device location during travel for arrival verification and visit updates. Tracking runs while this job page is active and stops when service starts. Cleanr keeps the latest travel location rather than a route history.
+                        By tapping <span className="font-semibold text-slate-300">I'm on my way</span>, you allow Cleanr to use your phone's location while this job page is open. We use it to know when you've arrived and to send visit updates. We keep your latest location for the trip, not a full route history.
                       </p>
                     </div>
                     <button
@@ -637,8 +637,8 @@ export default function JobDetailsScreen() {
                 ) : !arrivalVerified ? (
                   <div className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-sky-500/20 bg-sky-950/20 px-3 py-2.5">
                     <div>
-                      <p className="text-[11px] font-semibold text-sky-200">Arrival verification active</p>
-                      <p className="mt-0.5 text-[10px] text-sky-200/60">Keep Cleanr open while traveling for live updates.</p>
+                      <p className="text-[11px] font-semibold text-sky-200">Waiting for you to arrive</p>
+                      <p className="mt-0.5 text-[10px] text-sky-200/60">Keep Cleanr open while you're traveling so your arrival can update automatically.</p>
                     </div>
                     <Navigation size={16} className="shrink-0 text-sky-300" />
                   </div>
@@ -655,8 +655,8 @@ export default function JobDetailsScreen() {
                     {!checkInWindowOpen
                       ? `Start Job opens at ${formatClockTime(checkInOpensAt)} — 30 minutes before the visit.`
                       : arrivalVerified
-                        ? "Arrival is verified and the start window is open. Start Job will record your service check-in and move the visit into progress."
-                        : "Start Job verifies your live location. You must be within 150 meters of the service address."}
+                        ? "You're at the service address and the start time is open. Tap Start Job when you're ready to begin."
+                        : "Start Job checks your phone's location. You need to be at or very near the service address."}
                   </p>
                   <button
                     disabled={!checkInWindowOpen || locationChecking}
@@ -664,12 +664,12 @@ export default function JobDetailsScreen() {
                     className={`mt-3 w-full disabled:cursor-not-allowed disabled:opacity-45 text-white py-3 rounded-xl text-sm font-semibold shadow-md ${arrivalVerified && checkInWindowOpen ? "bg-emerald-600 shadow-emerald-900/30" : "bg-[#0A84FF] shadow-[#0A84FF]/40"}`}
                   >
                     {locationChecking
-                      ? "Verifying location…"
+                      ? "Checking location…"
                       : !checkInWindowOpen
                         ? `Start opens ${formatClockTime(checkInOpensAt)}`
                         : arrivalVerified
-                          ? "Start Job — arrival verified"
-                          : "Verify arrival & start"}
+                          ? "Start Job"
+                          : "Check location & start"}
                   </button>
                 </div>
               </>
@@ -699,7 +699,7 @@ export default function JobDetailsScreen() {
                     <p className="text-sm font-semibold text-white">Before-service photos</p>
                     <span className="rounded-full border border-slate-600 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-slate-400">Optional</span>
                   </div>
-                  <p className="mt-1 text-[11px] leading-4 text-slate-400">Document the starting condition when it helps protect you and the household.</p>
+                  <p className="mt-1 text-[11px] leading-4 text-slate-400">Take photos before the clean only when they help protect you and the household.</p>
                 </div>
                 <ChevronDown size={18} className="shrink-0 text-slate-500 transition-transform group-open:rotate-180" />
               </div>
@@ -711,7 +711,7 @@ export default function JobDetailsScreen() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-xs font-semibold text-white">Add photos</p>
-                  <p className="mt-0.5 text-[10px] leading-4 text-slate-400">Use clear photos only when there is something worth documenting.</p>
+                  <p className="mt-0.5 text-[10px] leading-4 text-slate-400">Use clear photos only when there is something worth showing.</p>
                 </div>
                 <input
                   type="file"
@@ -731,7 +731,7 @@ export default function JobDetailsScreen() {
                   <p className="mt-1 truncate text-[10px] text-emerald-200/70">{beforePhotoNames.join(", ")}</p>
                 </div>
               ) : (
-                <p className="mt-2 text-[10px] leading-4 text-slate-500">Skip this when the home is straightforward. Evidence should support trust, not create busywork.</p>
+                <p className="mt-2 text-[10px] leading-4 text-slate-500">Skip this when there is nothing important to show. Photos should help, not create extra work.</p>
               )}
             </div>
           </details>
@@ -740,7 +740,7 @@ export default function JobDetailsScreen() {
         {(isWorking || isFinished) && (
           <section className="bg-white border border-slate-200 rounded-2xl p-4 mb-3 shadow-md">
             <p className="text-xs font-semibold text-slate-500 mb-1">Service checklist</p>
-            <p className="text-[11px] text-slate-500 mb-3">Use the checklist during the visit. All items must be complete before you mark the service finished.</p>
+            <p className="text-[11px] text-slate-500 mb-3">Use the checklist during the visit. Finish every item before you mark the service finished.</p>
             <ul className="space-y-2">
               {checklist.map((item) => (
                 <li key={item} className="flex items-center gap-2">

@@ -21,8 +21,8 @@ function labelForKind(kind: VisitEvidenceKind) {
 
 function helpForKind(kind: VisitEvidenceKind) {
   return kind === "before"
-    ? "Document the starting condition only when it helps protect you and the household."
-    : "Document the finished condition when it is useful for service continuity or protection.";
+    ? "Take photos before the clean only when they help protect you and the household."
+    : "Take photos after the clean only when they would be useful later or help protect you and the household.";
 }
 
 export default function VisitEvidencePanel({ bookingId, kind, disabled = false, compact = false }: Props) {
@@ -41,7 +41,7 @@ export default function VisitEvidencePanel({ bookingId, kind, disabled = false, 
         if (mounted) setRecords(rows);
       })
       .catch((err) => {
-        if (mounted) setError(err instanceof Error ? err.message : "Could not load stored visit photos.");
+        if (mounted) setError(err instanceof Error ? err.message : "Could not load saved visit photos.");
       })
       .finally(() => {
         if (mounted) setLoading(false);
@@ -63,9 +63,9 @@ export default function VisitEvidencePanel({ bookingId, kind, disabled = false, 
     try {
       const next = await uploadProviderVisitEvidence(bookingId, kind, files);
       setRecords(next);
-      setNotice(`${files.length} photo${files.length === 1 ? "" : "s"} stored privately for this visit.`);
+      setNotice(`${files.length} photo${files.length === 1 ? "" : "s"} saved privately for this visit.`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not store visit photos.");
+      setError(err instanceof Error ? err.message : "Could not save visit photos.");
     } finally {
       setUploading(false);
     }
@@ -90,23 +90,23 @@ export default function VisitEvidencePanel({ bookingId, kind, disabled = false, 
         <div className="flex items-start gap-2">
           <ShieldCheck size={15} className={`mt-0.5 shrink-0 ${kind === "before" ? "text-slate-400" : "text-slate-500"}`} />
           <p className={`text-[10px] leading-4 ${kind === "before" ? "text-slate-400" : "text-slate-500"}`}>
-            These are private service-condition records. They are not automatically shared with the customer and do not become household memory. Use them only when they support trust, continuity, or protection.
+            These photos are private by default. They are not automatically shared with the customer or saved as household preferences. Add them only when there is a useful reason.
           </p>
         </div>
       </div>
 
       {loading ? (
-        <p className={`mt-3 text-[11px] ${kind === "before" ? "text-slate-500" : "text-slate-500"}`}>Loading stored evidence…</p>
+        <p className={`mt-3 text-[11px] ${kind === "before" ? "text-slate-500" : "text-slate-500"}`}>Loading saved photos…</p>
       ) : records.length > 0 ? (
         <div className={`mt-3 rounded-xl border px-3 py-2.5 ${kind === "before" ? "border-emerald-500/20 bg-emerald-950/20" : "border-emerald-200 bg-emerald-50"}`}>
           <div className={`flex items-center gap-2 ${kind === "before" ? "text-emerald-200" : "text-emerald-800"}`}>
             <Check size={14} />
-            <p className="text-[11px] font-semibold">{records.length} photo{records.length === 1 ? "" : "s"} stored</p>
+            <p className="text-[11px] font-semibold">{records.length} photo{records.length === 1 ? "" : "s"} saved</p>
           </div>
           <p className={`mt-1 truncate text-[10px] ${kind === "before" ? "text-emerald-200/70" : "text-emerald-700"}`}>{storedNames.join(", ")}</p>
         </div>
       ) : (
-        <p className={`mt-3 text-[10px] leading-4 ${kind === "before" ? "text-slate-500" : "text-slate-500"}`}>No photos stored. Skip this when documentation is unnecessary.</p>
+        <p className={`mt-3 text-[10px] leading-4 ${kind === "before" ? "text-slate-500" : "text-slate-500"}`}>No photos saved. Skip this when there is nothing important to show.</p>
       )}
 
       {error ? <p className="mt-3 text-[11px] font-medium text-red-500">{error}</p> : null}
@@ -115,7 +115,7 @@ export default function VisitEvidencePanel({ bookingId, kind, disabled = false, 
       {!disabled && remaining > 0 ? (
         <label className={`mt-3 flex min-h-[58px] cursor-pointer items-center justify-between gap-3 rounded-xl border border-dashed px-3 py-2.5 transition ${kind === "before" ? "border-slate-600 bg-slate-950/50 hover:border-[#0A84FF]/70" : "border-slate-300 bg-slate-50 hover:border-[#0A84FF]/70"}`}>
           <div>
-            <p className={`text-xs font-semibold ${kind === "before" ? "text-white" : "text-slate-900"}`}>{uploading ? "Storing photos…" : "Add photos"}</p>
+            <p className={`text-xs font-semibold ${kind === "before" ? "text-white" : "text-slate-900"}`}>{uploading ? "Saving photos…" : "Add photos"}</p>
             <p className={`mt-0.5 text-[10px] ${kind === "before" ? "text-slate-500" : "text-slate-500"}`}>Up to {remaining} more · 10 MB each</p>
           </div>
           <Camera size={17} className={kind === "before" ? "text-slate-400" : "text-slate-500"} />
@@ -132,9 +132,9 @@ export default function VisitEvidencePanel({ bookingId, kind, disabled = false, 
           />
         </label>
       ) : disabled ? (
-        <p className={`mt-3 text-[10px] leading-4 ${kind === "before" ? "text-slate-500" : "text-slate-500"}`}>Photo uploads close when the service is marked finished.</p>
+        <p className={`mt-3 text-[10px] leading-4 ${kind === "before" ? "text-slate-500" : "text-slate-500"}`}>You cannot add more photos after the service is marked finished.</p>
       ) : (
-        <p className={`mt-3 text-[10px] leading-4 ${kind === "before" ? "text-slate-500" : "text-slate-500"}`}>Maximum of {visitEvidenceLimits.maxFilesPerKind} photos stored for this stage.</p>
+        <p className={`mt-3 text-[10px] leading-4 ${kind === "before" ? "text-slate-500" : "text-slate-500"}`}>You can save up to {visitEvidenceLimits.maxFilesPerKind} photos here.</p>
       )}
     </section>
   );

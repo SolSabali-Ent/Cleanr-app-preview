@@ -38,29 +38,29 @@ function getLivePosition(): Promise<{ lat: number; lon: number }> {
 function locationErrorMessage(error: unknown): string {
   const message = providerRpcErrorMessage(error);
   if (message.includes("provider_too_far_to_finish_service")) {
-    return "Finish Service must be recorded while you are still at the service address.";
+    return "Mark the service finished while you are still at the home.";
   }
   if (message.includes("location_permission_denied")) {
-    return "Location access is required for the safety departure check. Allow location access and try again.";
+    return "Location access is needed so Cleanr can confirm that you've left the home safely. Allow location access and try again.";
   }
   if (message.includes("location_timeout")) {
-    return "We couldn't verify your location in time. Make sure location services are on and try again.";
+    return "We couldn't confirm your location in time. Make sure location services are on and try again.";
   }
   if (message.includes("location_unavailable")) {
     return "We couldn't access your current location. Turn on location services and try again.";
   }
-  return message ? `Could not verify the visit: ${message}` : "Could not verify the visit. Try again.";
+  return message ? `Could not close the visit: ${message}` : "Could not close the visit. Try again.";
 }
 
 function departureCopy(result: ProviderDepartureResult | null): string {
   if (!result || result.distanceMeters == null) {
-    return "Leave the property normally. Cleanr will verify that you are safely away before closing the visit.";
+    return "Leave the property normally. Cleanr will close the visit once you're far enough away from the home.";
   }
-  if (result.completed) return "Safe departure verified.";
+  if (result.completed) return "You're safely away. The visit is closed.";
   if (result.distanceMeters < 1000) {
-    return `You're about ${Math.round(result.distanceMeters)} meters from the service address. The visit closes after ${Math.round(result.departureThresholdMeters ?? 300)} meters.`;
+    return `You're about ${Math.round(result.distanceMeters)} meters from the service address. Keep going until you're at least ${Math.round(result.departureThresholdMeters ?? 300)} meters away.`;
   }
-  return "Cleanr is waiting for the safe-departure boundary to be verified.";
+  return "Cleanr is waiting until you're far enough away from the home to close the visit.";
 }
 
 export default function SafeCompletionPanel({ booking, checklistComplete, onBookingChange, onCompleted }: Props) {
@@ -163,12 +163,12 @@ export default function SafeCompletionPanel({ booking, checklistComplete, onBook
         </div>
         <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold text-emerald-100">
-            {serviceFinished ? "Service finished — verify safe departure" : "Finish the service"}
+            {serviceFinished ? "Service finished — make sure you've left safely" : "Finish the service"}
           </p>
           <p className="mt-1 text-[11px] leading-5 text-emerald-200/80">
             {serviceFinished
               ? departureCopy(departureResult)
-              : "Complete the checklist, then mark the cleaning work finished while you are still at the home. The visit will stay open until Cleanr verifies that you have safely left the area."}
+              : "Complete the checklist, then mark the cleaning finished while you are still at the home. The visit stays open until Cleanr confirms that you've left the area."}
           </p>
         </div>
       </div>
@@ -185,7 +185,7 @@ export default function SafeCompletionPanel({ booking, checklistComplete, onBook
           onClick={handleFinishService}
           className="mt-3 w-full rounded-xl bg-emerald-600 py-3 text-sm font-semibold text-white shadow-md disabled:cursor-not-allowed disabled:opacity-45"
         >
-          {busy ? "Verifying location…" : checklistComplete ? "Mark Service Finished" : "Complete checklist first"}
+          {busy ? "Checking location…" : checklistComplete ? "Mark Service Finished" : "Complete checklist first"}
         </button>
       ) : (
         <>
@@ -193,7 +193,7 @@ export default function SafeCompletionPanel({ booking, checklistComplete, onBook
             <div className="flex items-start gap-2">
               <MapPin size={14} className="mt-0.5 shrink-0 text-emerald-300" />
               <p className="text-[10px] leading-4 text-emerald-200/75">
-                Cleanr checks only the latest live location needed to confirm departure. The customer does not receive your exact location.
+                Cleanr checks your latest location only to know when you've left the home. The customer does not see your exact location.
               </p>
             </div>
           </div>
@@ -202,10 +202,10 @@ export default function SafeCompletionPanel({ booking, checklistComplete, onBook
             onClick={handleVerifyDeparture}
             className="mt-3 w-full rounded-xl border border-emerald-500/40 bg-emerald-500/10 py-3 text-sm font-semibold text-emerald-100 disabled:cursor-not-allowed disabled:opacity-45"
           >
-            {busy ? "Checking departure…" : "Verify I've safely left"}
+            {busy ? "Checking location…" : "I've left the home"}
           </button>
           <p className="mt-2 text-[10px] leading-4 text-emerald-200/60">
-            If you cannot leave normally or feel unsafe, use Report Incident instead of forcing the visit closed.
+            If you cannot leave normally or feel unsafe, use Report Incident instead of trying to close the visit.
           </p>
         </>
       )}
