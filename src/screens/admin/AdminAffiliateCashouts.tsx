@@ -44,6 +44,24 @@ export function AdminAffiliateCashouts() {
     } finally { setActionId(null); }
   }
 
+  async function cancel(id: string) {
+    const confirmed = window.confirm("Cancel this affiliate cash-out? Reserved rewards will return to the customer’s available cash balance. This is only allowed before a Stripe transfer starts.");
+    if (!confirmed) return;
+
+    setActionId(id); setMessage(null);
+    try {
+      const { error } = await supabase.rpc("admin_cancel_customer_affiliate_cashout", {
+        p_request_id: id,
+        p_reason: "cancelled_by_admin",
+      });
+      if (error) setMessage(error.message);
+      else {
+        setMessage("Affiliate cash-out cancelled. Reserved rewards are available to the customer again.");
+        await load();
+      }
+    } finally { setActionId(null); }
+  }
+
   async function release(id: string) {
     setActionId(id); setMessage(null);
     try {
@@ -81,7 +99,17 @@ export function AdminAffiliateCashouts() {
                   <td>{row.payout_ready ? "Ready" : "Not ready"}</td>
                   <td>{new Date(row.requested_at).toLocaleDateString()}</td>
                   <td className="pr-3">
-                    {row.status === "requested" ? <button onClick={() => void approve(row.id)} disabled={actionId === row.id || !row.payout_ready} className="rounded-lg px-3 py-2 text-xs font-semibold text-white disabled:opacity-40" style={{ backgroundColor: adminTheme.primary }}>{actionId === row.id ? "Working…" : "Approve"}</button> : row.status === "approved" ? <button onClick={() => void release(row.id)} disabled={actionId === row.id} className="rounded-lg px-3 py-2 text-xs font-semibold text-white disabled:opacity-40" style={{ backgroundColor: adminTheme.primary }}>{actionId === row.id ? "Sending…" : "Send payout"}</button> : row.status === "paid" ? <span className="text-xs text-emerald-700">Sent</span> : <span className="text-xs text-slate-500">{row.failure_reason || "—"}</span>}
+                    {row.status === "requested" ? (
+                      <div className="flex gap-2">
+                        <button onClick={() => void approve(row.id)} disabled={actionId === row.id || !row.payout_ready} className="rounded-lg px-3 py-2 text-xs font-semibold text-white disabled:opacity-40" style={{ backgroundColor: adminTheme.primary }}>{actionId === row.id ? "Working…" : "Approve"}</button>
+                        <button onClick={() => void cancel(row.id)} disabled={actionId === row.id} className="rounded-lg border px-3 py-2 text-xs font-semibold disabled:opacity-40" style={{ borderColor: adminTheme.border, color: adminTheme.textPrimary }}>{actionId === row.id ? "Working…" : "Cancel"}</button>
+                      </div>
+                    ) : row.status === "approved" ? (
+                      <div className="flex gap-2">
+                        <button onClick={() => void release(row.id)} disabled={actionId === row.id} className="rounded-lg px-3 py-2 text-xs font-semibold text-white disabled:opacity-40" style={{ backgroundColor: adminTheme.primary }}>{actionId === row.id ? "Working…" : "Send payout"}</button>
+                        <button onClick={() => void cancel(row.id)} disabled={actionId === row.id} className="rounded-lg border px-3 py-2 text-xs font-semibold disabled:opacity-40" style={{ borderColor: adminTheme.border, color: adminTheme.textPrimary }}>{actionId === row.id ? "Working…" : "Cancel"}</button>
+                      </div>
+                    ) : row.status === "processing" ? <span className="text-xs text-amber-700">Transfer in progress</span> : row.status === "paid" ? <span className="text-xs text-emerald-700">Sent</span> : row.status === "cancelled" ? <span className="text-xs text-slate-500">Cancelled · rewards released</span> : <span className="text-xs text-slate-500">{row.failure_reason || "—"}</span>}
                   </td>
                 </tr>
               ))}
@@ -90,7 +118,7 @@ export function AdminAffiliateCashouts() {
         </div>
       </section>
 
-      <p className="text-xs leading-5" style={{ color: adminTheme.textSecondary }}>Approval and Stripe release are intentionally separate during the soft launch. Cleanr does not store customer bank-account numbers; Stripe handles payout onboarding and bank delivery.</p>
+      <p className="text-xs leading-5" style={{ color: adminTheme.textSecondary }}>Approval and Stripe release are intentionally separate during the soft launch. A pending or approved cash-out can be cancelled before transfer begins; processing and paid requests cannot be released back into available rewards. Cleanr does not store customer bank-account numbers; Stripe handles payout onboarding and bank delivery.</p>
     </main>
   );
 }
