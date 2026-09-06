@@ -1,12 +1,19 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Camera, Check, ChevronDown } from "lucide-react";
+import { Camera, Check, ChevronDown, Navigation } from "lucide-react";
 import {
   getBooking,
   acceptBookingAsProvider,
   checkInBookingAsProvider,
   checkOutBookingAsProvider,
 } from "../../../lib/bookingApi";
+import {
+  getProviderTravelState,
+  markProviderEnRoute,
+  providerRpcErrorMessage,
+  recordProviderTravelLocation,
+  type ProviderTravelState,
+} from "../../../lib/providerTravelApi";
 import type { Booking } from "../../../domain/booking";
 import type { HouseholdContext } from "../../../domain/householdContext";
 import type { ProviderHouseholdRelationshipSummary } from "../../../domain/serviceRelationship";
@@ -22,6 +29,12 @@ import { useJobFlow } from "../logic/useJobFlow";
 import { useUnreadBookingMessageIds } from "../../../hooks/useUnreadBookingMessageIds";
 import { isProviderCustomerMessagingOpen } from "../../../lib/providerCustomerMessaging";
 
+const EMPTY_TRAVEL_STATE: ProviderTravelState = {
+  enRouteAt: null,
+  trackingActive: false,
+  lastLocationAt: null,
+};
+
 function formatDate(iso: string) {
   try {
     return new Date(iso).toLocaleDateString(undefined, { dateStyle: "medium" });
@@ -36,6 +49,10 @@ function formatTime(iso: string) {
   } catch {
     return "";
   }
+}
+
+function formatClockTime(timestamp: number): string {
+  return new Date(timestamp).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
 }
 
 function formatServiceAddress(address: string): string {
@@ -102,9 +119,12 @@ function getLivePosition(): Promise<{ lat: number; lon: number }> {
 }
 
 function visitLocationErrorMessage(error: unknown, action: "start" | "complete"): string {
-  const message = error instanceof Error ? error.message : String(error ?? "");
+  const message = providerRpcErrorMessage(error);
+  if (message.includes("check_in_too_early")) {
+    return "Start Job opens 30 minutes before the scheduled visit.";
+  }
   if (message.includes("provider_too_far_for_check_in")) {
-    return "You need to be at the service address to start this job.";
+    return "You're not close enough yet. Start Job requires you to be within 150 meters of the service address.";
   }
   if (message.includes("provider_too_far_for_check_out")) {
     return "You need to be at the service address to complete this job.";
@@ -124,7 +144,26 @@ function visitLocationErrorMessage(error: unknown, action: "start" | "complete")
   if (message.includes("missing_booking_geo_location") || message.includes("missing_geo_location")) {
     return "Cleanr could not verify the service location for this visit. Contact support before continuing.";
   }
-  return action === "start" ? "Could not start job. Try again." : "Could not complete job. Try again.";
+  return action === "start"
+    ? `Could not start job${message ? `: ${message}` : "."}`
+    : `Could not complete job${message ? `: ${message}` : "."}`;
+}
+
+function travelErrorMessage(error: unknown): string {
+  const message = providerRpcErrorMessage(error);
+  if (message.includes("en_route_too_early")) {
+    return "The travel window opens 90 minutes before the scheduled visit.";
+  }
+  if (message.includes("location_permission_denied")) {
+    return "Location access is required to mark yourself on the way. Allow location access and try again.";
+  }
+  if (message.includes("location_timeout")) {
+    return "We couldn't verify your location in time. Make sure location services are on and try again.";
+  }
+  if (message.includes("location_unavailable")) {
+    return "We couldn't access your current location. Turn on location services and try again.";
+  }
+  return `Could not start travel tracking${message ? `: ${message}` : "."}`;
 }
 
 export default function JobDetailsScreen() {
@@ -135,15 +174,23 @@ export default function JobDetailsScreen() {
   const [platformFeeCents, setPlatformFeeCents] = useState<number | null>(null);
   const [householdContext, setHouseholdContext] = useState<HouseholdContext | null>(null);
   const [householdContinuity, setHouseholdContinuity] = useState<ProviderHouseholdRelationshipSummary | null>(null);
+  const [travelState, setTravelState] = useState<ProviderTravelState>(EMPTY_TRAVEL_STATE);
   const [loading, setLoading] = useState(true);
   const [actionError, setActionError] = useState<string | null>(null);
   const [locationChecking, setLocationChecking] = useState(false);
   const [availabilityHint, setAvailabilityHint] = useState<string | null>(null);
   const [checkedItems, setCheckedItems] = useState<string[]>([]);
   const [beforePhotoNames, setBeforePhotoNames] = useState<string[]>([]);
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  const lastTravelSendRef = useRef(0);
   const { unreadBookingIds, refetch: refetchUnread } = useUnreadBookingMessageIds();
 
   const checklist = checklistTemplates.default;
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNowMs(Date.now()), 30_000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     if (!jobId) {
@@ -154,6 +201,57 @@ export default function JobDetailsScreen() {
       .then(setBooking)
       .finally(() => setLoading(false));
   }, [jobId]);
+
+  useEffect(() => {
+    let mounted = true;
+    if (!jobId || booking?.status !== "accepted") {
+      setTravelState(EMPTY_TRAVEL_STATE);
+      return;
+    }
+    getProviderTravelState(jobId)
+      .then((state) => {
+        if (mounted) setTravelState(state);
+      })
+      .catch(() => {
+        if (mounted) setTravelState(EMPTY_TRAVEL_STATE);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [jobId, booking?.status]);
+
+  useEffect(() => {
+    if (!jobId || booking?.status !== "accepted" || !travelState.trackingActive) return;
+    if (typeof navigator === "undefined" || !navigator.geolocation) return;
+
+    const watchId = navigator.geolocation.watchPosition(
+      (position) => {
+        const now = Date.now();
+        if (now - lastTravelSendRef.current < 45_000) return;
+        lastTravelSendRef.current = now;
+        void recordProviderTravelLocation(jobId, position.coords.latitude, position.coords.longitude)
+          .then(() => {
+            setTravelState((current) => ({
+              ...current,
+              lastLocationAt: new Date().toISOString(),
+            }));
+          })
+          .catch((error) => {
+            console.warn("[provider-travel] location update failed", providerRpcErrorMessage(error));
+          });
+      },
+      (error) => {
+        console.warn("[provider-travel] live watch unavailable", error.code);
+      },
+      {
+        enableHighAccuracy: true,
+        maximumAge: 15_000,
+        timeout: 20_000,
+      }
+    );
+
+    return () => navigator.geolocation.clearWatch(watchId);
+  }, [jobId, booking?.status, travelState.trackingActive]);
 
   useEffect(() => {
     let mounted = true;
@@ -263,15 +361,16 @@ export default function JobDetailsScreen() {
     };
   }, [providerId, booking]);
 
-  const statusMap: Record<string, string> = {
+  const flowStatusMap: Record<string, string> = {
     created: "scheduled",
     accepted: "scheduled",
     in_progress: "in_progress",
     completed_by_provider: "completed",
     confirmed: "completed",
   };
-  const jobStatus = booking ? (statusMap[booking.status] || "scheduled") : "scheduled";
-  const { isComplete } = useJobFlow(jobStatus);
+  const flowStatus = booking ? (flowStatusMap[booking.status] || "scheduled") : "scheduled";
+  const stepperStatus = booking?.status === "accepted" && travelState.enRouteAt ? "en_route" : flowStatus;
+  const { isComplete } = useJobFlow(flowStatus);
 
   const methodPractices = useMemo(() => {
     if (!booking) return [];
@@ -302,7 +401,23 @@ export default function JobDetailsScreen() {
       const b = await acceptBookingAsProvider(jobId);
       setBooking(b);
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : "Could not accept job. You may not have permission.");
+      setActionError(providerRpcErrorMessage(err) || "Could not accept job. You may not have permission.");
+    }
+  };
+
+  const handleEnRoute = async () => {
+    if (!jobId || locationChecking) return;
+    setActionError(null);
+    setLocationChecking(true);
+    try {
+      const { lat, lon } = await getLivePosition();
+      const state = await markProviderEnRoute(jobId, lat, lon);
+      lastTravelSendRef.current = Date.now();
+      setTravelState(state);
+    } catch (err) {
+      setActionError(travelErrorMessage(err));
+    } finally {
+      setLocationChecking(false);
     }
   };
 
@@ -313,6 +428,7 @@ export default function JobDetailsScreen() {
     try {
       const { lat, lon } = await getLivePosition();
       const b = await checkInBookingAsProvider(jobId, lat, lon);
+      setTravelState((current) => ({ ...current, trackingActive: false }));
       setBooking(b);
     } catch (err) {
       setActionError(visitLocationErrorMessage(err, "start"));
@@ -358,6 +474,11 @@ export default function JobDetailsScreen() {
   const jobReference = booking.id.slice(0, 8).toUpperCase();
   const isWorking = booking.status === "in_progress";
   const isFinished = booking.status === "completed_by_provider" || booking.status === "confirmed";
+  const scheduledStartMs = new Date(booking.scheduled_start).getTime();
+  const travelOpensAt = scheduledStartMs - 90 * 60 * 1000;
+  const checkInOpensAt = scheduledStartMs - 30 * 60 * 1000;
+  const travelWindowOpen = nowMs >= travelOpensAt;
+  const checkInWindowOpen = nowMs >= checkInOpensAt;
 
   return (
     <div className="text-white pb-56 relative min-h-[60vh]">
@@ -368,7 +489,7 @@ export default function JobDetailsScreen() {
         <h1 className="text-xl font-semibold mb-1">Job Details</h1>
         <p className="text-[11px] text-slate-500 mb-4" title={booking.id}>Job reference · {jobReference}</p>
 
-        <div className="mb-4"><JobStatusStepper currentStatus={jobStatus} /></div>
+        <div className="mb-4"><JobStatusStepper currentStatus={stepperStatus} /></div>
 
         <section className="bg-white border border-slate-200 rounded-2xl p-4 mb-3 shadow-md">
           <p className="text-xs font-semibold text-slate-500 mb-1">Service address</p>
@@ -460,18 +581,61 @@ export default function JobDetailsScreen() {
 
         {(booking.status === "created" || booking.status === "accepted") && (
           <section className="rounded-2xl border border-slate-700 bg-slate-900/70 p-4 mb-3 shadow-md">
-            <p className="text-xs font-semibold text-white">{booking.status === "accepted" ? "Ready for the visit?" : "Ready to take this job?"}</p>
-            <p className="mt-1 text-[11px] leading-4 text-slate-300">
-              {booking.status === "accepted"
-                ? "Start Job uses your current device location to verify that you are at the service address."
-                : "Accepting reserves this visit to your schedule."}
-            </p>
             {booking.status === "created" ? (
-              <button onClick={handleAccept} className="mt-3 w-full bg-[#0A84FF] text-white py-3 rounded-xl text-sm font-semibold shadow-md shadow-[#0A84FF]/40">Accept Job</button>
+              <>
+                <p className="text-xs font-semibold text-white">Ready to take this job?</p>
+                <p className="mt-1 text-[11px] leading-4 text-slate-300">Accepting reserves this visit to your schedule.</p>
+                <button onClick={handleAccept} className="mt-3 w-full bg-[#0A84FF] text-white py-3 rounded-xl text-sm font-semibold shadow-md shadow-[#0A84FF]/40">Accept Job</button>
+              </>
             ) : (
-              <button disabled={locationChecking} onClick={handleStart} className="mt-3 w-full bg-[#0A84FF] disabled:opacity-60 text-white py-3 rounded-xl text-sm font-semibold shadow-md shadow-[#0A84FF]/40">
-                {locationChecking ? "Verifying location…" : "Start Job"}
-              </button>
+              <>
+                <div className="flex items-start gap-3">
+                  <div className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${travelState.trackingActive ? "bg-emerald-500/15 text-emerald-300" : "bg-[#0A84FF]/15 text-[#7DBBFF]"}`}>
+                    <Navigation size={18} />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-white">{travelState.trackingActive ? "You're on the way" : "Getting to the visit"}</p>
+                    <p className="mt-1 text-[11px] leading-4 text-slate-300">
+                      {travelState.trackingActive
+                        ? "Travel status is active. Cleanr records location updates while this job page remains active so the customer experience can stay informed."
+                        : travelWindowOpen
+                          ? "When you leave, mark yourself on the way. Cleanr will begin live travel updates for this visit."
+                          : `Travel tracking opens at ${formatClockTime(travelOpensAt)} — 90 minutes before the visit.`}
+                    </p>
+                  </div>
+                </div>
+
+                {!travelState.trackingActive ? (
+                  <button
+                    disabled={!travelWindowOpen || locationChecking}
+                    onClick={handleEnRoute}
+                    className="mt-3 w-full rounded-xl border border-[#0A84FF]/50 bg-[#0A84FF]/10 py-3 text-sm font-semibold text-[#9DCCFF] disabled:cursor-not-allowed disabled:opacity-45"
+                  >
+                    {locationChecking ? "Checking location…" : travelWindowOpen ? "I'm on my way" : `On my way opens ${formatClockTime(travelOpensAt)}`}
+                  </button>
+                ) : (
+                  <div className="mt-3 flex items-center justify-between rounded-xl border border-emerald-500/20 bg-emerald-950/20 px-3 py-2.5">
+                    <span className="text-[11px] font-semibold text-emerald-200">Live travel status on</span>
+                    <span className="text-[10px] text-emerald-200/60">while page is active</span>
+                  </div>
+                )}
+
+                <div className="mt-4 border-t border-slate-700 pt-4">
+                  <p className="text-sm font-semibold text-white">Start the service</p>
+                  <p className="mt-1 text-[11px] leading-4 text-slate-300">
+                    {checkInWindowOpen
+                      ? "Start Job checks your live location and requires you to be within 150 meters of the service address."
+                      : `Start Job opens at ${formatClockTime(checkInOpensAt)} — 30 minutes before the visit — and still requires the 150-meter geofence.`}
+                  </p>
+                  <button
+                    disabled={!checkInWindowOpen || locationChecking}
+                    onClick={handleStart}
+                    className="mt-3 w-full bg-[#0A84FF] disabled:cursor-not-allowed disabled:opacity-45 text-white py-3 rounded-xl text-sm font-semibold shadow-md shadow-[#0A84FF]/40"
+                  >
+                    {locationChecking ? "Verifying location…" : checkInWindowOpen ? "Start Job" : `Start opens ${formatClockTime(checkInOpensAt)}`}
+                  </button>
+                </div>
+              </>
             )}
           </section>
         )}
