@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useLayoutEffect, useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { track } from "../lib/analytics";
 import { startBookingAttemptRef } from "../lib/bookingAttemptRef";
@@ -83,8 +83,10 @@ function CleanrBookingFlowInner() {
   const current = STEPS[stepIndex];
   const hasEmittedStarted = useRef(false);
 
-  useEffect(() => {
-    window.scrollTo({ top: 0, behavior: "smooth" });
+  useLayoutEffect(() => {
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+    window.scrollTo(0, 0);
   }, [stepIndex]);
 
   useEffect(() => {
