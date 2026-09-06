@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useProfile } from "../../../lib/useProfile";
 import { getStripeConnectLink, syncStripeConnectStatus } from "../../../lib/stripeConnect";
@@ -18,6 +18,7 @@ export default function PayoutSetupScreen() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { profile, refresh } = useProfile();
+  const stripeReturnSyncStartedRef = useRef(false);
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -28,7 +29,11 @@ export default function PayoutSetupScreen() {
   const active = profile?.marketplace_access === true;
 
   useEffect(() => {
-    if (!isReturn || !profile) return;
+    if (!isReturn || !profile || stripeReturnSyncStartedRef.current) return;
+
+    // The Stripe return is a one-shot transition. Guard it immediately so profile refreshes,
+    // provider-context rerenders, or changing hook identities cannot fire the sync repeatedly.
+    stripeReturnSyncStartedRef.current = true;
     let mounted = true;
     setSyncing(true);
     setError(null);
@@ -44,8 +49,6 @@ export default function PayoutSetupScreen() {
           setMessage("We’re still processing your payout details. This may take a moment.");
         }
 
-        // Stripe return is a one-shot sync signal. Remove it after the sync so refreshes and
-        // revisits do not repeatedly call the readiness/activation transition.
         navigate("/csp/dashboard/application/payout-setup", { replace: true });
       })
       .catch((e) => {
