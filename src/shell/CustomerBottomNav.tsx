@@ -14,7 +14,14 @@ export function CustomerBottomNav() {
   const isAdminPreview = pathname.startsWith("/admin/full-app/customer");
 
   return (
-    <nav className="customer-bottom-nav" style={isAdminPreview ? { position: "absolute" } : undefined}>
+    <nav
+      className="customer-bottom-nav"
+      style={{
+        ...(isAdminPreview ? { position: "absolute" as const } : null),
+        height: "calc(72px + env(safe-area-inset-bottom, 0px))",
+        paddingBottom: "env(safe-area-inset-bottom, 0px)",
+      }}
+    >
       {tabs.map((tab) => {
         const Icon = tab.icon;
         const target = customerRouteForContext(pathname, tab.to);
@@ -24,10 +31,10 @@ export function CustomerBottomNav() {
             to={target}
             end={tab.to === "/app"}
             className={({ isActive }) =>
-              `nav-item ${isActive ? "active" : ""} flex flex-col items-center justify-center text-xs font-medium`
+              `nav-item ${isActive ? "active" : ""} flex h-full flex-1 touch-manipulation select-none flex-col items-center justify-center text-xs font-medium`
             }
           >
-            <Icon className="h-4 w-4 mb-1" strokeWidth={2.2} />
+            <Icon className="mb-1 h-4 w-4" strokeWidth={2.2} />
             <span>{tab.label}</span>
           </NavLink>
         );
