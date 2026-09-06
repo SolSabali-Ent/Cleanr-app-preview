@@ -27,7 +27,7 @@ export function CustomerLayout() {
         <header
           className="sticky top-0 z-10 flex items-center justify-between shrink-0 border-b"
           style={{
-            height: "48px",
+            height: "calc(48px + env(safe-area-inset-top, 0px))",
             paddingTop: "env(safe-area-inset-top, 0px)",
             paddingRight: "16px",
             paddingLeft: "16px",
