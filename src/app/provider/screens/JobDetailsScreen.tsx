@@ -32,6 +32,28 @@ function formatTime(iso: string) {
   }
 }
 
+function formatServiceAddress(address: string): string {
+  const uppercaseTokens = new Set(["N", "S", "E", "W", "NE", "NW", "SE", "SW", "GA"]);
+  const titleTokens = new Set(["RD", "ST", "AVE", "DR", "LN", "BLVD", "CT", "PL", "PKWY", "CIR", "TER", "WAY", "HWY"]);
+
+  return address
+    .split(",")
+    .map((segment) =>
+      segment
+        .trim()
+        .split(/\s+/)
+        .map((word) => {
+          if (/^\d+(?:-\d+)?$/.test(word)) return word;
+          const upper = word.toUpperCase();
+          if (uppercaseTokens.has(upper)) return upper;
+          if (titleTokens.has(upper)) return upper.charAt(0) + upper.slice(1).toLowerCase();
+          return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+        })
+        .join(" ")
+    )
+    .join(", ");
+}
+
 function relationshipHeading(continuity: ProviderHouseholdRelationshipSummary): string {
   if (continuity.relationship?.customerPreferred) return "A household that prefers working with you";
   if (continuity.completedServicesCount >= 2) return "A household you know";
@@ -262,21 +284,22 @@ export default function JobDetailsScreen() {
   }
 
   const expectedEarningsCents = Math.max(0, (booking.price_cents ?? 0) - (platformFeeCents ?? 0));
+  const jobReference = booking.id.slice(0, 8).toUpperCase();
 
   return (
-    <div className="text-white pb-40 relative min-h-[60vh]">
+    <div className="text-white pb-56 relative min-h-[60vh]">
       <img src="/cleanr_final-04.png" alt="" className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none" style={{ zIndex: 1, width: "360px", opacity: 0.08 }} />
       <div className="relative z-10">
         <button onClick={() => navigate(-1)} className="inline-flex items-center text-xs text-slate-400 mb-3">← Back</button>
 
-        <h1 className="text-xl font-semibold mb-2">Job Details</h1>
-        <p className="text-xs text-slate-400 mb-4">Booking ID: {booking.id}</p>
+        <h1 className="text-xl font-semibold mb-1">Job Details</h1>
+        <p className="text-[11px] text-slate-500 mb-4" title={booking.id}>Job reference · {jobReference}</p>
 
         <div className="mb-4"><JobStatusStepper currentStatus={jobStatus} /></div>
 
         <section className="bg-white border border-slate-200 rounded-2xl p-4 mb-3 shadow-md">
           <p className="text-xs font-semibold text-slate-500 mb-1">Service address</p>
-          <p className="text-sm font-semibold text-slate-900">{booking.address}</p>
+          <p className="text-sm font-semibold text-slate-900">{formatServiceAddress(booking.address)}</p>
         </section>
 
         <section className="bg-white border border-slate-200 rounded-2xl p-4 mb-3 shadow-md">
