@@ -25,7 +25,7 @@ export function CustomerLayout() {
     >
       {isCustomerApp ? (
         <header
-          className="sticky top-0 z-10 flex justify-end items-center shrink-0 border-b"
+          className="sticky top-0 z-10 flex items-center justify-between shrink-0 border-b"
           style={{
             height: "48px",
             paddingTop: "env(safe-area-inset-top, 0px)",
@@ -35,6 +35,11 @@ export function CustomerLayout() {
             borderColor: "rgba(14, 18, 36, 0.08)",
           }}
         >
+          <img
+            src="/cleanr-app@2x.png"
+            alt="Cleanr"
+            className="h-6 w-auto object-contain object-left"
+          />
           <NotificationsSlot variant="customer" />
         </header>
       ) : null}

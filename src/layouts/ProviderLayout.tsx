@@ -39,7 +39,7 @@ function ProviderLayoutInner() {
       ) : null}
       {showChrome ? (
         <header
-          className="sticky top-0 z-10 flex justify-end items-center shrink-0 border-b border-white/10"
+          className="sticky top-0 z-10 flex items-center justify-between shrink-0 border-b border-white/10"
           style={{
             height: "48px",
             paddingTop: "env(safe-area-inset-top, 0px)",
@@ -48,6 +48,11 @@ function ProviderLayoutInner() {
             backgroundColor: providerTheme.background,
           }}
         >
+          <img
+            src="/cleanr-header-white.png"
+            alt="Cleanr"
+            className="h-6 w-auto object-contain object-left"
+          />
           <NotificationsSlot variant="provider" />
         </header>
       ) : null}
@@ -65,7 +70,7 @@ function ProviderLayoutInner() {
   );
 }
 
-/** Provider shell: dark authority background; bell + bottom nav for active or approved-pending CSP workspaces. */
+/** Provider shell: dark authority background; wordmark + bell + bottom nav for active or approved-pending CSP workspaces. */
 export function ProviderLayout() {
   return (
     <CspDashboardChromeProvider>
