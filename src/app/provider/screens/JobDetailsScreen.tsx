@@ -1,6 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { getBooking, acceptBookingAsProvider, startBookingAsProvider, completeBookingAsProvider } from "../../../lib/bookingApi";
+import {
+  getBooking,
+  acceptBookingAsProvider,
+  checkInBookingAsProvider,
+  checkOutBookingAsProvider,
+} from "../../../lib/bookingApi";
 import type { Booking } from "../../../domain/booking";
 import type { HouseholdContext } from "../../../domain/householdContext";
 import type { ProviderHouseholdRelationshipSummary } from "../../../domain/serviceRelationship";
@@ -61,6 +66,66 @@ function relationshipHeading(continuity: ProviderHouseholdRelationshipSummary): 
   return "A new household relationship";
 }
 
+function getLivePosition(): Promise<{ lat: number; lon: number }> {
+  return new Promise((resolve, reject) => {
+    if (typeof navigator === "undefined" || !navigator.geolocation) {
+      reject(new Error("location_unavailable"));
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        resolve({
+          lat: position.coords.latitude,
+          lon: position.coords.longitude,
+        });
+      },
+      (error) => {
+        if (error.code === error.PERMISSION_DENIED) {
+          reject(new Error("location_permission_denied"));
+          return;
+        }
+        if (error.code === error.TIMEOUT) {
+          reject(new Error("location_timeout"));
+          return;
+        }
+        reject(new Error("location_unavailable"));
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 12000,
+        maximumAge: 0,
+      }
+    );
+  });
+}
+
+function visitLocationErrorMessage(error: unknown, action: "start" | "complete"): string {
+  const message = error instanceof Error ? error.message : String(error ?? "");
+  if (message.includes("provider_too_far_for_check_in")) {
+    return "You need to be at the service address to start this job.";
+  }
+  if (message.includes("provider_too_far_for_check_out")) {
+    return "You need to be at the service address to complete this job.";
+  }
+  if (message.includes("location_permission_denied")) {
+    return "Location access is required to verify that you are at the service address. Allow location access and try again.";
+  }
+  if (message.includes("location_timeout")) {
+    return "We couldn't verify your location in time. Make sure location services are on and try again.";
+  }
+  if (message.includes("location_unavailable")) {
+    return "We couldn't access your current location. Turn on location services and try again.";
+  }
+  if (message.includes("verified_service_address_required")) {
+    return "This visit is missing a verified service address. Contact Cleanr support before continuing.";
+  }
+  if (message.includes("missing_booking_geo_location") || message.includes("missing_geo_location")) {
+    return "Cleanr could not verify the service location for this visit. Contact support before continuing.";
+  }
+  return action === "start" ? "Could not start job. Try again." : "Could not complete job. Try again.";
+}
+
 export default function JobDetailsScreen() {
   const { jobId } = useParams<{ jobId: string }>();
   const navigate = useNavigate();
@@ -71,6 +136,7 @@ export default function JobDetailsScreen() {
   const [householdContinuity, setHouseholdContinuity] = useState<ProviderHouseholdRelationshipSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [locationChecking, setLocationChecking] = useState(false);
   const [availabilityHint, setAvailabilityHint] = useState<string | null>(null);
   const [checkedItems, setCheckedItems] = useState<string[]>([]);
   const { unreadBookingIds, refetch: refetchUnread } = useUnreadBookingMessageIds();
@@ -239,34 +305,37 @@ export default function JobDetailsScreen() {
   };
 
   const handleStart = async () => {
-    if (!jobId) return;
+    if (!jobId || locationChecking) return;
     setActionError(null);
+    setLocationChecking(true);
     try {
-      const b = await startBookingAsProvider(jobId);
+      const { lat, lon } = await getLivePosition();
+      const b = await checkInBookingAsProvider(jobId, lat, lon);
       setBooking(b);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Could not start job.";
-      setActionError(
-        message.includes("provider_too_far_for_check_in")
-          ? "You need to be at the service address before starting this job."
-          : message
-      );
+      setActionError(visitLocationErrorMessage(err, "start"));
+    } finally {
+      setLocationChecking(false);
     }
   };
 
   const handleComplete = async () => {
-    if (!jobId || !booking) return;
+    if (!jobId || !booking || locationChecking) return;
     if (checkedItems.length !== checklist.length) {
-      alert("Please complete all checklist items.");
+      setActionError("Complete every checklist item before finishing this visit.");
       return;
     }
     setActionError(null);
+    setLocationChecking(true);
     try {
-      const b = await completeBookingAsProvider(jobId);
+      const { lat, lon } = await getLivePosition();
+      const b = await checkOutBookingAsProvider(jobId, lat, lon);
       setBooking(b);
       navigate("/csp/dashboard/jobs");
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : "Could not complete job.");
+      setActionError(visitLocationErrorMessage(err, "complete"));
+    } finally {
+      setLocationChecking(false);
     }
   };
 
@@ -380,7 +449,11 @@ export default function JobDetailsScreen() {
           </div>
         </details>
 
-        {actionError && <p className="text-sm text-red-400 mb-3">{actionError}</p>}
+        {actionError && (
+          <div className="mb-3 rounded-xl border border-red-400/30 bg-red-950/30 px-4 py-3">
+            <p className="text-sm font-medium text-red-200">{actionError}</p>
+          </div>
+        )}
         {availabilityHint && booking.status === "created" && <p className="text-sm text-amber-300 mb-3">{availabilityHint}</p>}
 
         {(booking.status === "created" || booking.status === "accepted") && (
@@ -388,13 +461,15 @@ export default function JobDetailsScreen() {
             <p className="text-xs font-semibold text-white">{booking.status === "accepted" ? "Ready for the visit?" : "Ready to take this job?"}</p>
             <p className="mt-1 text-[11px] leading-4 text-slate-300">
               {booking.status === "accepted"
-                ? "Start Job verifies that you are at the service address before the visit moves into progress."
+                ? "Start Job uses your current device location to verify that you are at the service address."
                 : "Accepting reserves this visit to your schedule."}
             </p>
             {booking.status === "created" ? (
               <button onClick={handleAccept} className="mt-3 w-full bg-[#0A84FF] text-white py-3 rounded-xl text-sm font-semibold shadow-md shadow-[#0A84FF]/40">Accept Job</button>
             ) : (
-              <button onClick={handleStart} className="mt-3 w-full bg-[#0A84FF] text-white py-3 rounded-xl text-sm font-semibold shadow-md shadow-[#0A84FF]/40">Start Job</button>
+              <button disabled={locationChecking} onClick={handleStart} className="mt-3 w-full bg-[#0A84FF] disabled:opacity-60 text-white py-3 rounded-xl text-sm font-semibold shadow-md shadow-[#0A84FF]/40">
+                {locationChecking ? "Verifying location…" : "Start Job"}
+              </button>
             )}
           </section>
         )}
@@ -452,8 +527,10 @@ export default function JobDetailsScreen() {
             {!isComplete && (
               <section className="rounded-2xl border border-emerald-700/40 bg-emerald-950/30 p-4 mb-3 shadow-md">
                 <p className="text-xs font-semibold text-emerald-100">Finish the visit</p>
-                <p className="mt-1 text-[11px] leading-4 text-emerald-200/80">Complete the checklist, then check out from the service address.</p>
-                <button onClick={handleComplete} className="mt-3 w-full bg-green-600 text-white py-3 rounded-xl text-sm font-semibold shadow-md">Mark Job Complete</button>
+                <p className="mt-1 text-[11px] leading-4 text-emerald-200/80">Complete the checklist, then Cleanr verifies your current location before checkout.</p>
+                <button disabled={locationChecking} onClick={handleComplete} className="mt-3 w-full bg-green-600 disabled:opacity-60 text-white py-3 rounded-xl text-sm font-semibold shadow-md">
+                  {locationChecking ? "Verifying location…" : "Mark Job Complete"}
+                </button>
               </section>
             )}
           </>
