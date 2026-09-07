@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { CircleDot, Plus, RefreshCw, Users } from "lucide-react";
+import { CircleDot, GitBranch, Plus, RefreshCw, Users } from "lucide-react";
 import { supabase } from "../../lib/supabase";
 
 type CircleRow = {
@@ -34,6 +34,40 @@ type PersonRow = {
   joined_at: string | null;
 };
 
+type RelationshipEdge = {
+  connection_type: string;
+  connection_id: string;
+  source_person_id: string;
+  source_name: string | null;
+  source_profile_role: string;
+  target_person_id: string;
+  target_name: string | null;
+  target_profile_role: string;
+  relationship_kind: string;
+  relationship_status: string;
+  relationship_origin: string;
+  evidence_count: number | null;
+  started_at: string | null;
+  last_activity_at: string | null;
+};
+
+type ValueFlowRow = {
+  contribution_id: string;
+  contributor_person_id: string;
+  contributor_name: string | null;
+  contributor_profile_role: string;
+  contribution_type: string;
+  contribution_source_type: string | null;
+  contribution_occurred_at: string;
+  circulation_status: string;
+  capacity_reason: string | null;
+  opportunity_id: string | null;
+  opportunity_title: string | null;
+  opportunity_type: string | null;
+  opportunity_status: string | null;
+  opportunity_created_at: string | null;
+};
+
 type Draft = {
   name: string;
   slug: string;
@@ -59,14 +93,21 @@ function humanize(value: string | null | undefined) {
   return value.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
+function dateLabel(value: string | null | undefined) {
+  if (!value) return "—";
+  return new Date(value).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+}
+
 export function AdminCircles() {
   const [circles, setCircles] = useState<CircleRow[]>([]);
   const [people, setPeople] = useState<PersonRow[]>([]);
+  const [relationships, setRelationships] = useState<RelationshipEdge[]>([]);
+  const [valueFlow, setValueFlow] = useState<ValueFlowRow[]>([]);
   const [selectedCircleId, setSelectedCircleId] = useState<string | null>(null);
   const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT);
   const [creating, setCreating] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [peopleLoading, setPeopleLoading] = useState(false);
+  const [detailLoading, setDetailLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
@@ -93,27 +134,38 @@ export function AdminCircles() {
     setLoading(false);
   }
 
-  async function loadPeople(circleId: string) {
-    setPeopleLoading(true);
-    const { data, error: rpcError } = await supabase.rpc("get_admin_circle_people", { p_circle_id: circleId });
-    if (rpcError) {
-      setError(rpcError.message);
-      setPeople([]);
-    } else {
-      setPeople((data ?? []) as PersonRow[]);
-    }
-    setPeopleLoading(false);
+  async function loadCircleDetail(circleId: string) {
+    setDetailLoading(true);
+    const [peopleResult, relationshipsResult, valueFlowResult] = await Promise.all([
+      supabase.rpc("get_admin_circle_people", { p_circle_id: circleId }),
+      supabase.rpc("get_admin_circle_relationship_edges", { p_circle_id: circleId }),
+      supabase.rpc("get_admin_circle_value_flow", { p_circle_id: circleId }),
+    ]);
+
+    const firstError = peopleResult.error ?? relationshipsResult.error ?? valueFlowResult.error;
+    if (firstError) setError(firstError.message);
+
+    setPeople(peopleResult.error ? [] : (peopleResult.data ?? []) as PersonRow[]);
+    setRelationships(relationshipsResult.error ? [] : (relationshipsResult.data ?? []) as RelationshipEdge[]);
+    setValueFlow(valueFlowResult.error ? [] : (valueFlowResult.data ?? []) as ValueFlowRow[]);
+    setDetailLoading(false);
   }
 
   useEffect(() => { void loadCircles(); }, []);
   useEffect(() => {
-    if (selectedCircleId) void loadPeople(selectedCircleId);
-    else setPeople([]);
+    if (selectedCircleId) void loadCircleDetail(selectedCircleId);
+    else {
+      setPeople([]);
+      setRelationships([]);
+      setValueFlow([]);
+    }
   }, [selectedCircleId]);
 
   const selected = useMemo(() => circles.find((row) => row.circle_id === selectedCircleId) ?? null, [circles, selectedCircleId]);
   const activeMembers = useMemo(() => people.filter((row) => row.membership_status === "active"), [people]);
   const availablePeople = useMemo(() => people.filter((row) => row.membership_status !== "active"), [people]);
+  const serviceEdges = useMemo(() => relationships.filter((row) => row.connection_type === "service_relationship"), [relationships]);
+  const networkEdges = useMemo(() => relationships.filter((row) => row.connection_type === "network_relationship"), [relationships]);
 
   async function createCircle() {
     if (draft.name.trim().length < 2 || !draft.slug.trim()) {
@@ -153,14 +205,14 @@ export function AdminCircles() {
       p_person_id: person.person_id,
       p_participation_role: person.participation_role ?? "member",
       p_status: active ? "active" : "ended",
-      p_provenance_type: person.is_member ? "admin" : "admin",
+      p_provenance_type: "admin",
     });
     setBusyPersonId(null);
     if (rpcError) {
       setError(rpcError.message);
       return;
     }
-    await Promise.all([loadPeople(selectedCircleId), loadCircles(selectedCircleId)]);
+    await Promise.all([loadCircleDetail(selectedCircleId), loadCircles(selectedCircleId)]);
   }
 
   return (
@@ -175,7 +227,7 @@ export function AdminCircles() {
             </p>
           </div>
           <div className="flex gap-2">
-            <button type="button" onClick={() => void loadCircles()} className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700">
+            <button type="button" onClick={() => { void loadCircles(); if (selectedCircleId) void loadCircleDetail(selectedCircleId); }} className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700">
               <RefreshCw size={15} /> Refresh
             </button>
             <button type="button" onClick={() => setShowCreate((value) => !value)} className="flex items-center gap-2 rounded-lg bg-slate-950 px-3 py-2 text-sm font-semibold text-white">
@@ -238,7 +290,7 @@ export function AdminCircles() {
 
             <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
               <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4"><div><h3 className="font-semibold text-slate-950">Circle membership</h3><p className="mt-1 text-xs text-slate-500">Explicit membership only. Auth roles do not change.</p></div><Users size={18} className="text-slate-400" /></div>
-              {peopleLoading ? <p className="p-5 text-sm text-slate-500">Loading people…</p> : (
+              {detailLoading ? <p className="p-5 text-sm text-slate-500">Loading Circle detail…</p> : (
                 <div className="grid gap-0 lg:grid-cols-2">
                   <div className="border-b border-slate-200 lg:border-b-0 lg:border-r"><div className="bg-slate-50 px-5 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Active members · {activeMembers.length}</div><div className="divide-y divide-slate-100">{activeMembers.map((person) => (
                     <div key={person.person_id} className="flex items-center justify-between gap-3 px-5 py-3"><div><p className="text-sm font-medium text-slate-900">{person.full_name || "Unnamed member"}</p><p className="mt-1 text-xs text-slate-500">{humanize(person.profile_role)} · {humanize(person.participation_role)}{person.zip_code ? ` · ${person.zip_code}` : ""}</p></div><button type="button" disabled={busyPersonId === person.person_id} onClick={() => void setMember(person, false)} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 disabled:opacity-50">End</button></div>
@@ -248,6 +300,34 @@ export function AdminCircles() {
                   ))}</div></div>
                 </div>
               )}
+            </section>
+
+            <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+              <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4"><div><h3 className="font-semibold text-slate-950">Human ties inside this Circle</h3><p className="mt-1 text-xs text-slate-500">Durable service and network relationships only; no private household notes are exposed here.</p></div><GitBranch size={18} className="text-slate-400" /></div>
+              <div className="grid lg:grid-cols-2">
+                <div className="border-b border-slate-200 lg:border-b-0 lg:border-r">
+                  <div className="bg-slate-50 px-5 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Household ↔ CSP · {serviceEdges.length}</div>
+                  <div className="divide-y divide-slate-100">{serviceEdges.map((edge) => (
+                    <div key={edge.connection_id} className="px-5 py-4"><div className="flex items-center justify-between gap-3"><p className="text-sm font-semibold text-slate-900">{edge.source_name || "CSP"} ↔ {edge.target_name || "Household"}</p><span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">{humanize(edge.relationship_status)}</span></div><p className="mt-1 text-xs text-slate-500">{humanize(edge.relationship_kind)} · origin: {humanize(edge.relationship_origin)}</p><p className="mt-2 text-xs text-slate-600">{edge.evidence_count ?? 0} completed services · last activity {dateLabel(edge.last_activity_at)}</p></div>
+                  ))}{serviceEdges.length === 0 ? <p className="px-5 py-5 text-sm text-slate-500">No in-Circle service relationship yet.</p> : null}</div>
+                </div>
+                <div>
+                  <div className="bg-slate-50 px-5 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500">CSP / network ties · {networkEdges.length}</div>
+                  <div className="divide-y divide-slate-100">{networkEdges.map((edge) => (
+                    <div key={edge.connection_id} className="px-5 py-4"><div className="flex items-center justify-between gap-3"><p className="text-sm font-semibold text-slate-900">{edge.source_name || "Member"} ↔ {edge.target_name || "Member"}</p><span className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700">{humanize(edge.relationship_status)}</span></div><p className="mt-1 text-xs text-slate-500">{humanize(edge.relationship_kind)} · origin: {humanize(edge.relationship_origin)}</p><p className="mt-2 text-xs text-slate-600">Started {dateLabel(edge.started_at)} · last activity {dateLabel(edge.last_activity_at)}</p></div>
+                  ))}{networkEdges.length === 0 ? <p className="px-5 py-5 text-sm text-slate-500">No in-Circle coverage, mentor, peer or collaborator tie yet.</p> : null}</div>
+                </div>
+              </div>
+            </section>
+
+            <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+              <div className="border-b border-slate-200 px-5 py-4"><h3 className="font-semibold text-slate-950">Value flow inside this Circle</h3><p className="mt-1 text-xs text-slate-500">Shows what members created and whether that verified value has been converted into another Growth opportunity.</p></div>
+              <div className="divide-y divide-slate-100">{valueFlow.map((row) => (
+                <div key={`${row.contribution_id}:${row.opportunity_id ?? "available"}`} className="px-5 py-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-sm font-semibold text-slate-900">{row.contributor_name || "Circle member"} created {humanize(row.contribution_type)}</p><p className="mt-1 text-xs text-slate-500">{humanize(row.contributor_profile_role)} · {dateLabel(row.contribution_occurred_at)} · source: {humanize(row.contribution_source_type)}</p></div><span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${row.circulation_status === "circulated" ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>{humanize(row.circulation_status)}</span></div>
+                  {row.opportunity_id ? <div className="mt-3 rounded-xl bg-slate-50 p-3"><p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Created opportunity</p><p className="mt-1 text-sm font-semibold text-slate-900">{row.opportunity_title || humanize(row.opportunity_type)}</p><p className="mt-1 text-xs text-slate-600">{humanize(row.opportunity_type)} · {humanize(row.opportunity_status)}</p>{row.capacity_reason ? <p className="mt-2 text-xs leading-5 text-slate-600">Why this value made the opportunity possible: {row.capacity_reason}</p> : null}</div> : <p className="mt-2 text-xs text-slate-500">This verified contribution remains available collective capacity.</p>}
+                </div>
+              ))}{valueFlow.length === 0 ? <p className="px-5 py-5 text-sm text-slate-500">No verified contribution/value-flow evidence inside this Circle yet.</p> : null}</div>
             </section>
           </div>
         ) : null}
