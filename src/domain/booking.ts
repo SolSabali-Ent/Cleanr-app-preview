@@ -30,6 +30,8 @@ export interface Booking {
   address: string;
   scheduled_start: string;
   scheduled_end: string | null;
+  /** Service-location timezone snapshot used to interpret the service day. */
+  service_timezone?: string | null;
 
   // lifecycle
   status: BookingStatus;
