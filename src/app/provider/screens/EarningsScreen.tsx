@@ -66,6 +66,18 @@ function earningsSubtitle(row: ProviderEarningsBookingRow): string {
   return `Booking …${suffix}`;
 }
 
+function feePolicyCopy(row: ProviderEarningsBookingRow): string | null {
+  if (!row.platform_fee_policy || row.platform_fee_rate_applied == null) return null;
+  const rate = `${(row.platform_fee_rate_applied * 100).toFixed(2).replace(/\.00$/, "")}%`;
+  if (row.platform_fee_policy === "provider_brought_relationship") {
+    return `${rate} Cleanr fee · existing relationship you brought to Cleanr`;
+  }
+  if (row.platform_fee_policy === "default") {
+    return `${rate} Cleanr platform fee`;
+  }
+  return `${rate} Cleanr fee · ${row.platform_fee_policy.replaceAll("_", " ")}`;
+}
+
 function payoutStatus(row: ProviderEarningsBookingRow, variant: "pending" | "paid") {
   if (variant === "paid") {
     return {
@@ -100,6 +112,7 @@ function EarningsRow({
 }) {
   const cents = providerEarningCentsFromRow(row);
   const payout = payoutStatus(row, variant);
+  const feeCopy = feePolicyCopy(row);
 
   return (
     <div
@@ -131,6 +144,11 @@ function EarningsRow({
         <p className="mt-2 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>
           {payout.detail}
         </p>
+        {feeCopy ? (
+          <p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>
+            {feeCopy}
+          </p>
+        ) : null}
       </div>
       <div className="text-left sm:text-right shrink-0">
         <p className="text-xs" style={{ color: CSP_TEXT_SECONDARY }}>
