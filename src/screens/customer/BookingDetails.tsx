@@ -35,7 +35,7 @@ export function BookingDetails() {
 
         const { data, error } = await supabase
           .from("bookings")
-          .select("status, customer_id, provider_id, scheduled_start")
+          .select("status, customer_id, provider_id")
           .eq("id", bookingId)
           .maybeSingle();
 
@@ -46,14 +46,13 @@ export function BookingDetails() {
           return;
         }
 
-        const row = data as Pick<Booking, "status" | "customer_id" | "provider_id" | "scheduled_start">;
+        const row = data as Pick<Booking, "status" | "customer_id" | "provider_id">;
         const isCurrentCustomer = row.customer_id === user.id;
         setConfirmedForCurrentCustomer(row.status === "confirmed" && isCurrentCustomer);
         setReschedulableForCurrentCustomer(
           row.status === "accepted" &&
           isCurrentCustomer &&
-          Boolean(row.provider_id) &&
-          new Date(row.scheduled_start).getTime() > Date.now()
+          Boolean(row.provider_id)
         );
       } catch {
         if (active) {

@@ -3,6 +3,7 @@ import { CalendarClock } from "lucide-react";
 import type { Booking } from "@/domain/booking";
 import type { BookingRescheduleRequest } from "@/domain/bookingReschedule";
 import { getBooking } from "@/lib/bookingApi";
+import { isMissedAcceptedVisit } from "@/lib/bookingServiceDay";
 import {
   getPendingBookingReschedule,
   proposeBookingReschedule,
@@ -83,10 +84,8 @@ export function MutualRescheduleCard({
   const isRequester = Boolean(request && viewerId && request.requestedBy === viewerId);
   const incoming = Boolean(request && !isRequester);
   const otherParty = participantLabel(audience, incoming);
-  const canReschedule =
-    Boolean(booking?.provider_id) &&
-    booking?.status === "accepted" &&
-    new Date(booking.scheduled_start).getTime() > Date.now();
+  const canReschedule = Boolean(booking?.provider_id) && booking?.status === "accepted";
+  const missedVisit = Boolean(booking && isMissedAcceptedVisit(booking));
 
   async function submitProposal() {
     if (!proposedLocal || busy) return;
@@ -132,9 +131,9 @@ export function MutualRescheduleCard({
         setNotice("New time confirmed. This visit moved; the recurring cadence did not change.");
         await onScheduleChanged?.();
       } else if (response === "decline") {
-        setNotice("That time was declined. The current appointment is still in place, and either of you can suggest another time.");
+        setNotice("That time was declined. The visit still needs a mutually agreed future time.");
       } else {
-        setNotice("Reschedule request cancelled. The current appointment is still in place.");
+        setNotice("Reschedule request cancelled. The visit schedule has not changed.");
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not update the reschedule request.");
@@ -151,16 +150,16 @@ export function MutualRescheduleCard({
       <div className="flex items-start gap-3">
         <CalendarClock className="h-5 w-5 text-[#8DCC64] mt-0.5" />
         <div className="flex-1">
-          <p className="text-xs font-semibold text-slate-500">Reschedule together</p>
-          <p className="mt-1 text-sm font-semibold">Life changes. The appointment only moves when both sides agree.</p>
+          <p className="text-xs font-semibold text-slate-500">{missedVisit ? "Repair this schedule" : "Reschedule together"}</p>
+          <p className="mt-1 text-sm font-semibold">{missedVisit ? "This visit date passed. Choose a new time together." : "Life changes. The appointment only moves when both sides agree."}</p>
           <p className="mt-1 text-xs leading-5 text-slate-600">
-            Either the household or CSP can suggest another time. Cleanr keeps the current visit in place until the other person accepts.
+            Either the household or CSP can suggest another future time. Cleanr changes the visit only after the other person accepts.
           </p>
         </div>
       </div>
 
-      <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
-        <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Current visit</p>
+      <div className={`mt-3 rounded-xl border p-3 ${missedVisit ? "border-amber-200 bg-amber-50" : "border-slate-200 bg-slate-50"}`}>
+        <p className={`text-[11px] font-semibold uppercase tracking-wide ${missedVisit ? "text-amber-700" : "text-slate-500"}`}>{missedVisit ? "Missed scheduled date" : "Current visit"}</p>
         <p className="mt-1 text-sm font-semibold text-slate-900">{formatDateTime(booking.scheduled_start)}</p>
       </div>
 
@@ -181,44 +180,13 @@ export function MutualRescheduleCard({
           </div>
 
           {isRequester ? (
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => void respond("cancel")}
-              className="mt-3 w-full rounded-xl border border-blue-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 disabled:opacity-50"
-            >
-              Cancel request
-            </button>
+            <button type="button" disabled={busy} onClick={() => void respond("cancel")} className="mt-3 w-full rounded-xl border border-blue-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 disabled:opacity-50">Cancel request</button>
           ) : (
             <div className="mt-3 space-y-2">
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => void respond("accept")}
-                className="w-full rounded-xl bg-[#8DCC64] px-3 py-2.5 text-xs font-semibold text-slate-950 disabled:opacity-50"
-              >
-                Accept new time
-              </button>
+              <button type="button" disabled={busy} onClick={() => void respond("accept")} className="w-full rounded-xl bg-[#8DCC64] px-3 py-2.5 text-xs font-semibold text-slate-950 disabled:opacity-50">Accept new time</button>
               <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => void respond("decline")}
-                  className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 disabled:opacity-50"
-                >
-                  Keep current time
-                </button>
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => {
-                    setFormOpen(true);
-                    setNotice("Suggesting a different time will replace the pending suggestion, but the booked appointment stays unchanged until accepted.");
-                  }}
-                  className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 disabled:opacity-50"
-                >
-                  Suggest another
-                </button>
+                <button type="button" disabled={busy} onClick={() => void respond("decline")} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 disabled:opacity-50">Decline</button>
+                <button type="button" disabled={busy} onClick={() => { setFormOpen(true); setNotice("Suggesting a different time replaces the pending suggestion. The visit changes only after acceptance."); }} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 disabled:opacity-50">Suggest another</button>
               </div>
             </div>
           )}
@@ -226,68 +194,27 @@ export function MutualRescheduleCard({
       ) : null}
 
       {!request && !formOpen ? (
-        <button
-          type="button"
-          onClick={() => {
-            setFormOpen(true);
-            setNotice(null);
-          }}
-          className="mt-4 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-900"
-        >
-          Suggest another time
-        </button>
+        <button type="button" onClick={() => { setFormOpen(true); setNotice(null); }} className="mt-4 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-900">Suggest another time</button>
       ) : null}
 
       {formOpen ? (
         <div className="mt-4 space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
           <label className="block">
             <span className="mb-1 block text-xs font-medium text-slate-600">Suggested date & time</span>
-            <input
-              type="datetime-local"
-              min={toLocalInputMin()}
-              value={proposedLocal}
-              onChange={(event) => setProposedLocal(event.target.value)}
-              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm text-slate-900"
-            />
+            <input type="datetime-local" min={toLocalInputMin()} value={proposedLocal} onChange={(event) => setProposedLocal(event.target.value)} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm text-slate-900" />
           </label>
           <label className="block">
             <span className="mb-1 block text-xs font-medium text-slate-600">Optional note</span>
-            <textarea
-              value={note}
-              maxLength={500}
-              rows={2}
-              onChange={(event) => setNote(event.target.value)}
-              placeholder={audience === "provider" ? "Only what the household needs to understand the change." : "Only what your CSP needs to understand the change."}
-              className="w-full resize-none rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm text-slate-900"
-            />
+            <textarea value={note} maxLength={500} rows={2} onChange={(event) => setNote(event.target.value)} placeholder={audience === "provider" ? "Only what the household needs to understand the change." : "Only what your CSP needs to understand the change."} className="w-full resize-none rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm text-slate-900" />
           </label>
           <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                setFormOpen(false);
-                setProposedLocal("");
-                setNote("");
-              }}
-              className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-semibold text-slate-800"
-            >
-              Never mind
-            </button>
-            <button
-              type="button"
-              disabled={!proposedLocal || busy}
-              onClick={() => void submitProposal()}
-              className="rounded-xl bg-[#8DCC64] px-3 py-2.5 text-xs font-semibold text-slate-950 disabled:opacity-50"
-            >
-              {busy ? "Sending..." : "Send suggestion"}
-            </button>
+            <button type="button" onClick={() => { setFormOpen(false); setProposedLocal(""); setNote(""); }} className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-semibold text-slate-800">Never mind</button>
+            <button type="button" disabled={!proposedLocal || busy} onClick={() => void submitProposal()} className="rounded-xl bg-[#8DCC64] px-3 py-2.5 text-xs font-semibold text-slate-950 disabled:opacity-50">{busy ? "Sending..." : "Send suggestion"}</button>
           </div>
         </div>
       ) : null}
 
-      <p className="mt-3 text-[11px] leading-4 text-slate-500">
-        This changes one visit only. Recurring cadence stays intact unless both sides explicitly change the recurring plan later. If timing cannot be resolved, trusted coverage remains a separate continuity option.
-      </p>
+      <p className="mt-3 text-[11px] leading-4 text-slate-500">This changes one visit only. Recurring cadence stays intact unless both sides explicitly change the recurring plan later.</p>
     </section>
   );
 }
