@@ -50,8 +50,6 @@ export default function ProfileScreen() {
   const [preferences, setPreferences] = useState<ProviderPreferences | null>(null);
   const [draftPreferences, setDraftPreferences] = useState<ProviderPreferences | null>(null);
 
-  const [fullName, setFullName] = useState(profile?.full_name ?? "");
-  const [phone, setPhone] = useState(profile?.phone ?? "");
   const [zip, setZip] = useState(profile?.zip_code ?? "");
   const [radius, setRadius] = useState(
     clampServiceRadiusMiles(profile?.service_radius_miles ?? 10) ?? 10
@@ -153,9 +151,12 @@ export default function ProfileScreen() {
       setToast(`Service radius must be between ${SERVICE_RADIUS_MILES_MIN} and ${SERVICE_RADIUS_MILES_MAX} miles. Value was clamped.`);
     }
     setSaving(true);
+    const durableName =
+      profile.full_name?.trim() ||
+      [profile.first_name, profile.last_name].filter(Boolean).join(" ").trim();
     const rpcArgs = {
-      p_full_name: fullName.trim(),
-      p_phone: phone.trim() || null,
+      p_full_name: durableName,
+      p_phone: profile.phone?.trim() || null,
       p_zip: zip.trim(),
       p_service_radius_miles: clampedRadius,
     };
@@ -181,6 +182,8 @@ export default function ProfileScreen() {
     await refresh();
     setSaving(false);
     setEditing(false);
+    setToast("Service area updated");
+    window.setTimeout(() => setToast(null), 2200);
   }
 
   async function handleSavePreferences() {
@@ -226,9 +229,9 @@ export default function ProfileScreen() {
       style={{ backgroundColor: CSP_BACKGROUND, color: CSP_TEXT_PRIMARY }}
     >
       <header style={{ marginBottom: CSP_SECTION_GAP }}>
-        <h1 className="text-2xl font-semibold">Provider Profile</h1>
+        <h1 className="text-2xl font-semibold">Service settings</h1>
         <p className="text-sm mt-2" style={{ color: CSP_TEXT_SECONDARY }}>
-          Increase your booking volume by completing verification.
+          Manage where and how you work, verification, and payouts.
         </p>
       </header>
 
@@ -244,31 +247,6 @@ export default function ProfileScreen() {
           {toast}
         </div>
       ) : null}
-
-      <section style={{ marginBottom: CSP_SECTION_GAP }}>
-        <h2 className="text-sm font-medium mb-3" style={{ color: CSP_TEXT_SECONDARY }}>
-          Provider Profile
-        </h2>
-        <div className="rounded-2xl border" style={{ backgroundColor: CSP_SURFACE, padding: CSP_CARD_PADDING, borderColor: "rgba(248, 250, 252, 0.08)" }}>
-          {editing ? (
-            <div className="flex flex-col gap-3">
-              <div>
-                <label className="block text-xs mb-1" style={{ color: CSP_TEXT_SECONDARY }}>Full name</label>
-                <input type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Full name" className="w-full rounded-xl border-0 text-white placeholder:opacity-60 focus:ring-2 focus:ring-offset-0 focus:ring-white/30" style={{ backgroundColor: CSP_INPUT, padding: "12px 14px" }} />
-              </div>
-              <div>
-                <label className="block text-xs mb-1" style={{ color: CSP_TEXT_SECONDARY }}>Phone</label>
-                <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Phone" className="w-full rounded-xl border-0 text-white placeholder:opacity-60 focus:ring-2 focus:ring-offset-0 focus:ring-white/30" style={{ backgroundColor: CSP_INPUT, padding: "12px 14px" }} />
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-1">
-              <p>{profile.full_name || "No name set"}</p>
-              <p className="text-sm" style={{ color: CSP_TEXT_SECONDARY }}>{profile.phone || "No phone set"}</p>
-            </div>
-          )}
-        </div>
-      </section>
 
       <section style={{ marginBottom: CSP_SECTION_GAP }}>
         <h2 className="text-sm font-medium mb-3" style={{ color: CSP_TEXT_SECONDARY }}>Service Area</h2>
@@ -357,7 +335,7 @@ export default function ProfileScreen() {
       <ContinuumParticipationCard />
 
       <div className="flex flex-col gap-3" style={{ marginTop: CSP_SECTION_GAP }}>
-        {editing ? <button type="button" onClick={handleSave} disabled={saving} className="w-full py-3 rounded-xl font-semibold text-sm text-white transition-opacity hover:opacity-90 active:opacity-85 disabled:opacity-50" style={{ backgroundColor: CSP_PRIMARY_BUTTON }}>{saving ? "Saving…" : "Save Changes"}</button> : <button type="button" onClick={() => { setZip(profile?.zip_code ?? ""); setRadius(clampServiceRadiusMiles(profile?.service_radius_miles ?? 10) ?? 10); setEditing(true); }} className="w-full py-3 rounded-xl font-medium text-sm transition-opacity hover:opacity-90 active:opacity-85" style={{ backgroundColor: CSP_SURFACE, color: CSP_TEXT_PRIMARY, border: "1px solid rgba(248, 250, 252, 0.08)" }}>Edit Profile</button>}
+        {editing ? <button type="button" onClick={handleSave} disabled={saving} className="w-full py-3 rounded-xl font-semibold text-sm text-white transition-opacity hover:opacity-90 active:opacity-85 disabled:opacity-50" style={{ backgroundColor: CSP_PRIMARY_BUTTON }}>{saving ? "Saving…" : "Save Service Area"}</button> : <button type="button" onClick={() => { setZip(profile?.zip_code ?? ""); setRadius(clampServiceRadiusMiles(profile?.service_radius_miles ?? 10) ?? 10); setEditing(true); }} className="w-full py-3 rounded-xl font-medium text-sm transition-opacity hover:opacity-90 active:opacity-85" style={{ backgroundColor: CSP_SURFACE, color: CSP_TEXT_PRIMARY, border: "1px solid rgba(248, 250, 252, 0.08)" }}>Edit Service Area</button>}
         <button type="button" onClick={handleSignOut} className="py-2 text-sm font-medium transition-opacity hover:opacity-80" style={{ color: CSP_TEXT_SECONDARY }}>Sign Out</button>
       </div>
 
