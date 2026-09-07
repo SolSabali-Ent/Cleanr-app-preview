@@ -4,6 +4,7 @@ import { supabase } from "../../lib/supabase";
 import { AdminEconomicAgencyActivity } from "./AdminEconomicAgencyActivity";
 import { AdminCollectiveCircularity } from "./AdminCollectiveCircularity";
 import { AdminPostCleaningContinuum } from "./AdminPostCleaningContinuum";
+import { AdminRelationshipRecoveryMetrics } from "./AdminRelationshipRecoveryMetrics";
 
 type Circle = {
   circle_id: string;
@@ -167,6 +168,7 @@ export function AdminTransformationMetrics() {
         );
       })}
 
+      <AdminRelationshipRecoveryMetrics circleId={scopedCircleId} />
       <AdminEconomicAgencyActivity circleId={scopedCircleId} />
       <AdminCollectiveCircularity circleId={scopedCircleId} />
       <AdminPostCleaningContinuum circleId={scopedCircleId} />

@@ -56,6 +56,7 @@ import { AdminCollectiveDemand } from "../screens/admin/AdminCollectiveDemand";
 import { AdminCollectiveCapacity } from "../screens/admin/AdminCollectiveCapacity";
 import { AdminTransformationMetrics } from "../screens/admin/AdminTransformationMetrics";
 import { AdminGrowthCirculation } from "../screens/admin/AdminGrowthCirculation";
+import { AdminRelationshipRecovery } from "../screens/admin/AdminRelationshipRecovery";
 import { AdminBookingMessagesScreen } from "../screens/admin/AdminBookingMessagesScreen";
 import { FoundingCircle } from "../screens/admin/FoundingCircle";
 import { OperationsDashboard } from "../screens/admin/OperationsDashboard";
@@ -221,6 +222,7 @@ export function AppRouter() {
             <Route path="ops" element={<OperationsDashboard />} />
             <Route path="circles" element={<AdminCircles />} />
             <Route path="transformation-metrics" element={<AdminTransformationMetrics />} />
+            <Route path="relationship-recovery" element={<AdminRelationshipRecovery />} />
             <Route path="collective-demand" element={<AdminCollectiveDemand />} />
             <Route path="collective-capacity" element={<AdminCollectiveCapacity />} />
             <Route path="opportunity-circulation" element={<AdminGrowthCirculation />} />
