@@ -17,7 +17,8 @@ const navItems = [
   { to: "/admin/affiliate-cashouts", label: "Affiliate Cash-outs" },
   { to: "/admin/full-app", label: "Super Admin" },
   { to: "/admin/founding-circle", label: "Founding Circle" },
-  { to: "/admin/providers", label: "Providers" },
+  { to: "/admin/csp-directory", label: "CSP Directory" },
+  { to: "/admin/providers", label: "Provider Applications" },
   { to: "/admin/access", label: "Admin Access" },
   { to: "/admin/geo", label: "Geo Harness" },
 ];

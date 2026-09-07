@@ -57,6 +57,7 @@ import { AdminCollectiveCapacity } from "../screens/admin/AdminCollectiveCapacit
 import { AdminTransformationMetrics } from "../screens/admin/AdminTransformationMetrics";
 import { AdminGrowthCirculation } from "../screens/admin/AdminGrowthCirculation";
 import { AdminRelationshipRecovery } from "../screens/admin/AdminRelationshipRecovery";
+import { AdminCspDirectory } from "../screens/admin/AdminCspDirectory";
 import { AdminBookingMessagesScreen } from "../screens/admin/AdminBookingMessagesScreen";
 import { FoundingCircle } from "../screens/admin/FoundingCircle";
 import { OperationsDashboard } from "../screens/admin/OperationsDashboard";
@@ -228,6 +229,7 @@ export function AppRouter() {
             <Route path="opportunity-circulation" element={<AdminGrowthCirculation />} />
             <Route path="affiliate-cashouts" element={<AdminAffiliateCashouts />} />
             <Route path="founding-circle" element={<FoundingCircle />} />
+            <Route path="csp-directory" element={<AdminCspDirectory />} />
             <Route path="access" element={<AdminAccess />} />
             <Route path="booking/:bookingId/messages" element={<AdminBookingMessagesScreen />} />
             <Route path="providers" element={<ProviderApplications />} />
