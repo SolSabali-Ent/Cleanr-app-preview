@@ -50,9 +50,16 @@ export default function ApplicationHubScreen() {
   const checklist = useMemo(
     () => [
       {
+        label: "Profile photo",
+        status: profile?.profile_photo_path?.trim() ? ("Verified" as const) : ("Not started" as const),
+        path: "/csp/dashboard/profile",
+        note: "Required before new marketplace activation",
+      },
+      {
         label: "CSP Terms",
         status: profile?.csp_terms_accepted_at ? ("Verified" as const) : ("Not started" as const),
         path: "/csp/dashboard/terms",
+        note: null,
       },
       ...(isApproved
         ? [
@@ -60,6 +67,7 @@ export default function ApplicationHubScreen() {
               label: "Payout Setup",
               status: payoutDisplayStatus(profile),
               path: "/csp/dashboard/application/payout-setup",
+              note: null,
             },
           ]
         : []),
@@ -67,30 +75,36 @@ export default function ApplicationHubScreen() {
         label: "Transportation",
         status: toDisplayStatus(profile?.travel_readiness_status),
         path: "/csp/dashboard/application/transportation",
+        note: null,
       },
       {
         label: "Insurance (optional)",
         status: toDisplayStatus(profile?.insurance_status),
         path: "/csp/dashboard/application/insurance",
+        note: null,
       },
       {
         label: "ID Verification",
         status: identityDisplayStatus(profile?.identity_status, profile?.identity_document_path),
         path: "/csp/dashboard/application/identity",
+        note: null,
       },
       {
         label: "Background Check",
         status: toDisplayStatus(profile?.background_check_status),
         path: "/csp/dashboard/application/background",
+        note: null,
       },
       {
         label: "Screening",
         status: toDisplayStatus(profile?.screening_status),
         path: "/csp/dashboard/application/screening",
+        note: null,
       },
     ],
     [
       profile?.application_status,
+      profile?.profile_photo_path,
       profile?.csp_terms_accepted_at,
       isApproved,
       profile?.stripe_connect_ready,
@@ -122,9 +136,12 @@ export default function ApplicationHubScreen() {
             className="w-full rounded-2xl border text-left transition-colors"
             style={{ backgroundColor: CSP_SURFACE, padding: CSP_CARD_PADDING, borderColor: "rgba(248, 250, 252, 0.08)" }}
           >
-            <div className="flex items-center justify-between gap-3">
-              <p className="font-medium">{item.label}</p>
-              <span className={`rounded-full border px-2 py-0.5 text-xs font-medium ${chipClasses(item.status)}`}>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="font-medium">{item.label}</p>
+                {item.note ? <p className="mt-1 text-xs" style={{ color: CSP_TEXT_SECONDARY }}>{item.note}</p> : null}
+              </div>
+              <span className={`shrink-0 rounded-full border px-2 py-0.5 text-xs font-medium ${chipClasses(item.status)}`}>
                 {item.status}
               </span>
             </div>

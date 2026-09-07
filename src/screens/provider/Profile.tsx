@@ -1,6 +1,7 @@
 import { ArrowRight, Link2, UserRoundCheck } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import ProfileScreen from "../../app/provider/screens/ProfileScreen";
+import { ProviderProfileEnrichmentCard } from "../../components/profile/ProviderProfileEnrichmentCard";
 import { cspRouteForContext } from "../../lib/contextualRoutes";
 
 export function Profile() {
@@ -10,6 +11,8 @@ export function Profile() {
   return (
     <>
       <div className="px-4 pt-4" style={{ backgroundColor: "#0B1220" }}>
+        <ProviderProfileEnrichmentCard />
+
         <div className="mb-3">
           <p className="text-xs font-semibold uppercase tracking-[0.14em]" style={{ color: "#8DCC64" }}>
             Share Cleanr

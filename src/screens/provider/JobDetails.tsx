@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import { ProviderHouseholdMemorySuggestionCard } from "../../components/relationship/ProviderHouseholdMemorySuggestionCard";
 import { ProviderTrustedCoverageCard } from "../../components/relationship/ProviderTrustedCoverageCard";
 import { MutualRescheduleCard } from "../../components/relationship/MutualRescheduleCard";
+import { AssignedCustomerProfileCard } from "../../components/profile/AssignedCustomerProfileCard";
 import type { Booking } from "../../domain/booking";
 import { getBooking } from "../../lib/bookingApi";
 import JobDetailsScreen from "../../app/provider/screens/JobDetailsScreen";
@@ -57,6 +58,8 @@ export function JobDetails() {
 
   return (
     <>
+      {jobId && booking?.provider_id ? <AssignedCustomerProfileCard bookingId={jobId} /> : null}
+
       <div className="job-details-shell">
         <JobDetailsScreen key={`${jobId ?? "job"}:${booking?.updated_at ?? "initial"}`} />
       </div>
