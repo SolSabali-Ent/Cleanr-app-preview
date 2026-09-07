@@ -43,7 +43,7 @@ function AdminSidebar() {
 
   return (
     <aside
-      className="sticky top-0 flex h-screen w-64 shrink-0 flex-col border-r"
+      className="flex h-full w-64 shrink-0 flex-col overflow-hidden border-r"
       style={{
         borderColor: "rgba(255,255,255,0.10)",
         backgroundColor: providerTheme.background,
@@ -62,7 +62,7 @@ function AdminSidebar() {
         </p>
       </div>
 
-      <nav className="flex-1 space-y-1 overflow-y-auto px-4 py-5">
+      <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto px-4 py-5 overscroll-contain">
         {navItems.map((item) => (
           <NavLink
             key={item.to}
@@ -124,11 +124,11 @@ export function AdminLayout() {
     <>
       <AdminDesktopRequired />
       <div
-        className="admin-app hidden min-h-screen lg:flex"
+        className="admin-app hidden h-[100dvh] overflow-hidden lg:flex"
         style={{ backgroundColor: adminTheme.background, color: adminTheme.textPrimary }}
       >
         <AdminSidebar />
-        <div className="admin-content min-w-0 flex-1 p-8">
+        <div className="admin-content h-full min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain p-8">
           <Outlet />
         </div>
       </div>

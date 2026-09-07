@@ -1,12 +1,13 @@
 import { NavLink, useLocation } from "react-router-dom";
-import { Home, CalendarDays, UserCircle2, Sparkles } from "lucide-react";
+import { Home, CalendarDays, Sparkles } from "lucide-react";
 import { customerRouteForContext } from "@/lib/contextualRoutes";
+import { ProfileNavAvatar } from "@/components/navigation/ProfileNavAvatar";
 
 const tabs = [
   { to: "/app", label: "Home", icon: Home },
   { to: "/app/bookings", label: "Bookings", icon: CalendarDays },
   { to: "/app/provider", label: "My CSP", icon: Sparkles },
-  { to: "/app/profile", label: "Profile", icon: UserCircle2 },
+  { to: "/app/profile", label: "Profile", icon: null },
 ];
 
 export function CustomerBottomNav() {
@@ -23,7 +24,6 @@ export function CustomerBottomNav() {
       }}
     >
       {tabs.map((tab) => {
-        const Icon = tab.icon;
         const target = customerRouteForContext(pathname, tab.to);
         return (
           <NavLink
@@ -34,8 +34,23 @@ export function CustomerBottomNav() {
               `nav-item ${isActive ? "active" : ""} flex h-full flex-1 touch-manipulation select-none flex-col items-center justify-center text-xs font-medium`
             }
           >
-            <Icon className="mb-1 h-4 w-4" strokeWidth={2.2} />
-            <span>{tab.label}</span>
+            {({ isActive }) => (
+              <>
+                {tab.to === "/app/profile" ? (
+                  <div className="mb-1 flex h-4 w-4 items-center justify-center">
+                    <ProfileNavAvatar
+                      size={18}
+                      active={isActive}
+                      activeColor="#166534"
+                      inactiveColor="#667085"
+                    />
+                  </div>
+                ) : tab.icon ? (
+                  <tab.icon className="mb-1 h-4 w-4" strokeWidth={2.2} />
+                ) : null}
+                <span>{tab.label}</span>
+              </>
+            )}
           </NavLink>
         );
       })}

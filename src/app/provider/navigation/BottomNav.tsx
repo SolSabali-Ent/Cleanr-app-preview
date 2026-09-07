@@ -1,14 +1,15 @@
 import { NavLink, useLocation } from "react-router-dom";
-import { Home, Briefcase, CalendarDays, DollarSign, User } from "lucide-react";
+import { Home, Briefcase, CalendarDays, DollarSign } from "lucide-react";
 import { CSP_SURFACE, CSP_PRIMARY_BUTTON, CSP_TEXT_SECONDARY } from "@/theme/cspTheme";
 import { cspRouteForContext } from "@/lib/contextualRoutes";
+import { ProfileNavAvatar } from "@/components/navigation/ProfileNavAvatar";
 
 const navItems = [
   { to: "/csp/dashboard", label: "Home", icon: Home },
   { to: "/csp/dashboard/jobs", label: "Jobs", icon: Briefcase },
   { to: "/csp/dashboard/calendar", label: "Calendar", icon: CalendarDays },
   { to: "/csp/dashboard/earnings", label: "Earnings", icon: DollarSign },
-  { to: "/csp/dashboard/profile", label: "Profile", icon: User },
+  { to: "/csp/dashboard/profile", label: "Profile", icon: null },
 ];
 
 export default function BottomNav() {
@@ -48,13 +49,22 @@ export default function BottomNav() {
                           : "transparent",
                       }}
                     >
-                      <Icon
-                        size={20}
-                        strokeWidth={2}
-                        style={{
-                          color: isActive ? CSP_PRIMARY_BUTTON : CSP_TEXT_SECONDARY,
-                        }}
-                      />
+                      {to === "/csp/dashboard/profile" ? (
+                        <ProfileNavAvatar
+                          size={22}
+                          active={isActive}
+                          activeColor={CSP_PRIMARY_BUTTON}
+                          inactiveColor={CSP_TEXT_SECONDARY}
+                        />
+                      ) : Icon ? (
+                        <Icon
+                          size={20}
+                          strokeWidth={2}
+                          style={{
+                            color: isActive ? CSP_PRIMARY_BUTTON : CSP_TEXT_SECONDARY,
+                          }}
+                        />
+                      ) : null}
                     </div>
                     <span
                       className="leading-none truncate w-full text-center"
