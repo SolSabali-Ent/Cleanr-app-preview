@@ -163,6 +163,7 @@ export default function JobsScreen() {
   const [available, setAvailable] = useState<AvailableJob[]>([]);
   const [myJobs, setMyJobs] = useState<Booking[]>([]);
   const [financials, setFinancials] = useState<Record<string, BookingFinancial>>({});
+  const [resolvedMissedIds, setResolvedMissedIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -174,35 +175,41 @@ export default function JobsScreen() {
       setAvailable([]);
       setMyJobs([]);
       setFinancials({});
+      setResolvedMissedIds(new Set());
       setLoading(false);
       return;
     }
 
-    async function loadFinancials() {
+    async function loadFinancialsAndResolution() {
       const { data, error: financialError } = await supabase
         .from("bookings")
-        .select("id, price_cents, platform_fee_cents")
+        .select("id, price_cents, platform_fee_cents, missed_visit_resolution")
         .eq("provider_id", providerId);
       if (financialError) throw financialError;
       const next: Record<string, BookingFinancial> = {};
+      const resolved = new Set<string>();
       for (const row of data ?? []) {
-        next[String(row.id)] = {
+        const id = String(row.id);
+        next[id] = {
           price_cents: Number(row.price_cents ?? 0),
           platform_fee_cents: row.platform_fee_cents == null ? null : Number(row.platform_fee_cents),
         };
+        if (row.missed_visit_resolution) resolved.add(id);
       }
       setFinancials(next);
+      setResolvedMissedIds(resolved);
     }
 
     setError(null);
     setLoading(true);
     if (!marketplaceEnabled) {
       setAvailable([]);
-      Promise.all([listMyJobsAsProvider(), loadFinancials()])
+      Promise.all([listMyJobsAsProvider(), loadFinancialsAndResolution()])
         .then(([my]) => setMyJobs(my))
         .catch((err) => {
           setMyJobs([]);
           setFinancials({});
+          setResolvedMissedIds(new Set());
           setError(err?.message ?? "Failed to load jobs");
         })
         .finally(() => setLoading(false));
@@ -211,7 +218,7 @@ export default function JobsScreen() {
     Promise.all([
       findAvailableJobsForProvider(providerId, 100),
       listMyJobsAsProvider(),
-      loadFinancials(),
+      loadFinancialsAndResolution(),
     ])
       .then(([av, my]) => {
         setAvailable(av);
@@ -224,7 +231,7 @@ export default function JobsScreen() {
   }, [profile?.id, profile?.role, marketplaceEnabled]);
 
   const active = myJobs.filter((booking) => isCurrentProviderWork(booking));
-  const missed = myJobs.filter((booking) => isMissedAcceptedVisit(booking));
+  const missed = myJobs.filter((booking) => isMissedAcceptedVisit(booking) && !resolvedMissedIds.has(booking.id));
   const completed = myJobs.filter(
     (b) => b.status === "completed_by_provider" || b.status === "confirmed"
   );
