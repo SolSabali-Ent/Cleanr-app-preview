@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { ArrowRight, CheckCircle2, RefreshCw, Users } from "lucide-react";
 import { supabase } from "../../lib/supabase";
+import { AdminOutcomeContributionRecorder } from "./AdminOutcomeContributionRecorder";
 
 type OpportunityRow = {
   opportunity_id: string;
@@ -71,7 +72,6 @@ type MatchDraft = {
 };
 
 const EMPTY_MATCH_DRAFT: MatchDraft = { reason: "", northStar: "", capability: "", interest: "", constraint: "" };
-const CONTRIBUTION_TYPES = ["knowledge", "opportunity_created", "employment_created", "business_created", "leadership"] as const;
 
 function label(value: string) {
   return value.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
@@ -91,7 +91,6 @@ export function AdminGrowthCirculation() {
   const [selectedCandidateId, setSelectedCandidateId] = useState<string | null>(null);
   const [matchDraft, setMatchDraft] = useState<MatchDraft>(EMPTY_MATCH_DRAFT);
   const [completionSummary, setCompletionSummary] = useState<Record<string, string>>({});
-  const [contributionDraft, setContributionDraft] = useState<Record<string, { type: string; evidence: string }>>({});
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -214,31 +213,6 @@ export function AdminGrowthCirculation() {
     await refreshAll();
   }
 
-  async function recordContribution(match: MatchRow) {
-    if (!match.outcome_id) return;
-    const draft = contributionDraft[match.match_id] ?? { type: "knowledge", evidence: "" };
-    if (draft.evidence.trim().length < 3) {
-      setError("Add evidence explaining what new value this outcome created.");
-      return;
-    }
-    setBusy(`contribution:${match.match_id}`);
-    setError(null);
-    const { error: rpcError } = await supabase.rpc("record_growth_outcome_contribution", {
-      p_outcome_id: match.outcome_id,
-      p_contribution_type: draft.type,
-      p_evidence_summary: draft.evidence.trim(),
-      p_beneficiary_person_id: null,
-      p_metadata: {},
-    });
-    setBusy(null);
-    if (rpcError) {
-      setError(rpcError.message);
-      return;
-    }
-    setSuccess("Downstream contribution recorded. The value loop now re-enters Collective Capacity.");
-    await refreshAll();
-  }
-
   return (
     <main className="space-y-6">
       <section className="rounded-2xl border border-slate-200 bg-white p-6">
@@ -247,7 +221,7 @@ export function AdminGrowthCirculation() {
             <p className="text-xs font-semibold uppercase tracking-[0.14em] text-emerald-700">Opportunity circulation</p>
             <h1 className="mt-1 text-2xl font-bold text-slate-950">From collective capacity to verified outcome</h1>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-              Cleanr persists consent, matches, offers, acceptance, outcomes, and contribution provenance. This workspace does not rank people or replace Kinex orchestration; it only operates the durable boundaries already in the product.
+              Cleanr persists consent, matches, offers, acceptance, outcomes, and contribution provenance. This workspace does not rank people or replace orchestration; it operates the durable product boundaries only.
             </p>
           </div>
           <button type="button" onClick={() => void refreshAll()} disabled={loading} className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 disabled:opacity-50">
@@ -346,7 +320,25 @@ export function AdminGrowthCirculation() {
 
                     {match.status === "accepted" ? <div className="mt-4 rounded-xl bg-emerald-50 p-4"><p className="text-xs font-semibold text-emerald-800">Accepted by the person</p><textarea rows={2} value={completionSummary[match.match_id] ?? ""} onChange={(e) => setCompletionSummary((current) => ({ ...current, [match.match_id]: e.target.value }))} placeholder="What happened in the real world? Add verification before completion." className="mt-2 w-full rounded-lg border border-emerald-200 bg-white px-3 py-2 text-sm text-slate-900" /><div className="mt-2 flex justify-end"><button type="button" onClick={() => void complete(match)} disabled={busy === `complete:${match.match_id}`} className="flex items-center gap-2 rounded-lg bg-emerald-700 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50"><CheckCircle2 size={13} /> Verify completed outcome</button></div></div> : null}
 
-                    {match.outcome_id ? <div className="mt-4 rounded-xl bg-blue-50 p-4"><p className="text-xs font-semibold text-blue-800">Verified outcome</p><p className="mt-1 text-xs leading-5 text-blue-700">{match.outcome_summary || "Completion verified."}</p>{match.downstream_contribution_count > 0 ? <p className="mt-2 text-xs font-semibold text-blue-800">Value re-entered the collective as: {match.downstream_contribution_types?.map(label).join(", ")}</p> : <div className="mt-3 grid gap-2 md:grid-cols-[180px_1fr_auto]"><select value={(contributionDraft[match.match_id]?.type ?? "knowledge")} onChange={(e) => setContributionDraft((current) => ({ ...current, [match.match_id]: { type: e.target.value, evidence: current[match.match_id]?.evidence ?? "" } }))} className="rounded-lg border border-blue-200 bg-white px-3 py-2 text-xs text-slate-900">{CONTRIBUTION_TYPES.map((type) => <option key={type} value={type}>{label(type)}</option>)}</select><input value={contributionDraft[match.match_id]?.evidence ?? ""} onChange={(e) => setContributionDraft((current) => ({ ...current, [match.match_id]: { type: current[match.match_id]?.type ?? "knowledge", evidence: e.target.value } }))} placeholder="What new value did this completed opportunity create?" className="rounded-lg border border-blue-200 bg-white px-3 py-2 text-xs text-slate-900" /><button type="button" onClick={() => void recordContribution(match)} disabled={busy === `contribution:${match.match_id}`} className="rounded-lg bg-blue-700 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">Record contribution</button></div>}</div> : null}
+                    {match.outcome_id ? (
+                      <div className="mt-4 rounded-xl bg-blue-50 p-4">
+                        <p className="text-xs font-semibold text-blue-800">Verified outcome</p>
+                        <p className="mt-1 text-xs leading-5 text-blue-700">{match.outcome_summary || "Completion verified."}</p>
+                        {match.downstream_contribution_count > 0 ? (
+                          <p className="mt-2 text-xs font-semibold text-blue-800">Value re-entered the collective as: {match.downstream_contribution_types?.map(label).join(", ")}</p>
+                        ) : (
+                          <AdminOutcomeContributionRecorder
+                            opportunityId={selected.opportunity_id}
+                            outcomeId={match.outcome_id}
+                            busy={busy === `contribution:${match.match_id}`}
+                            onBusy={(isBusy) => setBusy(isBusy ? `contribution:${match.match_id}` : null)}
+                            onError={setError}
+                            onSuccess={setSuccess}
+                            onRecorded={refreshAll}
+                          />
+                        )}
+                      </div>
+                    ) : null}
                   </div>
                 ))}</div>}
               </section>
