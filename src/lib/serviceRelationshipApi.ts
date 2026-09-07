@@ -1,11 +1,11 @@
 import type { Booking } from "@/domain/booking";
 import type { ProviderHouseholdRelationshipSummary, ServiceRelationship } from "@/domain/serviceRelationship";
 import { listMyJobsAsProvider } from "@/lib/bookingApi";
+import { isCurrentProviderWork } from "@/lib/bookingServiceDay";
 import { isOfflinePreviewMode, supabase } from "@/lib/supabase";
 import { dormantFeatureError, isSupabaseFeatureUnavailable } from "@/lib/supabaseFeature";
 
 const COMPLETED_STATUSES = new Set<Booking["status"]>(["completed_by_provider", "confirmed"]);
-const ACTIVE_STATUSES = new Set<Booking["status"]>(["accepted", "in_progress"]);
 
 type ServiceRelationshipRow = {
   id: string;
@@ -67,14 +67,12 @@ function bookingHistorySummaries(bookings: Booking[]): ProviderHouseholdRelation
     byCustomer.set(customerId, current);
   }
 
-  const now = Date.now();
   return Array.from(byCustomer.entries()).map(([customerId, customerBookings]) => {
     const completed = customerBookings.filter((booking) => COMPLETED_STATUSES.has(booking.status));
     const scheduled = customerBookings
-      .filter((booking) => ACTIVE_STATUSES.has(booking.status))
+      .filter((booking) => isCurrentProviderWork(booking))
       .map((booking) => dateOrNull(booking.scheduled_start))
       .filter((date): date is Date => Boolean(date))
-      .filter((date) => date.getTime() >= now)
       .sort((a, b) => a.getTime() - b.getTime());
     const servedDates = completed
       .map((booking) => dateOrNull(booking.scheduled_start))
