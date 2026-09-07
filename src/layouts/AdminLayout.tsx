@@ -9,6 +9,7 @@ import { signOutCleanr } from "../lib/authSession";
 const navItems = [
   { to: "/admin/ops", label: "Operations" },
   { to: "/admin/circles", label: "Circles" },
+  { to: "/admin/transformation-metrics", label: "Transformation Metrics" },
   { to: "/admin/collective-demand", label: "Collective Demand" },
   { to: "/admin/collective-capacity", label: "Collective Capacity" },
   { to: "/admin/opportunity-circulation", label: "Opportunity Circulation" },
