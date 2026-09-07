@@ -45,6 +45,7 @@ export function MutualRescheduleCard({
   const [booking, setBooking] = useState<Booking | null>(null);
   const [request, setRequest] = useState<BookingRescheduleRequest | null>(null);
   const [viewerId, setViewerId] = useState<string | null>(null);
+  const [missedSchedulingClosed, setMissedSchedulingClosed] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [proposedLocal, setProposedLocal] = useState("");
   const [note, setNote] = useState("");
@@ -54,15 +55,17 @@ export function MutualRescheduleCard({
 
   async function refresh() {
     if (isOfflinePreviewMode) return;
-    const [{ data: authData, error: authError }, nextBooking, nextRequest] = await Promise.all([
+    const [{ data: authData, error: authError }, nextBooking, nextRequest, resolutionResult] = await Promise.all([
       supabase.auth.getUser(),
       getBooking(bookingId),
       getPendingBookingReschedule(bookingId),
+      supabase.from("bookings").select("missed_visit_resolution").eq("id", bookingId).maybeSingle(),
     ]);
     if (authError) throw authError;
     setViewerId(authData.user?.id ?? null);
     setBooking(nextBooking);
     setRequest(nextRequest);
+    setMissedSchedulingClosed(Boolean(resolutionResult.data?.missed_visit_resolution));
   }
 
   useEffect(() => {
@@ -84,7 +87,7 @@ export function MutualRescheduleCard({
   const isRequester = Boolean(request && viewerId && request.requestedBy === viewerId);
   const incoming = Boolean(request && !isRequester);
   const otherParty = participantLabel(audience, incoming);
-  const canReschedule = Boolean(booking?.provider_id) && booking?.status === "accepted";
+  const canReschedule = Boolean(booking?.provider_id) && booking?.status === "accepted" && !missedSchedulingClosed;
   const missedVisit = Boolean(booking && isMissedAcceptedVisit(booking));
 
   async function submitProposal() {
@@ -110,7 +113,14 @@ export function MutualRescheduleCard({
       setNote("");
       setNotice(`Sent to ${otherParty} for approval. The current appointment has not changed.`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not send the new time.");
+      const message = err instanceof Error ? err.message : "Could not send the new time.";
+      if (message.includes("missed_visit_scheduling_closed")) {
+        setMissedSchedulingClosed(true);
+        setError(null);
+        setNotice("This missed visit was closed without a make-up appointment.");
+      } else {
+        setError(message);
+      }
     } finally {
       setBusy(false);
     }
