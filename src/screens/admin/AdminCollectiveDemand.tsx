@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Plus, RefreshCw, Unlink } from "lucide-react";
 import { supabase } from "../../lib/supabase";
 import { AdminDemandOpportunityPanel } from "./AdminDemandOpportunityPanel";
+import { AdminDemandSpendEvidence } from "./AdminDemandSpendEvidence";
 
 type Circle = {
   circle_id: string;
@@ -285,6 +286,14 @@ export function AdminCollectiveDemand() {
           </div>;
         })}</div>}
       </section>
+
+      {selectedCircleId ? (
+        <AdminDemandSpendEvidence
+          circleId={selectedCircleId}
+          signals={signals.map((signal) => ({ signalId: signal.signal_id, label: signal.label, status: signal.status }))}
+          onRecorded={() => loadDemandDetail(selectedCircleId)}
+        />
+      ) : null}
     </main>
   );
 }
