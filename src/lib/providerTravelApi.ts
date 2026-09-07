@@ -8,6 +8,8 @@ export type ProviderTravelState = {
   distanceMeters: number | null;
   travelOpensAt: string | null;
   checkInOpensAt: string | null;
+  serviceDayEndsAt?: string | null;
+  serviceDayPassed?: boolean;
   travelWindowOpen: boolean;
   checkInWindowOpen: boolean;
 };
@@ -23,6 +25,8 @@ function asTravelState(data: unknown): ProviderTravelState {
     distanceMeters: typeof distance === "number" && Number.isFinite(distance) ? distance : null,
     travelOpensAt: typeof row.travel_opens_at === "string" ? row.travel_opens_at : null,
     checkInOpensAt: typeof row.check_in_opens_at === "string" ? row.check_in_opens_at : null,
+    serviceDayEndsAt: typeof row.service_day_ends_at === "string" ? row.service_day_ends_at : null,
+    serviceDayPassed: row.service_day_passed === true,
     travelWindowOpen: row.travel_window_open === true,
     checkInWindowOpen: row.check_in_window_open === true,
   };
