@@ -59,6 +59,7 @@ import { AdminGrowthCirculation } from "../screens/admin/AdminGrowthCirculation"
 import { AdminRelationshipRecovery } from "../screens/admin/AdminRelationshipRecovery";
 import { AdminCspDirectory } from "../screens/admin/AdminCspDirectory";
 import { AdminBookingMessagesScreen } from "../screens/admin/AdminBookingMessagesScreen";
+import { AdminMessageSafety } from "../screens/admin/AdminMessageSafety";
 import { FoundingCircle } from "../screens/admin/FoundingCircle";
 import { OperationsDashboard } from "../screens/admin/OperationsDashboard";
 import { ProviderApplications } from "../screens/admin/ProviderApplications";
@@ -66,6 +67,8 @@ import { AdminFullAppIndex, AdminFullAppShell, AdminProviderPreviewOutlet } from
 import { AdminDeviceSurface, AdminIframePreviewFrame } from "../screens/admin/AdminDevicePreview";
 import { NotFound } from "../screens/shared/NotFound";
 import { TrustSafety } from "../screens/shared/TrustSafety";
+import { RelationshipInboxScreen } from "../screens/shared/RelationshipInboxScreen";
+import { RelationshipMessageScreen } from "../screens/shared/RelationshipMessageScreen";
 import BookingConfirmation from "../booking/BookingConfirmation";
 import { ProviderOverview } from "../provider/ProviderOverview";
 import { ProviderList } from "../provider/ProviderList";
@@ -99,6 +102,8 @@ export function AppRouter() {
             <Route path="bookings/:bookingId" element={<CustomerBookingDetails />} />
             <Route path="bookings/:bookingId/prep" element={<BeforeYourCleaning />} />
             <Route path="bookings/:bookingId/message" element={<CustomerBookingMessagePage />} />
+            <Route path="relationships" element={<RelationshipInboxScreen variant="customer" />} />
+            <Route path="relationships/:relationshipId/message" element={<RelationshipMessageScreen variant="customer" backPath="/app/relationships" title="Message your CSP" />} />
             <Route path="provider" element={<ProviderOverview />} />
             <Route path="provider/list" element={<ProviderList />} />
             <Route path="provider/:providerId" element={<ProviderDetail />} />
@@ -144,6 +149,8 @@ export function AppRouter() {
                 <Route path="jobs/:jobId" element={<JobDetails />} />
                 <Route path="jobs/:jobId/message" element={<JobMessagePage />} />
                 <Route path="jobs/:jobId/incident" element={<IncidentLog />} />
+                <Route path="relationships" element={<RelationshipInboxScreen variant="csp" />} />
+                <Route path="relationships/:relationshipId/message" element={<RelationshipMessageScreen variant="csp" theme="dark" backPath="/csp/dashboard/relationships" title="Message household" />} />
                 <Route path="calendar" element={<ProviderCalendar />} />
                 <Route path="earnings" element={<Earnings />} />
                 <Route path="affiliate" element={<AffiliateScreen />} />
@@ -177,6 +184,8 @@ export function AppRouter() {
               <Route path="bookings/:bookingId" element={<CustomerBookingDetails />} />
               <Route path="bookings/:bookingId/prep" element={<BeforeYourCleaning />} />
               <Route path="bookings/:bookingId/message" element={<CustomerBookingMessagePage />} />
+              <Route path="relationships" element={<RelationshipInboxScreen variant="customer" />} />
+              <Route path="relationships/:relationshipId/message" element={<RelationshipMessageScreen variant="customer" backPath="/admin/device/customer/relationships" title="Message your CSP" />} />
               <Route path="provider" element={<ProviderOverview />} />
               <Route path="provider/list" element={<ProviderList />} />
               <Route path="provider/:providerId" element={<ProviderDetail />} />
@@ -201,6 +210,8 @@ export function AppRouter() {
                 <Route path="jobs/:jobId" element={<JobDetails />} />
                 <Route path="jobs/:jobId/message" element={<JobMessagePage />} />
                 <Route path="jobs/:jobId/incident" element={<IncidentLog />} />
+                <Route path="relationships" element={<RelationshipInboxScreen variant="csp" />} />
+                <Route path="relationships/:relationshipId/message" element={<RelationshipMessageScreen variant="csp" theme="dark" backPath="/admin/device/csp/relationships" title="Message household" />} />
                 <Route path="calendar" element={<ProviderCalendar />} />
                 <Route path="earnings" element={<Earnings />} />
                 <Route path="affiliate" element={<AffiliateScreen />} />
@@ -224,6 +235,7 @@ export function AppRouter() {
             <Route path="circles" element={<AdminCircles />} />
             <Route path="transformation-metrics" element={<AdminTransformationMetrics />} />
             <Route path="relationship-recovery" element={<AdminRelationshipRecovery />} />
+            <Route path="message-safety" element={<AdminMessageSafety />} />
             <Route path="collective-demand" element={<AdminCollectiveDemand />} />
             <Route path="collective-capacity" element={<AdminCollectiveCapacity />} />
             <Route path="opportunity-circulation" element={<AdminGrowthCirculation />} />

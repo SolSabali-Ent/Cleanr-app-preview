@@ -11,6 +11,7 @@ const navItems = [
   { to: "/admin/circles", label: "Circles" },
   { to: "/admin/transformation-metrics", label: "Transformation Metrics" },
   { to: "/admin/relationship-recovery", label: "Relationship Recovery" },
+  { to: "/admin/message-safety", label: "Message Safety" },
   { to: "/admin/collective-demand", label: "Collective Demand" },
   { to: "/admin/collective-capacity", label: "Collective Capacity" },
   { to: "/admin/opportunity-circulation", label: "Opportunity Circulation" },
