@@ -3,6 +3,7 @@ import { ArrowLeft, CheckCircle2, Circle, Link2, Plus, Sparkles } from "lucide-r
 import { useNavigate } from "react-router-dom";
 import type { NorthStar, NorthStarMilestone } from "@/domain/growth";
 import type { EligibleNorthStarOutcome, NorthStarOutcomeEvidence } from "@/domain/northStarOutcomeEvidence";
+import type { NorthStarOpportunityRelevance } from "@/domain/northStarOpportunityRelevance";
 import { isOfflinePreviewMode } from "@/lib/supabase";
 import { CSP_GROWTH_ROUTES } from "@/app/provider/growthRoutes";
 import {
@@ -16,6 +17,7 @@ import {
   listMyEligibleNorthStarOutcomes,
   listMyNorthStarOutcomeEvidence,
 } from "@/lib/northStarOutcomeEvidenceApi";
+import { listMyNorthStarOpportunityRelevance } from "@/lib/northStarOpportunityRelevanceApi";
 import {
   CSP_CARD_PADDING,
   CSP_PRIMARY_BUTTON,
@@ -35,6 +37,7 @@ export default function MilestonesScreen() {
   const [milestones, setMilestones] = useState<NorthStarMilestone[]>([]);
   const [eligibleOutcomes, setEligibleOutcomes] = useState<EligibleNorthStarOutcome[]>([]);
   const [evidence, setEvidence] = useState<NorthStarOutcomeEvidence[]>([]);
+  const [opportunityRelevance, setOpportunityRelevance] = useState<NorthStarOpportunityRelevance[]>([]);
   const [selectedOutcomeByMilestone, setSelectedOutcomeByMilestone] = useState<Record<string, string>>({});
   const [description, setDescription] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -50,17 +53,20 @@ export default function MilestonesScreen() {
         setMilestones([]);
         setEligibleOutcomes([]);
         setEvidence([]);
+        setOpportunityRelevance([]);
         return;
       }
 
-      const [nextMilestones, nextOutcomes, nextEvidence] = await Promise.all([
+      const [nextMilestones, nextOutcomes, nextEvidence, nextRelevance] = await Promise.all([
         listMyNorthStarMilestones(current.id),
         listMyEligibleNorthStarOutcomes(),
         listMyNorthStarOutcomeEvidence(),
+        listMyNorthStarOpportunityRelevance(),
       ]);
       setMilestones(nextMilestones);
       setEligibleOutcomes(nextOutcomes);
       setEvidence(nextEvidence);
+      setOpportunityRelevance(nextRelevance);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to load milestones");
     }
@@ -73,6 +79,12 @@ export default function MilestonesScreen() {
     for (const item of evidence) map.set(item.milestoneId, item);
     return map;
   }, [evidence]);
+
+  const relevanceByMilestone = useMemo(() => {
+    const map = new Map<string, NorthStarOpportunityRelevance>();
+    for (const item of opportunityRelevance) if (item.relevanceStatus === "active") map.set(item.milestoneId, item);
+    return map;
+  }, [opportunityRelevance]);
 
   async function addMilestone() {
     if (!northStar || isOfflinePreviewMode || description.trim().length < 2 || saving) return;
@@ -141,9 +153,7 @@ export default function MilestonesScreen() {
       {!northStar ? (
         <div className="rounded-2xl border" style={{ backgroundColor: CSP_SURFACE, borderColor: "rgba(248,250,252,.08)", padding: CSP_CARD_PADDING }}>
           <p className="text-sm font-medium">Start with your North Star.</p>
-          <p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>
-            Once you define what you&apos;re building toward, you can create milestones that make progress visible.
-          </p>
+          <p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>Once you define what you&apos;re building toward, you can create milestones that make progress visible.</p>
         </div>
       ) : (
         <>
@@ -165,9 +175,7 @@ export default function MilestonesScreen() {
                   <Link2 size={18} style={{ color: CSP_PRIMARY_BUTTON, marginTop: 2 }} />
                   <div>
                     <p className="text-sm font-medium">Verified outcomes can support your progress.</p>
-                    <p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>
-                      Cleanr has verified {eligibleOutcomes.length} completed Growth outcome{eligibleOutcomes.length === 1 ? "" : "s"}. Only you decide whether one actually advanced a milestone. Nothing is marked complete automatically.
-                    </p>
+                    <p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>Cleanr has verified {eligibleOutcomes.length} completed Growth outcome{eligibleOutcomes.length === 1 ? "" : "s"}. Only you decide whether one actually advanced a milestone. Nothing is marked complete automatically.</p>
                   </div>
                 </div>
               </div>
@@ -186,6 +194,7 @@ export default function MilestonesScreen() {
                 {milestones.map((milestone) => {
                   const complete = milestone.status === "completed";
                   const milestoneEvidence = evidenceByMilestone.get(milestone.id);
+                  const prospectiveRelevance = relevanceByMilestone.get(milestone.id);
                   return (
                     <div key={milestone.id} className="w-full rounded-2xl border text-left" style={{ backgroundColor: CSP_SURFACE, borderColor: "rgba(248,250,252,.08)", padding: CSP_CARD_PADDING }}>
                       <button type="button" disabled={isOfflinePreviewMode || busyId === milestone.id} onClick={() => void toggleMilestone(milestone)} className="w-full text-left disabled:opacity-70">
@@ -198,15 +207,26 @@ export default function MilestonesScreen() {
                         </div>
                       </button>
 
-                      {milestoneEvidence ? (
+                      {prospectiveRelevance ? (
                         <div className="mt-4 rounded-xl border border-white/10 bg-white/5 p-3">
                           <div className="flex items-start gap-2">
                             <Link2 size={14} style={{ color: CSP_PRIMARY_BUTTON, marginTop: 2 }} />
                             <div>
+                              <p className="text-xs font-medium">Opportunity you said may help</p>
+                              <p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>{opportunityTypeLabel(prospectiveRelevance.opportunityType)} · {prospectiveRelevance.opportunityTitle}</p>
+                              <p className="mt-1 text-[11px] leading-4" style={{ color: CSP_TEXT_SECONDARY }}>Prospective relevance only. This does not mean the milestone moved or that Cleanr selected your path.</p>
+                            </div>
+                          </div>
+                        </div>
+                      ) : null}
+
+                      {milestoneEvidence ? (
+                        <div className="mt-4 rounded-xl border border-white/10 bg-white/5 p-3">
+                          <div className="flex items-start gap-2">
+                            <CheckCircle2 size={14} style={{ color: CSP_PRIMARY_BUTTON, marginTop: 2 }} />
+                            <div>
                               <p className="text-xs font-medium">Backed by a verified outcome</p>
-                              <p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>
-                                {opportunityTypeLabel(milestoneEvidence.opportunityType)} · {milestoneEvidence.opportunityTitle}
-                              </p>
+                              <p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>{opportunityTypeLabel(milestoneEvidence.opportunityType)} · {milestoneEvidence.opportunityTitle}</p>
                               {milestoneEvidence.outcomeSummary ? <p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>{milestoneEvidence.outcomeSummary}</p> : null}
                             </div>
                           </div>
@@ -214,9 +234,7 @@ export default function MilestonesScreen() {
                       ) : !complete && eligibleOutcomes.length > 0 && !isOfflinePreviewMode ? (
                         <div className="mt-4 border-t border-white/10 pt-4">
                           <p className="text-xs font-medium">Did a verified outcome move this forward?</p>
-                          <p className="mt-1 text-[11px] leading-4" style={{ color: CSP_TEXT_SECONDARY }}>
-                            Choose only if this outcome genuinely completed the milestone. This does not turn the outcome into a Contribution or award a capability.
-                          </p>
+                          <p className="mt-1 text-[11px] leading-4" style={{ color: CSP_TEXT_SECONDARY }}>Choose only if this outcome genuinely completed the milestone. This does not turn the outcome into a Contribution or award a capability.</p>
                           <div className="mt-3 flex gap-2">
                             <select value={selectedOutcomeByMilestone[milestone.id] ?? ""} onChange={(event) => setSelectedOutcomeByMilestone((current) => ({ ...current, [milestone.id]: event.target.value }))} className="min-w-0 flex-1 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs">
                               <option value="" className="text-black">Choose verified outcome</option>

@@ -1,23 +1,31 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, ArrowRight, Check, Compass, MapPin, SlidersHorizontal, Sparkles, Users } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Compass, Link2, MapPin, SlidersHorizontal, Sparkles, Users } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import type {
   GrowthOpportunity,
   GrowthOpportunityType,
+  NorthStarMilestone,
   OpportunityFitPreferences,
   OpportunityLocationPreference,
   OpportunityMatch,
   OpportunityTimePreference,
 } from "@/domain/growth";
+import type { NorthStarOpportunityRelevance } from "@/domain/northStarOpportunityRelevance";
 import { CSP_GROWTH_ROUTES } from "@/app/provider/growthRoutes";
 import { isOfflinePreviewMode } from "@/lib/supabase";
 import {
+  getMyNorthStar,
   getMyOpportunityFitPreferences,
+  listMyNorthStarMilestones,
   listMyOpportunityMatches,
   listOpenGrowthOpportunities,
   respondToMyOpportunityMatch,
   setMyOpportunityFitPreferences,
 } from "@/lib/growthApi";
+import {
+  listMyNorthStarOpportunityRelevance,
+  setMyNorthStarOpportunityRelevance,
+} from "@/lib/northStarOpportunityRelevanceApi";
 import {
   CSP_CARD_PADDING,
   CSP_PRIMARY_BUTTON,
@@ -53,6 +61,9 @@ export default function GrowthOpportunitiesScreen() {
   const navigate = useNavigate();
   const [matches, setMatches] = useState<OpportunityMatch[]>([]);
   const [open, setOpen] = useState<GrowthOpportunity[]>([]);
+  const [milestones, setMilestones] = useState<NorthStarMilestone[]>([]);
+  const [relevance, setRelevance] = useState<NorthStarOpportunityRelevance[]>([]);
+  const [selectedMilestoneByMatch, setSelectedMilestoneByMatch] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [busyMatchId, setBusyMatchId] = useState<string | null>(null);
 
@@ -69,12 +80,20 @@ export default function GrowthOpportunitiesScreen() {
   async function refresh() {
     try {
       setError(null);
-      const [myMatches, openOpportunities] = await Promise.all([
+      const [myMatches, openOpportunities, currentNorthStar, currentRelevance] = await Promise.all([
         listMyOpportunityMatches(),
         listOpenGrowthOpportunities(),
+        getMyNorthStar(),
+        listMyNorthStarOpportunityRelevance(),
       ]);
       setMatches(myMatches);
       setOpen(openOpportunities);
+      setRelevance(currentRelevance);
+      if (currentNorthStar) {
+        setMilestones((await listMyNorthStarMilestones(currentNorthStar.id)).filter((milestone) => milestone.status !== "completed"));
+      } else {
+        setMilestones([]);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to load opportunities");
     }
@@ -103,6 +122,11 @@ export default function GrowthOpportunitiesScreen() {
 
   const matchedOpportunityIds = useMemo(() => new Set(matches.map((match) => match.opportunityId)), [matches]);
   const discoverable = open.filter((opportunity) => !matchedOpportunityIds.has(opportunity.id));
+  const activeRelevanceByMatch = useMemo(() => {
+    const map = new Map<string, NorthStarOpportunityRelevance>();
+    for (const item of relevance) if (item.relevanceStatus === "active") map.set(item.matchId, item);
+    return map;
+  }, [relevance]);
   const canSaveFit = !isOfflinePreviewMode && !savingFit;
 
   function markFitChanged() {
@@ -146,6 +170,35 @@ export default function GrowthOpportunitiesScreen() {
       await refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to update opportunity response");
+    } finally {
+      setBusyMatchId(null);
+    }
+  }
+
+  async function connectMilestone(matchId: string) {
+    const milestoneId = selectedMilestoneByMatch[matchId];
+    if (!milestoneId || isOfflinePreviewMode || busyMatchId) return;
+    try {
+      setBusyMatchId(matchId);
+      setError(null);
+      await setMyNorthStarOpportunityRelevance({ milestoneId, matchId, active: true });
+      await refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to connect this opportunity to your milestone");
+    } finally {
+      setBusyMatchId(null);
+    }
+  }
+
+  async function removeMilestoneLink(item: NorthStarOpportunityRelevance) {
+    if (isOfflinePreviewMode || busyMatchId) return;
+    try {
+      setBusyMatchId(item.matchId);
+      setError(null);
+      await setMyNorthStarOpportunityRelevance({ milestoneId: item.milestoneId, matchId: item.matchId, active: false });
+      await refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to remove this milestone connection");
     } finally {
       setBusyMatchId(null);
     }
@@ -252,56 +305,72 @@ export default function GrowthOpportunitiesScreen() {
           </div>
         ) : (
           <div className="space-y-3">
-            {matches.map((match) => (
-              <div key={match.id} className="rounded-2xl border" style={{ backgroundColor: CSP_SURFACE, borderColor: "rgba(248,250,252,.08)", padding: CSP_CARD_PADDING }}>
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-xs" style={{ color: CSP_PRIMARY_BUTTON }}>{opportunityTypeLabel(match.opportunity.type)}</span>
-                  <span className="text-xs" style={{ color: CSP_TEXT_SECONDARY }}>{matchStatusLabel(match.status)}</span>
+            {matches.map((match) => {
+              const milestoneLink = activeRelevanceByMatch.get(match.id);
+              const prospective = ["suggested","viewed","interested","offered","accepted"].includes(match.status);
+              return (
+                <div key={match.id} className="rounded-2xl border" style={{ backgroundColor: CSP_SURFACE, borderColor: "rgba(248,250,252,.08)", padding: CSP_CARD_PADDING }}>
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-xs" style={{ color: CSP_PRIMARY_BUTTON }}>{opportunityTypeLabel(match.opportunity.type)}</span>
+                    <span className="text-xs" style={{ color: CSP_TEXT_SECONDARY }}>{matchStatusLabel(match.status)}</span>
+                  </div>
+                  <h3 className="mt-2 font-semibold">{match.opportunity.title}</h3>
+                  {match.northStarAlignment ? <p className="mt-2 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}><strong style={{ color: CSP_TEXT_PRIMARY }}>Why it may fit your North Star:</strong> {match.northStarAlignment}</p> : null}
+                  {match.capabilityAlignment ? <p className="mt-2 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}><strong style={{ color: CSP_TEXT_PRIMARY }}>Capabilities:</strong> {match.capabilityAlignment}</p> : null}
+                  {match.interestAlignment ? <p className="mt-2 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}><strong style={{ color: CSP_TEXT_PRIMARY }}>Interests:</strong> {match.interestAlignment}</p> : null}
+                  {match.constraintFit ? <p className="mt-2 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}><strong style={{ color: CSP_TEXT_PRIMARY }}>Fit:</strong> {match.constraintFit}</p> : null}
+                  {match.matchReason ? <p className="mt-2 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>Why this surfaced: {match.matchReason}</p> : null}
+
+                  {milestoneLink ? (
+                    <div className="mt-4 rounded-xl border border-white/10 bg-white/5 p-3">
+                      <div className="flex items-start gap-2">
+                        <Link2 size={14} style={{ color: CSP_PRIMARY_BUTTON, marginTop: 2 }} />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs font-medium">You said this may support a milestone</p>
+                          <p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>{milestoneLink.milestoneDescription}</p>
+                        </div>
+                        {prospective && !isOfflinePreviewMode ? <button type="button" disabled={busyMatchId === match.id} onClick={() => void removeMilestoneLink(milestoneLink)} className="text-[11px] font-semibold" style={{ color: CSP_TEXT_SECONDARY }}>Remove</button> : null}
+                      </div>
+                      <p className="mt-2 text-[11px] leading-4" style={{ color: CSP_TEXT_SECONDARY }}>This is your relevance judgment only. It does not mark progress or change the opportunity.</p>
+                    </div>
+                  ) : prospective && milestones.length > 0 && !isOfflinePreviewMode ? (
+                    <div className="mt-4 border-t border-white/10 pt-4">
+                      <p className="text-xs font-medium">Could this help one of your milestones?</p>
+                      <p className="mt-1 text-[11px] leading-4" style={{ color: CSP_TEXT_SECONDARY }}>You decide. Connecting it records possible relevance only—it does not mark the milestone complete.</p>
+                      <div className="mt-3 flex gap-2">
+                        <select value={selectedMilestoneByMatch[match.id] ?? ""} onChange={(event) => setSelectedMilestoneByMatch((current) => ({ ...current, [match.id]: event.target.value }))} className="min-w-0 flex-1 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs">
+                          <option value="" className="text-black">Choose milestone</option>
+                          {milestones.map((milestone) => <option key={milestone.id} value={milestone.id} className="text-black">{milestone.description}</option>)}
+                        </select>
+                        <button type="button" disabled={!selectedMilestoneByMatch[match.id] || busyMatchId === match.id} onClick={() => void connectMilestone(match.id)} className="rounded-xl px-3 py-2 text-xs font-semibold text-white disabled:opacity-50" style={{ backgroundColor: CSP_PRIMARY_BUTTON }}>Connect</button>
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {match.status === "offered" && !isOfflinePreviewMode ? (
+                    <div className="mt-4 grid grid-cols-2 gap-2">
+                      <button type="button" disabled={busyMatchId === match.id} onClick={() => void respond(match.id, "accepted")} className="rounded-xl px-2 py-2 text-xs font-semibold text-white" style={{ backgroundColor: CSP_PRIMARY_BUTTON }}>Accept offer</button>
+                      <button type="button" disabled={busyMatchId === match.id} onClick={() => void respond(match.id, "declined")} className="rounded-xl border border-white/10 bg-white/5 px-2 py-2 text-xs font-semibold">Pass</button>
+                    </div>
+                  ) : !["interested","accepted","declined","completed"].includes(match.status) && !isOfflinePreviewMode ? (
+                    <div className="mt-4 grid grid-cols-2 gap-2">
+                      <button type="button" disabled={busyMatchId === match.id} onClick={() => void respond(match.id, "interested")} className="rounded-xl px-2 py-2 text-xs font-semibold text-white" style={{ backgroundColor: CSP_PRIMARY_BUTTON }}>I&apos;m interested</button>
+                      <button type="button" disabled={busyMatchId === match.id} onClick={() => void respond(match.id, "declined")} className="rounded-xl border border-white/10 bg-white/5 px-2 py-2 text-xs font-semibold">Pass</button>
+                    </div>
+                  ) : null}
+
+                  {match.status === "interested" ? <p className="mt-3 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>Interest shared. Cleanr may determine whether to offer the opportunity; you are not committed yet.</p> : null}
+                  {match.status === "accepted" ? <p className="mt-3 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>Accepted. Completion is recorded only after the real-world outcome is verified; accepting alone does not create a contribution or claim progress toward your North Star.</p> : null}
+                  {match.status === "completed" ? (
+                    <div className="mt-3 rounded-xl border border-white/10 bg-white/5 p-3">
+                      <p className="text-xs font-semibold" style={{ color: CSP_TEXT_PRIMARY }}>Verified outcome</p>
+                      {match.outcome?.summary ? <p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>{match.outcome.summary}</p> : <p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>The real-world completion was verified and recorded.</p>}
+                      <p className="mt-2 text-[11px] leading-4" style={{ color: CSP_TEXT_SECONDARY }}>This outcome is your durable completion history. It is not automatically a contribution, a capability, or North Star progress. If it genuinely advanced a milestone, you can choose to connect that verified outcome from Milestones.</p>
+                    </div>
+                  ) : null}
                 </div>
-                <h3 className="mt-2 font-semibold">{match.opportunity.title}</h3>
-                {match.northStarAlignment ? <p className="mt-2 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}><strong style={{ color: CSP_TEXT_PRIMARY }}>North Star:</strong> {match.northStarAlignment}</p> : null}
-                {match.capabilityAlignment ? <p className="mt-2 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}><strong style={{ color: CSP_TEXT_PRIMARY }}>Capabilities:</strong> {match.capabilityAlignment}</p> : null}
-                {match.interestAlignment ? <p className="mt-2 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}><strong style={{ color: CSP_TEXT_PRIMARY }}>Interests:</strong> {match.interestAlignment}</p> : null}
-                {match.constraintFit ? <p className="mt-2 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}><strong style={{ color: CSP_TEXT_PRIMARY }}>Fit:</strong> {match.constraintFit}</p> : null}
-                {match.matchReason ? <p className="mt-2 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>Why this surfaced: {match.matchReason}</p> : null}
-
-                {match.status === "offered" && !isOfflinePreviewMode ? (
-                  <div className="mt-4 grid grid-cols-2 gap-2">
-                    <button type="button" disabled={busyMatchId === match.id} onClick={() => void respond(match.id, "accepted")} className="rounded-xl px-2 py-2 text-xs font-semibold text-white" style={{ backgroundColor: CSP_PRIMARY_BUTTON }}>Accept offer</button>
-                    <button type="button" disabled={busyMatchId === match.id} onClick={() => void respond(match.id, "declined")} className="rounded-xl border border-white/10 bg-white/5 px-2 py-2 text-xs font-semibold">Pass</button>
-                  </div>
-                ) : !["interested","accepted","declined","completed"].includes(match.status) && !isOfflinePreviewMode ? (
-                  <div className="mt-4 grid grid-cols-2 gap-2">
-                    <button type="button" disabled={busyMatchId === match.id} onClick={() => void respond(match.id, "interested")} className="rounded-xl px-2 py-2 text-xs font-semibold text-white" style={{ backgroundColor: CSP_PRIMARY_BUTTON }}>I&apos;m interested</button>
-                    <button type="button" disabled={busyMatchId === match.id} onClick={() => void respond(match.id, "declined")} className="rounded-xl border border-white/10 bg-white/5 px-2 py-2 text-xs font-semibold">Pass</button>
-                  </div>
-                ) : null}
-
-                {match.status === "interested" ? (
-                  <p className="mt-3 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>
-                    Interest shared. Cleanr may determine whether to offer the opportunity; you are not committed yet.
-                  </p>
-                ) : null}
-                {match.status === "accepted" ? (
-                  <p className="mt-3 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>
-                    Accepted. Completion is recorded only after the real-world outcome is verified; accepting alone does not create a contribution or claim progress toward your North Star.
-                  </p>
-                ) : null}
-                {match.status === "completed" ? (
-                  <div className="mt-3 rounded-xl border border-white/10 bg-white/5 p-3">
-                    <p className="text-xs font-semibold" style={{ color: CSP_TEXT_PRIMARY }}>Verified outcome</p>
-                    {match.outcome?.summary ? (
-                      <p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>{match.outcome.summary}</p>
-                    ) : (
-                      <p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>The real-world completion was verified and recorded.</p>
-                    )}
-                    <p className="mt-2 text-[11px] leading-4" style={{ color: CSP_TEXT_SECONDARY }}>
-                      This outcome is your durable completion history. It is not automatically a contribution, a capability, or North Star progress. Collective value is recorded separately only when there is evidence that someone else or the network benefited.
-                    </p>
-                  </div>
-                ) : null}
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </section>
