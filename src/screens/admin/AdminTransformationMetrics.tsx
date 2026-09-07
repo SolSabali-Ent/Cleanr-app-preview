@@ -7,6 +7,7 @@ import { AdminCollectiveCircularity } from "./AdminCollectiveCircularity";
 import { AdminPostCleaningContinuum } from "./AdminPostCleaningContinuum";
 import { AdminRelationshipRecoveryMetrics } from "./AdminRelationshipRecoveryMetrics";
 import { AdminHouseholdMemoryAssets } from "./AdminHouseholdMemoryAssets";
+import { AdminDemandSpendTransformationEvidence } from "./AdminDemandSpendTransformationEvidence";
 
 type Circle = {
   circle_id: string;
@@ -174,6 +175,7 @@ export function AdminTransformationMetrics() {
       <AdminRelationshipRecoveryMetrics circleId={scopedCircleId} />
       <AdminEconomicAgencyActivity circleId={scopedCircleId} />
       <AdminFeePolicyEconomics circleId={scopedCircleId} />
+      <AdminDemandSpendTransformationEvidence circleId={scopedCircleId} />
       <AdminCollectiveCircularity circleId={scopedCircleId} />
       <AdminPostCleaningContinuum circleId={scopedCircleId} />
 
