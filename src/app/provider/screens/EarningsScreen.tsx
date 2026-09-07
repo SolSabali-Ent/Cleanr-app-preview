@@ -72,6 +72,12 @@ function feePolicyCopy(row: ProviderEarningsBookingRow): string | null {
   if (row.platform_fee_policy === "provider_brought_relationship") {
     return `${rate} Cleanr fee · existing relationship you brought to Cleanr`;
   }
+  if (row.platform_fee_policy === "priority_surcharge_100pct_provider") {
+    return `${rate} Cleanr fee on base clean only · priority surcharge is 100% yours`;
+  }
+  if (row.platform_fee_policy === "provider_brought_relationship_plus_priority_surcharge_100pct_provider") {
+    return `${rate} Cleanr fee on base clean only · existing relationship rate · priority surcharge is 100% yours`;
+  }
   if (row.platform_fee_policy === "default") {
     return `${rate} Cleanr platform fee`;
   }
@@ -113,6 +119,7 @@ function EarningsRow({
   const cents = providerEarningCentsFromRow(row);
   const payout = payoutStatus(row, variant);
   const feeCopy = feePolicyCopy(row);
+  const priorityCents = row.priority_surcharge_cents ?? 0;
 
   return (
     <div
@@ -128,6 +135,11 @@ function EarningsRow({
           <p className="font-medium" style={{ color: CSP_TEXT_PRIMARY }}>
             {serviceLabel(row.service_type)}
           </p>
+          {row.service_priority === "urgent" ? (
+            <span className="rounded-full border border-amber-300/30 bg-amber-300/10 px-2 py-0.5 text-xs font-medium text-amber-200">
+              Priority
+            </span>
+          ) : null}
           <span
             className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-xs font-medium shrink-0"
             style={{ color: CSP_TEXT_SECONDARY }}
@@ -144,6 +156,11 @@ function EarningsRow({
         <p className="mt-2 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>
           {payout.detail}
         </p>
+        {priorityCents > 0 ? (
+          <p className="mt-1 text-xs font-medium leading-5 text-amber-200">
+            Priority compensation: {formatUsdFromCents(priorityCents)} · 100% yours
+          </p>
+        ) : null}
         {feeCopy ? (
           <p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>
             {feeCopy}
