@@ -39,6 +39,13 @@ type RecurringCleaningPlanRow = {
   updated_at: string;
 };
 
+export type MissedVisitResolutionResult = {
+  bookingId: string;
+  recurringPlanId: string | null;
+  nextExpectedAt: string | null;
+  paymentReviewRequired: boolean;
+};
+
 const PLAN_SELECT =
   "id,customer_id,preferred_provider_id,origin_booking_id,current_booking_id,cadence,service_type,service_address,status,next_expected_at,paused_at,ended_at,created_at,updated_at";
 
@@ -115,4 +122,26 @@ export async function updateMyRecurringCleaningPlan(
   const row = data as RecurringCleaningPlanRow;
   const names = await providerNames(row.preferred_provider_id ? [row.preferred_provider_id] : []);
   return mapPlan(row, names);
+}
+
+export async function resolveMyMissedVisitWithoutReschedule(
+  bookingId: string
+): Promise<MissedVisitResolutionResult> {
+  if (isOfflinePreviewMode) {
+    throw new Error("Missed visit controls are unavailable in offline preview mode.");
+  }
+
+  const { data, error } = await supabase.rpc("resolve_my_missed_visit_without_reschedule", {
+    p_booking_id: bookingId,
+  });
+  if (isSupabaseFeatureUnavailable(error)) throw dormantFeatureError("Missed visit resolution");
+  if (error) throw error;
+
+  const raw = (data ?? {}) as Record<string, unknown>;
+  return {
+    bookingId: String(raw.booking_id ?? bookingId),
+    recurringPlanId: raw.recurring_plan_id ? String(raw.recurring_plan_id) : null,
+    nextExpectedAt: raw.next_expected_at ? String(raw.next_expected_at) : null,
+    paymentReviewRequired: raw.payment_review_required === true,
+  };
 }
