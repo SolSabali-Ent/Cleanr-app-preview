@@ -40,7 +40,7 @@ type DemandCapacityLink = {
 };
 
 const DEMAND_TYPES = ["service","coverage","training","business_support","product","vendor","opportunity","housing","capital","other"];
-const SOURCE_TYPES = ["admin_observation","household_request","csp_request","service_activity","spend_pattern","external_demand","other"];
+const SOURCE_TYPES = ["admin_observation","household_request","csp_request","service_activity","external_demand","other"];
 const STATUSES = ["observed","validated","exploring","acted","retired"];
 const PARTICIPATION_KEYS = ["service_provider","coverage_partner","collaborator","mentor","business_owner","vendor","employer","investor","advisor","opportunity_creator"];
 
