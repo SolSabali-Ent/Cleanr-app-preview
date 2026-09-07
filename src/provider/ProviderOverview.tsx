@@ -9,6 +9,7 @@ import { listBookingsForCustomer } from "../lib/bookingApi";
 import type { Booking } from "../domain/booking";
 import type { ServiceRelationship } from "../domain/serviceRelationship";
 import { customerFacingServiceLabel } from "../lib/serviceCatalog";
+import { isCurrentCustomerUpcoming } from "../lib/bookingServiceDay";
 import { getMyServiceRelationshipWithProvider, setMyPreferredServiceProvider } from "../lib/serviceRelationshipApi";
 import { isOfflinePreviewMode } from "../lib/supabase";
 import { customerRouteForContext } from "../lib/contextualRoutes";
@@ -58,13 +59,10 @@ export function ProviderOverview() {
       .sort((a, b) => new Date(a.scheduled_start).getTime() - new Date(b.scheduled_start).getTime());
   }, [bookings, selectedProvider?.id]);
 
-  const nextCleaning = useMemo(() => {
-    const now = Date.now();
-    return relationshipBookings.find((booking) => {
-      const when = new Date(booking.scheduled_start).getTime();
-      return Number.isFinite(when) && when >= now && booking.status !== "cancelled";
-    }) ?? null;
-  }, [relationshipBookings]);
+  const nextCleaning = useMemo(
+    () => relationshipBookings.find((booking) => isCurrentCustomerUpcoming(booking)) ?? null,
+    [relationshipBookings]
+  );
 
   const bookingHistoryCompletedTogether = relationshipBookings.filter((booking) =>
     ["completed_by_provider", "confirmed"].includes(booking.status)
