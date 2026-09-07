@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { ArrowRight, BriefcaseBusiness, CalendarClock, Compass, Handshake } from "lucide-react";
 import { findAvailableJobsForProvider, listMyJobsAsProvider, type AvailableJob } from "../../../lib/bookingApi";
 import type { Booking } from "../../../domain/booking";
+import { isCurrentProviderWork, isMissedAcceptedVisit } from "../../../lib/bookingServiceDay";
 import { useStableSessionProfile } from "@/hooks/useStableSessionProfile";
 import { profileToProviderFlow, shouldShowMarketplacePendingPanel } from "@/lib/providerFlow";
 import { CSP_GROWTH_ROUTES } from "@/app/provider/growthRoutes";
@@ -100,13 +101,18 @@ export default function TodayScreen() {
     ];
   }, [displayProfile]);
 
-  const activeJobs = useMemo(() => {
-    const hiddenStatuses = new Set(["confirmed", "cancelled", "canceled", "completed", "completed_by_provider", "disputed", "refunded"]);
-    return [...myJobs]
-      .filter((job) => !hiddenStatuses.has(String(job.status ?? "").toLowerCase()))
-      .sort((a, b) => new Date(a.scheduled_start).getTime() - new Date(b.scheduled_start).getTime());
-  }, [myJobs]);
-
+  const activeJobs = useMemo(
+    () => [...myJobs]
+      .filter((job) => isCurrentProviderWork(job))
+      .sort((a, b) => new Date(a.scheduled_start).getTime() - new Date(b.scheduled_start).getTime()),
+    [myJobs]
+  );
+  const missedJobs = useMemo(
+    () => [...myJobs]
+      .filter((job) => isMissedAcceptedVisit(job))
+      .sort((a, b) => new Date(b.scheduled_start).getTime() - new Date(a.scheduled_start).getTime()),
+    [myJobs]
+  );
   const nextJob = activeJobs[0] ?? null;
 
   useEffect(() => {
@@ -213,6 +219,19 @@ export default function TodayScreen() {
             <h1 className="text-2xl font-semibold">Home</h1>
             <p className="mt-1 text-sm" style={{ color: CSP_TEXT_SECONDARY }}>Your work at a glance.</p>
           </header>
+
+          {missedJobs.length > 0 ? (
+            <section style={{ marginBottom: CSP_SECTION_GAP }}>
+              <button
+                type="button"
+                onClick={() => navigate("/csp/dashboard/jobs")}
+                className="w-full rounded-2xl border border-amber-400/25 bg-amber-950/20 p-4 text-left"
+              >
+                <p className="text-sm font-semibold text-amber-200">{missedJobs.length} visit{missedJobs.length === 1 ? "" : "s"} need rescheduling</p>
+                <p className="mt-1 text-xs leading-5 text-amber-100/75">Past scheduled dates are no longer counted as active work. Open Jobs to repair the schedule with the household.</p>
+              </button>
+            </section>
+          ) : null}
 
           <section style={{ marginBottom: CSP_SECTION_GAP }}>
             <div className="mb-3 flex items-center justify-between gap-3">
