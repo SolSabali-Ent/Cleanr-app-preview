@@ -10,6 +10,10 @@ export type ProviderEarningsBookingRow = {
   platform_fee_cents: number | null;
   platform_fee_policy: string | null;
   platform_fee_rate_applied: number | null;
+  platform_fee_basis_cents: number | null;
+  priority_surcharge_cents: number | null;
+  service_priority: string;
+  priority_surcharge_rate: number | null;
   payout_approved_at: string | null;
   payout_released: boolean;
   payout_released_at: string | null;
@@ -23,7 +27,7 @@ export type ProviderEarningsBookingRow = {
 };
 
 const PROVIDER_EARNINGS_SELECT =
-  "id,status,service_type,scheduled_start,scheduled_end,price_cents,platform_fee_cents,platform_fee_policy,platform_fee_rate_applied,payout_approved_at,payout_released,payout_released_at,payout_reversed_at,stripe_transfer_id,customer_id,address,updated_at,created_at,zip_code";
+  "id,status,service_type,scheduled_start,scheduled_end,price_cents,platform_fee_cents,platform_fee_policy,platform_fee_rate_applied,platform_fee_basis_cents,priority_surcharge_cents,service_priority,priority_surcharge_rate,payout_approved_at,payout_released,payout_released_at,payout_reversed_at,stripe_transfer_id,customer_id,address,updated_at,created_at,zip_code";
 
 function toInt(v: unknown, fallback = 0): number {
   if (typeof v === "number" && Number.isFinite(v)) return v;
@@ -55,6 +59,10 @@ function rowToProviderEarningsBooking(row: Record<string, unknown>): ProviderEar
     platform_fee_cents: row.platform_fee_cents == null ? null : toInt(row.platform_fee_cents),
     platform_fee_policy: (row.platform_fee_policy as string | null) ?? null,
     platform_fee_rate_applied: toNumberOrNull(row.platform_fee_rate_applied),
+    platform_fee_basis_cents: row.platform_fee_basis_cents == null ? null : toInt(row.platform_fee_basis_cents),
+    priority_surcharge_cents: row.priority_surcharge_cents == null ? null : toInt(row.priority_surcharge_cents),
+    service_priority: String(row.service_priority ?? "standard"),
+    priority_surcharge_rate: toNumberOrNull(row.priority_surcharge_rate),
     payout_approved_at: (row.payout_approved_at as string | null) ?? null,
     payout_released: row.payout_released === true,
     payout_released_at: (row.payout_released_at as string | null) ?? null,
