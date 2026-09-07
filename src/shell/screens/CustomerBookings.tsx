@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { listBookingsForCustomer } from "../../lib/bookingApi";
 import {
   listMyRecurringCleaningPlans,
+  resolveMyMissedVisitWithoutReschedule,
   updateMyRecurringCleaningPlan,
   type RecurringCleaningPlan,
 } from "../../lib/recurringCleaningApi";
@@ -11,6 +12,7 @@ import { CalendarClock, ChevronDown, ChevronRight, Pause, Play, Settings2 } from
 import { useUnreadBookingMessageIds } from "../../hooks/useUnreadBookingMessageIds";
 import { customerFacingServiceLabel } from "../../lib/serviceCatalog";
 import { isMissedAcceptedVisit } from "../../lib/bookingServiceDay";
+import { supabase } from "../../lib/supabase";
 import {
   isHistoryBookingStatus,
   isUpcomingBookingStatus,
@@ -105,12 +107,16 @@ function RecurringPlanCard({
   plan,
   currentBooking,
   busy,
+  resolutionBusy,
   onUpdate,
+  onResolveMissed,
 }: {
   plan: RecurringCleaningPlan;
   currentBooking: Booking | null;
   busy: boolean;
+  resolutionBusy: boolean;
   onUpdate: (planId: string, action: "pause" | "resume" | "end") => Promise<void>;
+  onResolveMissed: (bookingId: string) => Promise<void>;
 }) {
   const navigate = useNavigate();
   const cleanerName = firstName(plan.preferredProviderName);
@@ -142,7 +148,7 @@ function RecurringPlanCard({
         <p className="mt-1 text-sm font-semibold">
           {formatDate(missedCurrentVisit && currentBooking ? currentBooking.scheduled_start : plan.nextExpectedAt)} · {formatTime(missedCurrentVisit && currentBooking ? currentBooking.scheduled_start : plan.nextExpectedAt)}
         </p>
-        {missedCurrentVisit ? <p className="mt-1 text-xs text-amber-800">This scheduled date passed without service starting. Choose a new time with your CSP.</p> : null}
+        {missedCurrentVisit ? <p className="mt-1 text-xs text-amber-800">This scheduled date passed without service starting. Choose a new time with your CSP or skip this occurrence.</p> : null}
       </div>
 
       {plan.currentBookingId ? (
@@ -156,6 +162,21 @@ function RecurringPlanCard({
             <p className="mt-0.5 text-xs text-[#667085]">{missedCurrentVisit ? "Suggest a new future time from the visit details." : "Reschedule from the visit details."}</p>
           </div>
           <ChevronRight className="h-4 w-4 text-[#667085]" />
+        </button>
+      ) : null}
+
+      {missedCurrentVisit && currentBooking ? (
+        <button
+          type="button"
+          disabled={resolutionBusy}
+          onClick={() => {
+            if (window.confirm("Skip this missed visit and keep your recurring cleaning active? This will not mark the visit completed or automatically change payment/refund status.")) {
+              void onResolveMissed(currentBooking.id);
+            }
+          }}
+          className="mt-2 w-full rounded-xl px-3 py-2.5 text-xs font-semibold text-[#667085] disabled:opacity-50"
+        >
+          {resolutionBusy ? "Updating…" : "Don’t reschedule this visit"}
         </button>
       ) : null}
 
@@ -199,10 +220,13 @@ type BookingTab = "upcoming" | "history";
 export function CustomerBookings() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [plans, setPlans] = useState<RecurringCleaningPlan[]>([]);
+  const [resolvedMissedIds, setResolvedMissedIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [planError, setPlanError] = useState<string | null>(null);
+  const [resolutionNotice, setResolutionNotice] = useState<string | null>(null);
   const [planBusyId, setPlanBusyId] = useState<string | null>(null);
+  const [resolutionBusyId, setResolutionBusyId] = useState<string | null>(null);
   const [tab, setTab] = useState<BookingTab>("upcoming");
   const [showAllUpcoming, setShowAllUpcoming] = useState(false);
   const [showAllPlans, setShowAllPlans] = useState(false);
@@ -210,10 +234,16 @@ export function CustomerBookings() {
   const { unreadBookingIds } = useUnreadBookingMessageIds();
 
   useEffect(() => {
-    Promise.all([listBookingsForCustomer(), listMyRecurringCleaningPlans()])
-      .then(([bookingRows, planRows]) => {
+    const resolvedQuery = supabase
+      .from("bookings")
+      .select("id")
+      .eq("missed_visit_resolution", "not_rescheduling");
+
+    Promise.all([listBookingsForCustomer(), listMyRecurringCleaningPlans(), resolvedQuery])
+      .then(([bookingRows, planRows, resolvedResult]) => {
         setBookings(bookingRows);
         setPlans(planRows);
+        setResolvedMissedIds(new Set((resolvedResult.data ?? []).map((row) => String(row.id))));
       })
       .catch((err) => setError(err?.message ?? "Failed to load bookings"))
       .finally(() => setLoading(false));
@@ -221,9 +251,9 @@ export function CustomerBookings() {
 
   const missed = useMemo(
     () => bookings
-      .filter((booking) => isMissedAcceptedVisit(booking))
+      .filter((booking) => isMissedAcceptedVisit(booking) && !resolvedMissedIds.has(booking.id))
       .sort((a, b) => new Date(b.scheduled_start).getTime() - new Date(a.scheduled_start).getTime()),
-    [bookings]
+    [bookings, resolvedMissedIds]
   );
 
   const upcoming = useMemo(
@@ -266,6 +296,37 @@ export function CustomerBookings() {
     }
   }
 
+  async function handleResolveMissed(bookingId: string) {
+    if (resolutionBusyId) return;
+    setResolutionBusyId(bookingId);
+    setPlanError(null);
+    setResolutionNotice(null);
+    try {
+      const result = await resolveMyMissedVisitWithoutReschedule(bookingId);
+      setResolvedMissedIds((current) => new Set([...current, bookingId]));
+      if (result.recurringPlanId) {
+        setPlans((current) => current.map((plan) =>
+          plan.id === result.recurringPlanId
+            ? {
+                ...plan,
+                currentBookingId: null,
+                nextExpectedAt: result.nextExpectedAt ?? plan.nextExpectedAt,
+              }
+            : plan
+        ));
+      }
+      setResolutionNotice(
+        result.paymentReviewRequired
+          ? "This visit will not be rescheduled. Your recurring cleaning stays active. Payment for the missed visit remains separate for Cleanr review."
+          : "This visit will not be rescheduled. Your recurring cleaning stays active and continues on its normal cadence."
+      );
+    } catch (err) {
+      setPlanError(err instanceof Error ? err.message : "Could not close this missed visit.");
+    } finally {
+      setResolutionBusyId(null);
+    }
+  }
+
   if (loading) {
     return <div className="p-4"><p className="text-sm text-[#667085]">Loading bookings…</p></div>;
   }
@@ -291,14 +352,34 @@ export function CustomerBookings() {
         <p className="mt-1 text-xs text-[#667085]">What&apos;s next and what you&apos;ve already done.</p>
       </header>
 
+      {resolutionNotice ? (
+        <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-3 text-xs leading-5 text-emerald-800">
+          {resolutionNotice}
+        </div>
+      ) : null}
+
       {standaloneMissed.length > 0 ? (
         <section className="mb-5 rounded-2xl border border-amber-200 bg-amber-50 p-4">
           <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">Schedule needs attention</p>
-          <p className="mt-1 text-sm font-semibold text-amber-950">{standaloneMissed.length} visit{standaloneMissed.length === 1 ? "" : "s"} need a new time.</p>
-          <p className="mt-1 text-xs leading-5 text-amber-800">The scheduled date passed without service starting. These are not upcoming or completed visits.</p>
-          <div className="mt-3">
+          <p className="mt-1 text-sm font-semibold text-amber-950">{standaloneMissed.length} visit{standaloneMissed.length === 1 ? "" : "s"} need a decision.</p>
+          <p className="mt-1 text-xs leading-5 text-amber-800">The scheduled date passed without service starting. Reschedule it or close the occurrence if you do not want a make-up visit.</p>
+          <div className="mt-3 space-y-3">
             {standaloneMissed.map((booking) => (
-              <BookingRow key={booking.id} booking={booking} hasUnreadMessages={unreadBookingIds.has(booking.id)} compact forceNeedsRescheduling />
+              <div key={booking.id}>
+                <BookingRow booking={booking} hasUnreadMessages={unreadBookingIds.has(booking.id)} compact forceNeedsRescheduling />
+                <button
+                  type="button"
+                  disabled={resolutionBusyId === booking.id}
+                  onClick={() => {
+                    if (window.confirm("Don’t reschedule this missed visit? This will close the scheduling warning without marking the visit completed or automatically changing payment/refund status.")) {
+                      void handleResolveMissed(booking.id);
+                    }
+                  }}
+                  className="w-full rounded-xl px-3 py-2 text-xs font-semibold text-amber-800 disabled:opacity-50"
+                >
+                  {resolutionBusyId === booking.id ? "Updating…" : "Don’t reschedule this visit"}
+                </button>
+              </div>
             ))}
           </div>
         </section>
@@ -332,7 +413,9 @@ export function CustomerBookings() {
                   plan={plan}
                   currentBooking={plan.currentBookingId ? bookingById.get(plan.currentBookingId) ?? null : null}
                   busy={planBusyId === plan.id}
+                  resolutionBusy={Boolean(plan.currentBookingId && resolutionBusyId === plan.currentBookingId)}
                   onUpdate={handlePlanUpdate}
+                  onResolveMissed={handleResolveMissed}
                 />
               ))}
               {plans.length > 1 ? (
