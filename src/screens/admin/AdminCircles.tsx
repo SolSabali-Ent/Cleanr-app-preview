@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { CircleDot, GitBranch, Plus, RefreshCw, Users } from "lucide-react";
 import { supabase } from "../../lib/supabase";
+import { AdminCircleLifecycle } from "./AdminCircleLifecycle";
 
 type CircleRow = {
   circle_id: string;
@@ -342,6 +343,12 @@ export function AdminCircles() {
               </div>
               <p className="mt-4 text-xs leading-5 text-slate-500">These are raw durable counts, not a synthetic community score. Density should improve because real relationships, coverage and opportunity accumulate.</p>
             </section>
+
+            <AdminCircleLifecycle
+              circleId={selected.circle_id}
+              circleStatus={selected.status}
+              onChanged={() => loadCircles(selected.circle_id)}
+            />
 
             <section className="rounded-2xl border border-slate-200 bg-white p-5">
               <div className="flex items-start justify-between gap-4">
