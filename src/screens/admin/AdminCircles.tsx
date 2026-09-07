@@ -323,7 +323,7 @@ export function AdminCircles() {
               <button key={circle.circle_id} type="button" onClick={() => setSelectedCircleId(circle.circle_id)} className={`w-full px-4 py-4 text-left ${circle.circle_id === selectedCircleId ? "bg-emerald-50" : "hover:bg-slate-50"}`}>
                 <div className="flex items-center justify-between gap-3"><p className="text-sm font-semibold text-slate-950">{circle.name}</p><span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">{humanize(circle.status)}</span></div>
                 <p className="mt-1 text-xs text-slate-500">{circle.locality_label || [circle.city, circle.region].filter(Boolean).join(", ") || "Locality not set"}</p>
-                <p className="mt-2 text-xs text-slate-600">{circle.csp_count} CSP · {circle.household_count} households · {circle.active_service_relationships} active relationships</p>
+                <p className="mt-2 text-xs text-slate-600">{circle.csp_count} CSP · {circle.household_count} customer accounts (household proxy) · {circle.active_service_relationships} active relationships</p>
               </button>
             ))}</div>
           )}
@@ -337,7 +337,7 @@ export function AdminCircles() {
                 <div className="rounded-xl bg-slate-50 px-4 py-3 text-right"><p className="text-2xl font-bold text-slate-950">{selected.member_count}</p><p className="text-xs text-slate-500">active members</p></div>
               </div>
               <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                {[['CSPs', selected.csp_count], ['Households', selected.household_count], ['Active relationships', selected.active_service_relationships], ['Repeat relationships', selected.repeat_service_relationships], ['Coverage partnerships', selected.active_coverage_partnerships], ['Contributions', selected.contribution_count], ['Opportunities created', selected.opportunity_count], ['Value circulated', selected.circulated_contribution_count]].map(([label, value]) => (
+                {[['CSPs', selected.csp_count], ['Customer accounts (household proxy)', selected.household_count], ['Active relationships', selected.active_service_relationships], ['Repeat relationships', selected.repeat_service_relationships], ['Coverage partnerships', selected.active_coverage_partnerships], ['Contributions', selected.contribution_count], ['Opportunities created', selected.opportunity_count], ['Value circulated', selected.circulated_contribution_count]].map(([label, value]) => (
                   <div key={String(label)} className="rounded-xl border border-slate-200 bg-slate-50 p-3"><p className="text-xl font-bold text-slate-950">{value}</p><p className="mt-1 text-xs text-slate-500">{label}</p></div>
                 ))}
               </div>
