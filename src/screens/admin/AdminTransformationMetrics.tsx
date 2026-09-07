@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { RefreshCw } from "lucide-react";
 import { supabase } from "../../lib/supabase";
 import { AdminEconomicAgencyActivity } from "./AdminEconomicAgencyActivity";
+import { AdminFeePolicyEconomics } from "./AdminFeePolicyEconomics";
 import { AdminCollectiveCircularity } from "./AdminCollectiveCircularity";
 import { AdminPostCleaningContinuum } from "./AdminPostCleaningContinuum";
 import { AdminRelationshipRecoveryMetrics } from "./AdminRelationshipRecoveryMetrics";
@@ -172,6 +173,7 @@ export function AdminTransformationMetrics() {
       <AdminHouseholdMemoryAssets circleId={scopedCircleId} />
       <AdminRelationshipRecoveryMetrics circleId={scopedCircleId} />
       <AdminEconomicAgencyActivity circleId={scopedCircleId} />
+      <AdminFeePolicyEconomics circleId={scopedCircleId} />
       <AdminCollectiveCircularity circleId={scopedCircleId} />
       <AdminPostCleaningContinuum circleId={scopedCircleId} />
 
