@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Plus, RefreshCw, Unlink } from "lucide-react";
 import { supabase } from "../../lib/supabase";
+import { AdminDemandOpportunityPanel } from "./AdminDemandOpportunityPanel";
 
 type Circle = {
   circle_id: string;
@@ -271,6 +272,14 @@ export function AdminCollectiveDemand() {
                 <button type="button" disabled={busy || !(capacityReasonBySignal[signal.signal_id]?.trim())} onClick={() => void linkCapacity(signal)} className="rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 disabled:opacity-40">Link capacity</button>
               </div> : null}
             </div>
+
+            <AdminDemandOpportunityPanel
+              circleId={selectedCircleId}
+              signalId={signal.signal_id}
+              signalLabel={signal.label}
+              signalStatus={signal.status}
+              onCreated={() => loadDemandDetail(selectedCircleId)}
+            />
 
             {signal.status !== "retired" ? <div className="mt-4 flex gap-2"><input value={repeatNoteBySignal[signal.signal_id] ?? ""} onChange={(e) => setRepeatNoteBySignal((current) => ({ ...current, [signal.signal_id]: e.target.value }))} placeholder="Add another observation when this need recurs" className="min-w-0 flex-1 rounded-lg border border-slate-200 px-3 py-2.5 text-sm text-slate-900"/><button type="button" disabled={busy || !(repeatNoteBySignal[signal.signal_id]?.trim())} onClick={() => void addObservation(signal)} className="rounded-lg bg-slate-950 px-3 py-2 text-xs font-semibold text-white disabled:opacity-40">Add observation</button></div> : null}
           </div>;
