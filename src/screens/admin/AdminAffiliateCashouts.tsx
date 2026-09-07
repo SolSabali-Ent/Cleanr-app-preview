@@ -16,30 +16,54 @@ type CashoutRow = {
 
 type CustomerCashoutRow = CashoutRow & { customer_id: string; customer_name: string | null };
 type ProviderCashoutRow = CashoutRow & { provider_id: string; provider_name: string | null };
+type AdjustmentRow = {
+  adjustment_id: string;
+  program: "customer_affiliate" | "provider_affiliate";
+  reward_id: string;
+  reward_stage: string;
+  affiliate_person_id: string;
+  affiliate_name: string | null;
+  referred_customer_id: string;
+  amount_cents: number;
+  reason: string;
+  status: string;
+  created_at: string;
+  resolved_at: string | null;
+  resolution_note: string | null;
+};
 type Rail = "customer" | "provider";
 
 function money(cents: number) {
   return new Intl.NumberFormat(undefined, { style: "currency", currency: "USD" }).format(cents / 100);
 }
 
+function humanize(value: string) {
+  return value.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
 export function AdminAffiliateCashouts() {
   const [customers, setCustomers] = useState<CustomerCashoutRow[]>([]);
   const [providers, setProviders] = useState<ProviderCashoutRow[]>([]);
+  const [adjustments, setAdjustments] = useState<AdjustmentRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
   const [actionId, setActionId] = useState<string | null>(null);
+  const [resolutionById, setResolutionById] = useState<Record<string, string>>({});
 
   async function load() {
     setLoading(true);
-    const [customerResult, providerResult] = await Promise.all([
+    const [customerResult, providerResult, adjustmentResult] = await Promise.all([
       supabase.rpc("get_admin_customer_affiliate_cashouts"),
       supabase.rpc("get_admin_provider_affiliate_cashouts"),
+      supabase.rpc("get_admin_affiliate_reward_adjustments", { p_status: "outstanding" }),
     ]);
     if (customerResult.error) setMessage(customerResult.error.message);
     else if (providerResult.error) setMessage(providerResult.error.message);
+    else if (adjustmentResult.error) setMessage(adjustmentResult.error.message);
     else setMessage(null);
     setCustomers((customerResult.data ?? []) as CustomerCashoutRow[]);
     setProviders((providerResult.data ?? []) as ProviderCashoutRow[]);
+    setAdjustments((adjustmentResult.data ?? []) as AdjustmentRow[]);
     setLoading(false);
   }
 
@@ -76,6 +100,22 @@ export function AdminAffiliateCashouts() {
       const result = data as { error?: string; detail?: string; transfer_id?: string; already_released?: boolean } | null;
       if (result?.error) { setMessage(result.detail ? `${result.error}: ${result.detail}` : result.error); return; }
       setMessage(result?.already_released ? `Already sent · ${result.transfer_id ?? "Stripe transfer"}` : `Affiliate cash-out sent · ${result?.transfer_id ?? "Stripe transfer created"}`);
+      await load();
+    } finally { setActionId(null); }
+  }
+
+  async function resolveAdjustment(row: AdjustmentRow) {
+    const note = resolutionById[row.adjustment_id]?.trim();
+    if (!note || actionId) return;
+    setActionId(row.adjustment_id); setMessage(null);
+    try {
+      const { error } = await supabase.rpc("admin_resolve_affiliate_reward_adjustment", {
+        p_adjustment_id: row.adjustment_id,
+        p_resolution_note: note,
+      });
+      if (error) { setMessage(error.message); return; }
+      setResolutionById((current) => ({ ...current, [row.adjustment_id]: "" }));
+      setMessage("Affiliate reward adjustment resolved with durable Admin evidence.");
       await load();
     } finally { setActionId(null); }
   }
@@ -119,6 +159,18 @@ export function AdminAffiliateCashouts() {
       <header><p className="text-xs font-semibold uppercase tracking-wide" style={{color:adminTheme.primary}}>Affiliate payouts</p><h1 className="mt-1 text-2xl font-semibold" style={{color:adminTheme.textPrimary}}>Network reward cash-outs</h1><p className="mt-1 text-sm" style={{color:adminTheme.textSecondary}}>Customer and CSP affiliate rewards stay separate from cleaning-service payouts while using guarded Stripe release rails.</p></header>
       {message ? <div className="rounded-lg border px-3 py-2 text-sm" style={{borderColor:adminTheme.border,backgroundColor:adminTheme.surface}}>{message}</div> : null}
       <AdminAffiliateNetworkSummary />
+
+      <section className="space-y-3">
+        <div><h2 className="text-lg font-semibold" style={{color:adminTheme.textPrimary}}>Refund/reversal adjustments</h2><p className="text-sm" style={{color:adminTheme.textSecondary}}>If a qualifying clean is later fully refunded after its affiliate reward was already paid, Cleanr preserves payout history and creates an explicit review hold. Another affiliate cash-out is blocked until the adjustment is resolved with evidence.</p></div>
+        <div className="rounded-xl border p-4" style={{borderColor:adminTheme.border,backgroundColor:adminTheme.card}}>
+          {loading ? <p className="text-sm text-slate-500">Loading adjustments…</p> : adjustments.length === 0 ? <p className="text-sm text-slate-500">No outstanding affiliate reward adjustments.</p> : <div className="space-y-3">{adjustments.map((row) => <div key={row.adjustment_id} className="rounded-lg border p-3" style={{borderColor:adminTheme.border}}>
+            <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-sm font-semibold" style={{color:adminTheme.textPrimary}}>{row.affiliate_name || (row.program === "provider_affiliate" ? "CSP affiliate" : "Customer affiliate")}</p><p className="mt-1 text-xs" style={{color:adminTheme.textSecondary}}>{humanize(row.program)} · {humanize(row.reward_stage)} · {humanize(row.reason)}</p></div><p className="text-sm font-semibold text-amber-700">{money(row.amount_cents)} review hold</p></div>
+            <p className="mt-2 text-[11px] text-slate-500">Created {new Date(row.created_at).toLocaleString()} · reward {row.reward_id}</p>
+            <div className="mt-3 flex gap-2"><input value={resolutionById[row.adjustment_id] ?? ""} onChange={(event) => setResolutionById((current) => ({...current,[row.adjustment_id]:event.target.value}))} placeholder="How was this already-paid adjustment handled?" className="min-w-0 flex-1 rounded-lg border px-3 py-2 text-sm" style={{borderColor:adminTheme.border}}/><button type="button" onClick={() => void resolveAdjustment(row)} disabled={actionId===row.adjustment_id || !(resolutionById[row.adjustment_id]?.trim())} className="rounded-lg px-3 py-2 text-xs font-semibold text-white disabled:opacity-40" style={{backgroundColor:adminTheme.primary}}>{actionId===row.adjustment_id?"Working…":"Resolve hold"}</button></div>
+          </div>)}</div>}
+        </div>
+      </section>
+
       {table("provider", providers, "CSP affiliate cash-outs", "Rewards for bringing genuinely new households into Cleanr. CSP bank delivery uses the existing Stripe Connect account.")}
       {table("customer", customers, "Customer affiliate cash-outs", "Rewards earned through customer share-and-earn referrals.")}
       <p className="text-xs leading-5" style={{color:adminTheme.textSecondary}}>Approval and Stripe release remain intentionally separate. Requested or approved cash-outs may be cancelled; once processing begins, rewards stay reserved and the safe action is retry/reconcile with the same Stripe idempotency key. Cleanr does not store bank-account numbers.</p>
