@@ -17,6 +17,20 @@ type HouseholdContextRow = {
   updated_at: string;
 };
 
+export type HouseholdMemoryConsentHistoryEntry = {
+  action: "memory_enabled" | "memory_disabled" | "suggestion_accepted" | "suggestion_declined";
+  sourceType: "household_context" | "provider_suggestion";
+  contextField: "service_preferences" | "pet_context" | "surfaces_to_avoid" | "communication_preferences" | null;
+  occurredAt: string;
+};
+
+type HouseholdMemoryConsentHistoryRow = {
+  action: HouseholdMemoryConsentHistoryEntry["action"];
+  source_type: HouseholdMemoryConsentHistoryEntry["sourceType"];
+  context_field: HouseholdMemoryConsentHistoryEntry["contextField"];
+  occurred_at: string;
+};
+
 function mapHouseholdContext(row: HouseholdContextRow): HouseholdContext {
   return {
     customerId: row.customer_id,
@@ -39,6 +53,19 @@ export async function getMyHouseholdContext(): Promise<HouseholdContext | null> 
   if (isSupabaseFeatureUnavailable(error)) return null;
   if (error) throw error;
   return data ? mapHouseholdContext(data as HouseholdContextRow) : null;
+}
+
+export async function getMyHouseholdMemoryConsentHistory(): Promise<HouseholdMemoryConsentHistoryEntry[]> {
+  if (isOfflinePreviewMode) return [];
+  const { data, error } = await supabase.rpc("list_my_household_memory_consent_history");
+  if (isSupabaseFeatureUnavailable(error)) return [];
+  if (error) throw error;
+  return ((data ?? []) as HouseholdMemoryConsentHistoryRow[]).map((row) => ({
+    action: row.action,
+    sourceType: row.source_type,
+    contextField: row.context_field,
+    occurredAt: row.occurred_at,
+  }));
 }
 
 export async function getHouseholdContextForBooking(bookingId: string): Promise<HouseholdContext | null> {

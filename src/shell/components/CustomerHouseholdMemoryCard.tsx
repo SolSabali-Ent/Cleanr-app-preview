@@ -1,12 +1,32 @@
 import { useEffect, useState } from "react";
 import { Home } from "lucide-react";
 import { Button } from "../../components/ui/Button";
-import { getMyHouseholdContext, setMyHouseholdContext } from "@/lib/householdContextApi";
+import {
+  getMyHouseholdContext,
+  getMyHouseholdMemoryConsentHistory,
+  setMyHouseholdContext,
+  type HouseholdMemoryConsentHistoryEntry,
+} from "@/lib/householdContextApi";
 import { isOfflinePreviewMode } from "@/lib/supabase";
 
 function emptyToNull(value: string): string | null {
   const trimmed = value.trim();
   return trimmed ? trimmed : null;
+}
+
+function consentActionLabel(entry: HouseholdMemoryConsentHistoryEntry) {
+  if (entry.action === "memory_enabled") return "Reusable memory turned on";
+  if (entry.action === "memory_disabled") return "Reusable memory turned off";
+  if (entry.action === "suggestion_accepted") return "CSP suggestion accepted";
+  return "CSP suggestion declined";
+}
+
+function contextFieldLabel(value: HouseholdMemoryConsentHistoryEntry["contextField"]) {
+  if (!value) return null;
+  if (value === "service_preferences") return "Service preferences";
+  if (value === "pet_context") return "Pet context";
+  if (value === "surfaces_to_avoid") return "Surfaces or items to avoid";
+  return "Communication preferences";
 }
 
 export function CustomerHouseholdMemoryCard() {
@@ -18,8 +38,20 @@ export function CustomerHouseholdMemoryCard() {
   const [surfacesToAvoid, setSurfacesToAvoid] = useState("");
   const [communicationPreferences, setCommunicationPreferences] = useState("");
   const [updatedAt, setUpdatedAt] = useState<string | null>(null);
+  const [consentHistory, setConsentHistory] = useState<HouseholdMemoryConsentHistoryEntry[]>([]);
+  const [showConsentHistory, setShowConsentHistory] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+
+  async function loadConsentHistory() {
+    if (isOfflinePreviewMode) return;
+    try {
+      const history = await getMyHouseholdMemoryConsentHistory();
+      setConsentHistory(history);
+    } catch {
+      // Consent history is supplemental; do not block household-memory controls if unavailable.
+    }
+  }
 
   useEffect(() => {
     if (isOfflinePreviewMode) {
@@ -28,9 +60,11 @@ export function CustomerHouseholdMemoryCard() {
     }
 
     let active = true;
-    void getMyHouseholdContext()
-      .then((context) => {
-        if (!active || !context) return;
+    void Promise.all([getMyHouseholdContext(), getMyHouseholdMemoryConsentHistory()])
+      .then(([context, history]) => {
+        if (!active) return;
+        setConsentHistory(history);
+        if (!context) return;
         setMemoryEnabled(context.memoryEnabled);
         setServicePreferences(context.servicePreferences ?? "");
         setPetContext(context.petContext ?? "");
@@ -72,6 +106,7 @@ export function CustomerHouseholdMemoryCard() {
       setCommunicationPreferences(context.communicationPreferences ?? "");
       setUpdatedAt(context.updatedAt);
       setSaved(true);
+      await loadConsentHistory();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Reusable household preferences could not be saved yet.");
     } finally {
@@ -139,6 +174,33 @@ export function CustomerHouseholdMemoryCard() {
           ) : updatedAt ? (
             <p className="text-xs text-[#667085]">Last updated {new Date(updatedAt).toLocaleString()}.</p>
           ) : null}
+
+          {!isOfflinePreviewMode ? (
+            <div className="rounded-xl border border-[#E5E7EB] bg-[#F9FAFB] p-3">
+              <button type="button" onClick={() => setShowConsentHistory((value) => !value)} className="w-full text-left text-xs font-semibold text-[#344054]">
+                {showConsentHistory ? "Hide consent history" : "View consent history"}
+              </button>
+              {showConsentHistory ? (
+                <div className="mt-3 space-y-2">
+                  {consentHistory.length === 0 ? (
+                    <p className="text-xs leading-5 text-[#667085]">No consent-history entries yet. Cleanr does not backfill or invent earlier consent evidence.</p>
+                  ) : consentHistory.slice(0, 8).map((entry, index) => {
+                    const field = contextFieldLabel(entry.contextField);
+                    return (
+                      <div key={`${entry.occurredAt}:${entry.action}:${index}`} className="border-t border-[#E5E7EB] pt-2 first:border-t-0 first:pt-0">
+                        <p className="text-xs font-medium text-[#344054]">{consentActionLabel(entry)}</p>
+                        <p className="mt-0.5 text-[11px] leading-4 text-[#667085]">
+                          {field ? `${field} · ` : ""}{new Date(entry.occurredAt).toLocaleString()}
+                        </p>
+                      </div>
+                    );
+                  })}
+                  <p className="pt-1 text-[11px] leading-4 text-[#667085]">This history stores the consent action and source only—not your reusable memory text or booking access details.</p>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+
           {error ? <p className="text-xs text-red-600" role="alert">{error}</p> : null}
         </div>
       )}
