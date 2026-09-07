@@ -8,6 +8,8 @@ import type { Booking } from "../../domain/booking";
 import { customerFacingServiceLabel } from "../../lib/serviceCatalog";
 import { isProviderCustomerMessagingOpen } from "../../lib/providerCustomerMessaging";
 
+const DEFAULT_SERVICE_TIMEZONE = "America/New_York";
+
 function normalizeAddress(address: unknown): string {
   if (!address) return "Address unavailable";
   if (typeof address === "string") return address;
@@ -40,6 +42,32 @@ function formatTime(iso: string): string {
 function firstName(value: string | null | undefined): string | null {
   const clean = value?.trim();
   return clean ? clean.split(/\s+/)[0] : null;
+}
+
+function dateKeyInTimezone(date: Date, timeZone: string): string {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const part = (type: "year" | "month" | "day") => parts.find((entry) => entry.type === type)?.value ?? "";
+  return `${part("year")}-${part("month")}-${part("day")}`;
+}
+
+function acceptedServiceDayHasPassed(row: Record<string, unknown>, now = new Date()): boolean {
+  if (row.status !== "accepted") return false;
+  const scheduledStart = typeof row.scheduled_start === "string" ? new Date(row.scheduled_start) : null;
+  if (!scheduledStart || Number.isNaN(scheduledStart.getTime())) return false;
+  const requestedTimezone = typeof row.service_timezone === "string" && row.service_timezone.trim()
+    ? row.service_timezone.trim()
+    : DEFAULT_SERVICE_TIMEZONE;
+
+  try {
+    return dateKeyInTimezone(scheduledStart, requestedTimezone) < dateKeyInTimezone(now, requestedTimezone);
+  } catch {
+    return dateKeyInTimezone(scheduledStart, DEFAULT_SERVICE_TIMEZONE) < dateKeyInTimezone(now, DEFAULT_SERVICE_TIMEZONE);
+  }
 }
 
 type HomeBookingState = {
@@ -100,7 +128,11 @@ export function CustomerHome() {
 
       if (!active) return;
       const rows = (data ?? []) as Record<string, unknown>[];
-      const row = rows.find((item) => item.status === "in_progress") ?? rows.find((item) => item.status === "completed_by_provider") ?? rows.find((item) => item.status === "accepted") ?? null;
+      const row =
+        rows.find((item) => item.status === "in_progress") ??
+        rows.find((item) => item.status === "completed_by_provider") ??
+        rows.find((item) => item.status === "accepted" && !acceptedServiceDayHasPassed(item)) ??
+        null;
 
       if (!row) {
         setUpcoming(null);
