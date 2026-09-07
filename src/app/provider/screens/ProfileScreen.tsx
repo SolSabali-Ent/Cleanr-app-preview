@@ -2,11 +2,9 @@ import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useProfile } from "../../../lib/useProfile";
 import { supabase } from "../../../lib/supabase";
-import { createReferral } from "../../../lib/referralApi";
 import BottomSheet, { type Snap } from "../../../components/ui/BottomSheet";
 import Toggle from "../../../components/ui/Toggle";
 import { ContinuumParticipationCard } from "../../../components/continuum/ContinuumParticipationCard";
-import { Share2 } from "lucide-react";
 import {
   CSP_BACKGROUND,
   CSP_SURFACE,
@@ -270,24 +268,6 @@ export default function ProfileScreen() {
             </div>
           )}
         </div>
-      </section>
-
-      <section style={{ marginBottom: CSP_SECTION_GAP }}>
-        <button type="button" className="w-full rounded-2xl border flex items-center gap-3 px-4 py-3 text-left transition-opacity hover:opacity-90" style={{ backgroundColor: CSP_SURFACE, borderColor: "rgba(248, 250, 252, 0.08)", color: CSP_TEXT_PRIMARY }} onClick={async () => {
-          try {
-            const { code } = await createReferral();
-            const url = `${typeof window !== "undefined" ? window.location.origin : ""}/signin?ref=${encodeURIComponent(code)}`;
-            await navigator.clipboard.writeText(url);
-            setToast("Invite link copied");
-            window.setTimeout(() => setToast(null), 2200);
-          } catch {
-            setToast("Could not copy link");
-            window.setTimeout(() => setToast(null), 2200);
-          }
-        }}>
-          <Share2 className="w-5 h-5 shrink-0" style={{ color: "rgba(141, 204, 100, 0.9)" }} />
-          <div><p className="text-sm font-medium">Invite friends</p><p className="text-xs" style={{ color: CSP_TEXT_SECONDARY }}>Get your invite link</p></div>
-        </button>
       </section>
 
       <section style={{ marginBottom: CSP_SECTION_GAP }}>
