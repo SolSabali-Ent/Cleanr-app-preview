@@ -35,18 +35,14 @@ function mapSuggestion(row: HouseholdMemorySuggestionRow): HouseholdMemorySugges
   };
 }
 
-const SELECT_FIELDS = "id, booking_id, customer_id, suggested_by_provider_id, context_field, suggested_text, status, customer_final_text, created_at, responded_at, updated_at";
-
 export async function listHouseholdMemorySuggestionsForBooking(bookingId: string): Promise<HouseholdMemorySuggestion[]> {
   if (isOfflinePreviewMode) return [];
-  const { data, error } = await supabase
-    .from("household_memory_suggestions")
-    .select(SELECT_FIELDS)
-    .eq("booking_id", bookingId)
-    .order("created_at", { ascending: true });
+  const { data, error } = await supabase.rpc("list_household_memory_suggestions_for_booking", {
+    p_booking_id: bookingId,
+  });
   if (isSupabaseFeatureUnavailable(error)) return [];
   if (error) throw error;
-  return (data ?? []).map((row) => mapSuggestion(row as HouseholdMemorySuggestionRow));
+  return ((data ?? []) as HouseholdMemorySuggestionRow[]).map(mapSuggestion);
 }
 
 export async function suggestHouseholdMemoryFromBooking(
