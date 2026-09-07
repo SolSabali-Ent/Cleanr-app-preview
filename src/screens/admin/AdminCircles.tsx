@@ -68,6 +68,25 @@ type ValueFlowRow = {
   opportunity_created_at: string | null;
 };
 
+type ContinuumCapacityRow = {
+  participation_key: string;
+  active_count: number;
+  evidenced_count: number;
+  self_declared_count: number;
+};
+
+type MemberContinuumRow = {
+  person_id: string;
+  full_name: string | null;
+  profile_role: string;
+  participation_role: string;
+  participation_key: string | null;
+  evidence_status: string | null;
+  participation_origin: string | null;
+  provenance_type: string | null;
+  started_at: string | null;
+};
+
 type Draft = {
   name: string;
   slug: string;
@@ -88,9 +107,27 @@ const EMPTY_DRAFT: Draft = {
   description: "",
 };
 
+const CONTINUUM_LABELS: Record<string, string> = {
+  service_provider: "Residential service provider",
+  coverage_partner: "Trusted coverage partner",
+  collaborator: "Collaborator",
+  mentor: "Mentor",
+  business_owner: "Business owner",
+  vendor: "Vendor",
+  employer: "Employer",
+  investor: "Investor",
+  advisor: "Advisor",
+  opportunity_creator: "Opportunity creator",
+};
+
 function humanize(value: string | null | undefined) {
   if (!value) return "—";
   return value.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function continuumLabel(value: string | null | undefined) {
+  if (!value) return "—";
+  return CONTINUUM_LABELS[value] ?? humanize(value);
 }
 
 function dateLabel(value: string | null | undefined) {
@@ -103,6 +140,8 @@ export function AdminCircles() {
   const [people, setPeople] = useState<PersonRow[]>([]);
   const [relationships, setRelationships] = useState<RelationshipEdge[]>([]);
   const [valueFlow, setValueFlow] = useState<ValueFlowRow[]>([]);
+  const [continuumCapacity, setContinuumCapacity] = useState<ContinuumCapacityRow[]>([]);
+  const [memberContinuum, setMemberContinuum] = useState<MemberContinuumRow[]>([]);
   const [selectedCircleId, setSelectedCircleId] = useState<string | null>(null);
   const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT);
   const [creating, setCreating] = useState(false);
@@ -136,18 +175,22 @@ export function AdminCircles() {
 
   async function loadCircleDetail(circleId: string) {
     setDetailLoading(true);
-    const [peopleResult, relationshipsResult, valueFlowResult] = await Promise.all([
+    const [peopleResult, relationshipsResult, valueFlowResult, continuumResult, memberContinuumResult] = await Promise.all([
       supabase.rpc("get_admin_circle_people", { p_circle_id: circleId }),
       supabase.rpc("get_admin_circle_relationship_edges", { p_circle_id: circleId }),
       supabase.rpc("get_admin_circle_value_flow", { p_circle_id: circleId }),
+      supabase.rpc("get_admin_circle_continuum_capacity", { p_circle_id: circleId }),
+      supabase.rpc("get_admin_circle_member_continuum", { p_circle_id: circleId }),
     ]);
 
-    const firstError = peopleResult.error ?? relationshipsResult.error ?? valueFlowResult.error;
+    const firstError = peopleResult.error ?? relationshipsResult.error ?? valueFlowResult.error ?? continuumResult.error ?? memberContinuumResult.error;
     if (firstError) setError(firstError.message);
 
     setPeople(peopleResult.error ? [] : (peopleResult.data ?? []) as PersonRow[]);
     setRelationships(relationshipsResult.error ? [] : (relationshipsResult.data ?? []) as RelationshipEdge[]);
     setValueFlow(valueFlowResult.error ? [] : (valueFlowResult.data ?? []) as ValueFlowRow[]);
+    setContinuumCapacity(continuumResult.error ? [] : (continuumResult.data ?? []) as ContinuumCapacityRow[]);
+    setMemberContinuum(memberContinuumResult.error ? [] : (memberContinuumResult.data ?? []) as MemberContinuumRow[]);
     setDetailLoading(false);
   }
 
@@ -158,6 +201,8 @@ export function AdminCircles() {
       setPeople([]);
       setRelationships([]);
       setValueFlow([]);
+      setContinuumCapacity([]);
+      setMemberContinuum([]);
     }
   }, [selectedCircleId]);
 
@@ -166,6 +211,16 @@ export function AdminCircles() {
   const availablePeople = useMemo(() => people.filter((row) => row.membership_status !== "active"), [people]);
   const serviceEdges = useMemo(() => relationships.filter((row) => row.connection_type === "service_relationship"), [relationships]);
   const networkEdges = useMemo(() => relationships.filter((row) => row.connection_type === "network_relationship"), [relationships]);
+  const participationByPerson = useMemo(() => {
+    const grouped = new Map<string, MemberContinuumRow[]>();
+    for (const row of memberContinuum) {
+      if (!row.participation_key) continue;
+      const current = grouped.get(row.person_id) ?? [];
+      current.push(row);
+      grouped.set(row.person_id, current);
+    }
+    return grouped;
+  }, [memberContinuum]);
 
   async function createCircle() {
     if (draft.name.trim().length < 2 || !draft.slug.trim()) {
@@ -288,14 +343,40 @@ export function AdminCircles() {
               <p className="mt-4 text-xs leading-5 text-slate-500">These are raw durable counts, not a synthetic community score. Density should improve because real relationships, coverage and opportunity accumulate.</p>
             </section>
 
+            <section className="rounded-2xl border border-slate-200 bg-white p-5">
+              <div className="flex items-start justify-between gap-4">
+                <div><p className="text-xs font-semibold uppercase tracking-[0.12em] text-violet-700">Continuum capacity</p><h3 className="mt-1 font-semibold text-slate-950">What this Circle can already bring to the table</h3><p className="mt-1 max-w-2xl text-xs leading-5 text-slate-500">Active Continuum participation is additive to auth role. Counts describe current human capacity; they are not ranks, badges, or requirements.</p></div>
+                <div className="rounded-xl bg-violet-50 px-3 py-2 text-right"><p className="text-xs font-semibold text-violet-700">{continuumCapacity.filter((row) => row.active_count > 0).length} active forms</p><p className="text-[10px] text-violet-600">of participation</p></div>
+              </div>
+              {detailLoading ? <p className="mt-4 text-sm text-slate-500">Loading Continuum capacity…</p> : (
+                <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+                  {continuumCapacity.map((row) => (
+                    <div key={row.participation_key} className={`rounded-xl border p-3 ${row.active_count > 0 ? "border-violet-200 bg-violet-50/50" : "border-slate-200 bg-slate-50"}`}>
+                      <p className={`text-xl font-bold ${row.active_count > 0 ? "text-violet-950" : "text-slate-400"}`}>{row.active_count}</p>
+                      <p className={`mt-1 text-xs font-semibold ${row.active_count > 0 ? "text-slate-800" : "text-slate-500"}`}>{continuumLabel(row.participation_key)}</p>
+                      {row.active_count > 0 ? <p className="mt-2 text-[10px] leading-4 text-slate-500">{row.evidenced_count} evidenced · {row.self_declared_count} self-described</p> : <p className="mt-2 text-[10px] text-slate-400">Not present yet</p>}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+
             <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-              <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4"><div><h3 className="font-semibold text-slate-950">Circle membership</h3><p className="mt-1 text-xs text-slate-500">Explicit membership only. Auth roles do not change.</p></div><Users size={18} className="text-slate-400" /></div>
+              <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4"><div><h3 className="font-semibold text-slate-950">Circle membership</h3><p className="mt-1 text-xs text-slate-500">Explicit membership only. Auth role controls access; Continuum describes how someone participates today.</p></div><Users size={18} className="text-slate-400" /></div>
               {detailLoading ? <p className="p-5 text-sm text-slate-500">Loading Circle detail…</p> : (
                 <div className="grid gap-0 lg:grid-cols-2">
-                  <div className="border-b border-slate-200 lg:border-b-0 lg:border-r"><div className="bg-slate-50 px-5 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Active members · {activeMembers.length}</div><div className="divide-y divide-slate-100">{activeMembers.map((person) => (
-                    <div key={person.person_id} className="flex items-center justify-between gap-3 px-5 py-3"><div><p className="text-sm font-medium text-slate-900">{person.full_name || "Unnamed member"}</p><p className="mt-1 text-xs text-slate-500">{humanize(person.profile_role)} · {humanize(person.participation_role)}{person.zip_code ? ` · ${person.zip_code}` : ""}</p></div><button type="button" disabled={busyPersonId === person.person_id} onClick={() => void setMember(person, false)} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 disabled:opacity-50">End</button></div>
-                  ))}{activeMembers.length === 0 ? <p className="px-5 py-5 text-sm text-slate-500">No active members yet.</p> : null}</div></div>
-                  <div><div className="bg-slate-50 px-5 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Available people</div><div className="max-h-[420px] divide-y divide-slate-100 overflow-y-auto">{availablePeople.map((person) => (
+                  <div className="border-b border-slate-200 lg:border-b-0 lg:border-r"><div className="bg-slate-50 px-5 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Active members · {activeMembers.length}</div><div className="divide-y divide-slate-100">{activeMembers.map((person) => {
+                    const roles = participationByPerson.get(person.person_id) ?? [];
+                    return (
+                      <div key={person.person_id} className="flex items-start justify-between gap-3 px-5 py-4">
+                        <div className="min-w-0"><p className="text-sm font-medium text-slate-900">{person.full_name || "Unnamed member"}</p><p className="mt-1 text-xs text-slate-500">Auth: {humanize(person.profile_role)} · Circle: {humanize(person.participation_role)}{person.zip_code ? ` · ${person.zip_code}` : ""}</p>
+                          {roles.length > 0 ? <div className="mt-2 flex flex-wrap gap-1.5">{roles.map((role) => <span key={`${person.person_id}:${role.participation_key}`} className={`rounded-full border px-2 py-1 text-[10px] font-semibold ${role.evidence_status === "evidenced" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-violet-200 bg-violet-50 text-violet-700"}`}>{continuumLabel(role.participation_key)} · {role.evidence_status === "evidenced" ? "evidenced" : "self-described"}</span>)}</div> : <p className="mt-2 text-[10px] text-slate-400">No active Continuum participation recorded yet.</p>}
+                        </div>
+                        <button type="button" disabled={busyPersonId === person.person_id} onClick={() => void setMember(person, false)} className="shrink-0 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 disabled:opacity-50">End</button>
+                      </div>
+                    );
+                  })}{activeMembers.length === 0 ? <p className="px-5 py-5 text-sm text-slate-500">No active members yet.</p> : null}</div></div>
+                  <div><div className="bg-slate-50 px-5 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Available people</div><div className="max-h-[520px] divide-y divide-slate-100 overflow-y-auto">{availablePeople.map((person) => (
                     <div key={person.person_id} className="flex items-center justify-between gap-3 px-5 py-3"><div><p className="text-sm font-medium text-slate-900">{person.full_name || "Unnamed person"}</p><p className="mt-1 text-xs text-slate-500">{humanize(person.profile_role)}{person.zip_code ? ` · ${person.zip_code}` : ""}</p></div><button type="button" disabled={busyPersonId === person.person_id} onClick={() => void setMember(person, true)} className="rounded-lg bg-slate-950 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">Add</button></div>
                   ))}</div></div>
                 </div>
