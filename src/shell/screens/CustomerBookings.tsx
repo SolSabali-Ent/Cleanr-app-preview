@@ -10,6 +10,7 @@ import type { Booking } from "../../domain/booking";
 import { CalendarClock, ChevronDown, ChevronRight, Pause, Play, Settings2 } from "lucide-react";
 import { useUnreadBookingMessageIds } from "../../hooks/useUnreadBookingMessageIds";
 import { customerFacingServiceLabel } from "../../lib/serviceCatalog";
+import { isMissedAcceptedVisit } from "../../lib/bookingServiceDay";
 import {
   isHistoryBookingStatus,
   isUpcomingBookingStatus,
@@ -51,10 +52,12 @@ function BookingRow({
   booking,
   hasUnreadMessages,
   compact = false,
+  forceNeedsRescheduling = false,
 }: {
   booking: Booking;
   hasUnreadMessages: boolean;
   compact?: boolean;
+  forceNeedsRescheduling?: boolean;
 }) {
   const navigate = useNavigate();
   const statusStyles: Record<string, string> = {
@@ -83,8 +86,8 @@ function BookingRow({
           {formatDate(booking.scheduled_start)} · {formatTime(booking.scheduled_start)}
         </p>
         {!compact ? <p className="mt-0.5 truncate text-xs text-[#667085]">{booking.address}</p> : null}
-        <span className={`mt-1 inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${statusStyles[booking.status] ?? "bg-slate-100 text-slate-700"}`}>
-          {toCustomerBookingStatusLabel(booking.status)}
+        <span className={`mt-1 inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${forceNeedsRescheduling ? "bg-amber-100 text-amber-800" : statusStyles[booking.status] ?? "bg-slate-100 text-slate-700"}`}>
+          {forceNeedsRescheduling ? "Needs rescheduling" : toCustomerBookingStatusLabel(booking.status)}
         </span>
       </div>
 
@@ -100,16 +103,19 @@ function BookingRow({
 
 function RecurringPlanCard({
   plan,
+  currentBooking,
   busy,
   onUpdate,
 }: {
   plan: RecurringCleaningPlan;
+  currentBooking: Booking | null;
   busy: boolean;
   onUpdate: (planId: string, action: "pause" | "resume" | "end") => Promise<void>;
 }) {
   const navigate = useNavigate();
   const cleanerName = firstName(plan.preferredProviderName);
   const paused = plan.status === "paused";
+  const missedCurrentVisit = Boolean(currentBooking && isMissedAcceptedVisit(currentBooking));
 
   return (
     <div className="mb-3 rounded-2xl border border-[#CFE8C3] bg-[#F7FBF4] p-4">
@@ -129,13 +135,14 @@ function RecurringPlanCard({
         </div>
       </div>
 
-      <div className="mt-4 rounded-xl bg-white/80 px-3 py-3">
-        <p className="text-[11px] font-medium uppercase tracking-wide text-[#667085]">
-          {plan.currentBookingId ? "Next visit" : paused ? "Next visit after you resume" : "Next visit"}
+      <div className={`mt-4 rounded-xl px-3 py-3 ${missedCurrentVisit ? "border border-amber-200 bg-amber-50" : "bg-white/80"}`}>
+        <p className={`text-[11px] font-medium uppercase tracking-wide ${missedCurrentVisit ? "text-amber-700" : "text-[#667085]"}`}>
+          {missedCurrentVisit ? "Schedule needs attention" : plan.currentBookingId ? "Next visit" : paused ? "Next visit after you resume" : "Next visit"}
         </p>
         <p className="mt-1 text-sm font-semibold">
-          {formatDate(plan.nextExpectedAt)} · {formatTime(plan.nextExpectedAt)}
+          {formatDate(missedCurrentVisit && currentBooking ? currentBooking.scheduled_start : plan.nextExpectedAt)} · {formatTime(missedCurrentVisit && currentBooking ? currentBooking.scheduled_start : plan.nextExpectedAt)}
         </p>
+        {missedCurrentVisit ? <p className="mt-1 text-xs text-amber-800">This scheduled date passed without service starting. Choose a new time with your CSP.</p> : null}
       </div>
 
       {plan.currentBookingId ? (
@@ -145,8 +152,8 @@ function RecurringPlanCard({
           className="mt-3 flex w-full items-center justify-between rounded-xl border border-[#D0D5DD] bg-white px-3 py-3 text-left"
         >
           <div>
-            <p className="text-sm font-semibold">View or change next visit</p>
-            <p className="mt-0.5 text-xs text-[#667085]">Reschedule from the visit details.</p>
+            <p className="text-sm font-semibold">{missedCurrentVisit ? "Reschedule this visit" : "View or change next visit"}</p>
+            <p className="mt-0.5 text-xs text-[#667085]">{missedCurrentVisit ? "Suggest a new future time from the visit details." : "Reschedule from the visit details."}</p>
           </div>
           <ChevronRight className="h-4 w-4 text-[#667085]" />
         </button>
@@ -212,10 +219,18 @@ export function CustomerBookings() {
       .finally(() => setLoading(false));
   }, []);
 
+  const missed = useMemo(
+    () => bookings
+      .filter((booking) => isMissedAcceptedVisit(booking))
+      .sort((a, b) => new Date(b.scheduled_start).getTime() - new Date(a.scheduled_start).getTime()),
+    [bookings]
+  );
+
   const upcoming = useMemo(
     () =>
       bookings
         .filter((booking) => isUpcomingBookingStatus(booking.status))
+        .filter((booking) => !isMissedAcceptedVisit(booking))
         .filter((booking) => !(booking.status === "created" && (booking.price_cents ?? 0) <= 0))
         .sort((a, b) => new Date(a.scheduled_start).getTime() - new Date(b.scheduled_start).getTime()),
     [bookings]
@@ -230,8 +245,8 @@ export function CustomerBookings() {
   );
 
   useEffect(() => {
-    if (!loading && upcoming.length === 0 && plans.length === 0 && history.length > 0) setTab("history");
-  }, [loading, upcoming.length, plans.length, history.length]);
+    if (!loading && upcoming.length === 0 && plans.length === 0 && missed.length === 0 && history.length > 0) setTab("history");
+  }, [loading, upcoming.length, plans.length, missed.length, history.length]);
 
   async function handlePlanUpdate(planId: string, action: "pause" | "resume" | "end") {
     if (planBusyId) return;
@@ -259,8 +274,10 @@ export function CustomerBookings() {
     return <div className="p-4"><p className="text-sm text-red-400">{error}</p></div>;
   }
 
+  const bookingById = new Map(bookings.map((booking) => [booking.id, booking] as const));
   const recurringBookingIds = new Set(plans.flatMap((plan) => (plan.currentBookingId ? [plan.currentBookingId] : [])));
   const standaloneUpcoming = upcoming.filter((booking) => !recurringBookingIds.has(booking.id));
+  const standaloneMissed = missed.filter((booking) => !recurringBookingIds.has(booking.id));
   const nextBooking = standaloneUpcoming[0] ?? null;
   const laterBookings = standaloneUpcoming.slice(1);
   const visibleLater = showAllUpcoming ? laterBookings : [];
@@ -273,6 +290,19 @@ export function CustomerBookings() {
         <h1 className="text-xl font-semibold">Bookings</h1>
         <p className="mt-1 text-xs text-[#667085]">What&apos;s next and what you&apos;ve already done.</p>
       </header>
+
+      {standaloneMissed.length > 0 ? (
+        <section className="mb-5 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">Schedule needs attention</p>
+          <p className="mt-1 text-sm font-semibold text-amber-950">{standaloneMissed.length} visit{standaloneMissed.length === 1 ? "" : "s"} need a new time.</p>
+          <p className="mt-1 text-xs leading-5 text-amber-800">The scheduled date passed without service starting. These are not upcoming or completed visits.</p>
+          <div className="mt-3">
+            {standaloneMissed.map((booking) => (
+              <BookingRow key={booking.id} booking={booking} hasUnreadMessages={unreadBookingIds.has(booking.id)} compact forceNeedsRescheduling />
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       <div className="mb-5 grid grid-cols-2 rounded-xl bg-[#F2F4F7] p-1">
         <button
@@ -300,6 +330,7 @@ export function CustomerBookings() {
                 <RecurringPlanCard
                   key={plan.id}
                   plan={plan}
+                  currentBooking={plan.currentBookingId ? bookingById.get(plan.currentBookingId) ?? null : null}
                   busy={planBusyId === plan.id}
                   onUpdate={handlePlanUpdate}
                 />
