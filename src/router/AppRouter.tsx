@@ -60,6 +60,7 @@ import { AdminRelationshipRecovery } from "../screens/admin/AdminRelationshipRec
 import { AdminCspDirectory } from "../screens/admin/AdminCspDirectory";
 import { AdminBookingMessagesScreen } from "../screens/admin/AdminBookingMessagesScreen";
 import { AdminMessageSafety } from "../screens/admin/AdminMessageSafety";
+import { AdminMissedVisitPaymentReviews } from "../screens/admin/AdminMissedVisitPaymentReviews";
 import { FoundingCircle } from "../screens/admin/FoundingCircle";
 import { OperationsDashboard } from "../screens/admin/OperationsDashboard";
 import { ProviderApplications } from "../screens/admin/ProviderApplications";
@@ -232,6 +233,7 @@ export function AppRouter() {
             <Route index element={<Navigate to="/admin/ops" replace />} />
             <Route path="geo" element={<GeoHarness />} />
             <Route path="ops" element={<OperationsDashboard />} />
+            <Route path="missed-visit-payments" element={<AdminMissedVisitPaymentReviews />} />
             <Route path="circles" element={<AdminCircles />} />
             <Route path="transformation-metrics" element={<AdminTransformationMetrics />} />
             <Route path="relationship-recovery" element={<AdminRelationshipRecovery />} />

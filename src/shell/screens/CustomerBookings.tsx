@@ -122,6 +122,14 @@ function RecurringPlanCard({
   const cleanerName = firstName(plan.preferredProviderName);
   const paused = plan.status === "paused";
   const missedCurrentVisit = Boolean(currentBooking && isMissedAcceptedVisit(currentBooking));
+  const hasScheduledVisit = Boolean(plan.currentBookingId && currentBooking && !missedCurrentVisit);
+  const timingLabel = missedCurrentVisit
+    ? "Schedule needs attention"
+    : hasScheduledVisit
+      ? "Next scheduled visit"
+      : paused
+        ? "Next expected cleaning after you resume"
+        : "Next expected cleaning";
 
   return (
     <div className="mb-3 rounded-2xl border border-[#CFE8C3] bg-[#F7FBF4] p-4">
@@ -137,18 +145,22 @@ function RecurringPlanCard({
             </span>
           </div>
           <p className="mt-1 text-sm text-[#475467]">{cadenceLabel(plan.cadence)}</p>
-          {cleanerName ? <p className="mt-0.5 text-xs text-[#667085]">With {cleanerName}</p> : null}
+          {cleanerName ? <p className="mt-0.5 text-xs text-[#667085]">Continuity CSP: {cleanerName}</p> : null}
         </div>
       </div>
 
       <div className={`mt-4 rounded-xl px-3 py-3 ${missedCurrentVisit ? "border border-amber-200 bg-amber-50" : "bg-white/80"}`}>
         <p className={`text-[11px] font-medium uppercase tracking-wide ${missedCurrentVisit ? "text-amber-700" : "text-[#667085]"}`}>
-          {missedCurrentVisit ? "Schedule needs attention" : plan.currentBookingId ? "Next visit" : paused ? "Next visit after you resume" : "Next visit"}
+          {timingLabel}
         </p>
         <p className="mt-1 text-sm font-semibold">
           {formatDate(missedCurrentVisit && currentBooking ? currentBooking.scheduled_start : plan.nextExpectedAt)} · {formatTime(missedCurrentVisit && currentBooking ? currentBooking.scheduled_start : plan.nextExpectedAt)}
         </p>
-        {missedCurrentVisit ? <p className="mt-1 text-xs text-amber-800">This scheduled date passed without service starting. Choose a new time with your CSP or skip this occurrence.</p> : null}
+        {missedCurrentVisit ? (
+          <p className="mt-1 text-xs text-amber-800">This scheduled date passed without service starting. Choose a new time with your CSP or skip this occurrence.</p>
+        ) : !hasScheduledVisit ? (
+          <p className="mt-1 text-xs text-[#667085]">This is the cadence target for your recurring cleaning, not a confirmed booking yet.</p>
+        ) : null}
       </div>
 
       {plan.currentBookingId ? (

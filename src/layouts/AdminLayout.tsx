@@ -8,6 +8,7 @@ import { signOutCleanr } from "../lib/authSession";
 
 const navItems = [
   { to: "/admin/ops", label: "Operations" },
+  { to: "/admin/missed-visit-payments", label: "Missed Visit Payments" },
   { to: "/admin/circles", label: "Circles" },
   { to: "/admin/transformation-metrics", label: "Transformation Metrics" },
   { to: "/admin/relationship-recovery", label: "Relationship Recovery" },
