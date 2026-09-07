@@ -8,6 +8,7 @@ import {
 import { useProfile } from "../../../lib/useProfile";
 import type { Booking } from "../../../domain/booking";
 import { supabase } from "../../../lib/supabase";
+import { isCurrentProviderWork, isMissedAcceptedVisit } from "../../../lib/bookingServiceDay";
 import {
   CSP_SURFACE,
   CSP_CARD_PADDING,
@@ -44,13 +45,14 @@ function formatDistance(meters: number | undefined): string {
   return `${miles.toFixed(1)} mi`;
 }
 
-function providerStatusLabel(status: string): string {
-  if (status === "accepted") return "Scheduled";
-  if (status === "in_progress") return "In progress";
-  if (status === "completed_by_provider") return "Awaiting confirmation";
-  if (status === "confirmed") return "Completed";
-  if (status === "disputed") return "Needs attention";
-  return status.replace("_", " ");
+function providerStatusLabel(booking: Booking): string {
+  if (isMissedAcceptedVisit(booking)) return "Needs rescheduling";
+  if (booking.status === "accepted") return "Scheduled";
+  if (booking.status === "in_progress") return "In progress";
+  if (booking.status === "completed_by_provider") return "Awaiting confirmation";
+  if (booking.status === "confirmed") return "Completed";
+  if (booking.status === "disputed") return "Needs attention";
+  return booking.status.replace("_", " ");
 }
 
 type BookingFinancial = {
@@ -147,7 +149,7 @@ function JobCardMy({
           color: CSP_TEXT_SECONDARY,
         }}
       >
-        {providerStatusLabel(booking.status)}
+        {providerStatusLabel(booking)}
       </span>
     </button>
   );
@@ -221,9 +223,8 @@ export default function JobsScreen() {
       .finally(() => setLoading(false));
   }, [profile?.id, profile?.role, marketplaceEnabled]);
 
-  const active = myJobs.filter(
-    (b) => b.status === "accepted" || b.status === "in_progress"
-  );
+  const active = myJobs.filter((booking) => isCurrentProviderWork(booking));
+  const missed = myJobs.filter((booking) => isMissedAcceptedVisit(booking));
   const completed = myJobs.filter(
     (b) => b.status === "completed_by_provider" || b.status === "confirmed"
   );
@@ -263,6 +264,18 @@ export default function JobsScreen() {
             : "Your provider account is approved. Open-market jobs will appear after marketplace access is enabled."}
         </p>
       </header>
+
+      {missed.length > 0 ? (
+        <section className="mb-5 rounded-2xl border border-amber-400/25 bg-amber-950/20 p-4">
+          <p className="text-sm font-semibold text-amber-200">{missed.length} visit{missed.length === 1 ? "" : "s"} need rescheduling</p>
+          <p className="mt-1 text-xs leading-5 text-amber-100/75">These dates passed without service starting. They are not counted as active work. Open a visit to suggest a new future time with the household.</p>
+          <div className="mt-3 space-y-2">
+            {missed.map((booking) => (
+              <JobCardMy key={booking.id} booking={booking} financial={financials[booking.id] ?? null} hasUnreadMessages={unreadBookingIds.has(booking.id)} />
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       <div
         className="flex rounded-xl border p-0.5 mb-6"
