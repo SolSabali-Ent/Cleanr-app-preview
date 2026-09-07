@@ -8,9 +8,20 @@ export interface Profile {
   id: string;
   role: ProfileRole;
   full_name: string | null;
+  first_name: string | null;
+  last_name: string | null;
+  preferred_name: string | null;
+  profile_photo_path: string | null;
+  preferred_communication: string | null;
+  customer_home_priority: string | null;
+  provider_bio: string | null;
+  languages: string[];
+  specialties: string[];
+  service_area_labels: string[];
   phone: string | null;
   zip_code: string | null;
   service_radius_miles: number | null;
+  years_experience: number | null;
   location: unknown;
   is_onboarded: boolean;
   marketplace_access: boolean;
@@ -44,7 +55,7 @@ export interface Profile {
 }
 
 async function fetchProfile(userId: string): Promise<Profile | null> {
-  // Use * so we do not request column names that are absent on older DBs (avoids whole-row fetch failure).
+  // Use * so the profile model can evolve without a brittle explicit column list.
   const { data, error } = await supabase.from("profiles").select("*").eq("id", userId).single();
   return error || !data ? null : (data as unknown as Profile);
 }
