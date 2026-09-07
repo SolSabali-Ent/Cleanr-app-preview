@@ -6,6 +6,12 @@ import {
   continuumParticipationLabel,
 } from "@/domain/continuum";
 import { listMyContinuumParticipations, setMyContinuumParticipation } from "@/lib/continuumApi";
+import {
+  getMyServicePracticeState,
+  SERVICE_PRACTICE_OPTIONS,
+  setMyServicePracticeState,
+  type ServicePracticeState,
+} from "@/lib/servicePracticeStateApi";
 import { isOfflinePreviewMode } from "@/lib/supabase";
 import {
   CSP_CARD_PADDING,
@@ -18,13 +24,20 @@ import {
 
 export function ContinuumParticipationCard() {
   const [participations, setParticipations] = useState<ContinuumParticipation[]>([]);
+  const [servicePracticeState, setServicePracticeState] = useState<ServicePracticeState | null>(null);
   const [busyKey, setBusyKey] = useState<ContinuumParticipationKey | null>(null);
+  const [savingPracticeState, setSavingPracticeState] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function refresh() {
     try {
       setError(null);
-      setParticipations(await listMyContinuumParticipations());
+      const [nextParticipations, practiceState] = await Promise.all([
+        listMyContinuumParticipations(),
+        getMyServicePracticeState(),
+      ]);
+      setParticipations(nextParticipations);
+      setServicePracticeState(practiceState?.state ?? null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to load how you participate in Cleanr.");
     }
@@ -58,6 +71,20 @@ export function ContinuumParticipationCard() {
     }
   }
 
+  async function updatePracticeState(next: ServicePracticeState) {
+    if (isOfflinePreviewMode || savingPracticeState || next === servicePracticeState) return;
+    try {
+      setSavingPracticeState(true);
+      setError(null);
+      const saved = await setMyServicePracticeState(next);
+      setServicePracticeState(saved.state);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to update your service practice state.");
+    } finally {
+      setSavingPracticeState(false);
+    }
+  }
+
   return (
     <section style={{ color: CSP_TEXT_PRIMARY, marginBottom: CSP_SECTION_GAP }}>
       <h2 className="mb-3 text-sm font-medium" style={{ color: CSP_TEXT_SECONDARY }}>
@@ -79,6 +106,44 @@ export function ContinuumParticipationCard() {
               Cleaning does not have to become your permanent identity, and moving beyond cleaning is not a higher rank. These are simply other ways you may participate in Cleanr over time.
             </p>
           </div>
+        </div>
+
+        <div className="mt-4 border-t border-white/10 pt-4">
+          <p className="text-sm font-medium">My cleaning practice right now</p>
+          <p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>
+            Tell Cleanr what is true now instead of making us infer it from your calendar. This description never changes marketplace access, Jobs, payouts, ranking, or your account role.
+          </p>
+          <div className="mt-3 space-y-2">
+            {SERVICE_PRACTICE_OPTIONS.map((option) => {
+              const active = servicePracticeState === option.state;
+              return (
+                <button
+                  key={option.state}
+                  type="button"
+                  disabled={isOfflinePreviewMode || savingPracticeState}
+                  onClick={() => void updatePracticeState(option.state)}
+                  className="w-full rounded-xl border px-3 py-3 text-left disabled:opacity-60"
+                  style={{
+                    borderColor: active ? CSP_PRIMARY_BUTTON : "rgba(248,250,252,.10)",
+                    backgroundColor: active ? `${CSP_PRIMARY_BUTTON}18` : "rgba(255,255,255,.03)",
+                  }}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-medium">{option.label}</p>
+                      <p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>{option.description}</p>
+                    </div>
+                    <span className="text-xs" style={{ color: active ? CSP_PRIMARY_BUTTON : CSP_TEXT_SECONDARY }}>{active ? "Current" : ""}</span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+          {servicePracticeState == null ? (
+            <p className="mt-2 text-[11px] leading-4" style={{ color: CSP_TEXT_SECONDARY }}>
+              No state selected yet. Cleanr will not assume whether you currently take cleaning work.
+            </p>
+          ) : null}
         </div>
 
         {evidenced.length > 0 ? (
