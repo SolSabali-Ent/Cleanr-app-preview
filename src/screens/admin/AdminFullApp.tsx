@@ -112,6 +112,12 @@ const SECTIONS: RouteSection[] = [
     routes: [
       { label: "Admin root", original: "/admin", note: "Redirect → /admin/ops" },
       { label: "Operations", original: "/admin/ops" },
+      { label: "Circles", original: "/admin/circles", note: "Local relationship density, Continuum capacity, lifecycle, and founding-pilot readiness." },
+      { label: "Transformation Metrics", original: "/admin/transformation-metrics", note: "Evidence-only scorecard across relationships, economic agency, North Stars, Continuum, demand, circularity, and recovery." },
+      { label: "Relationship Recovery", original: "/admin/relationship-recovery", note: "Explicit recovery cases after customer disputes or 1–2 star reviews; no automatic repair inference." },
+      { label: "Collective Demand", original: "/admin/collective-demand", note: "Circle-scoped recurring need evidence, capacity relevance, and deliberate demand-to-opportunity creation." },
+      { label: "Collective Capacity", original: "/admin/collective-capacity", note: "Verified contributions available to circulate into non-service Growth opportunities." },
+      { label: "Opportunity Circulation", original: "/admin/opportunity-circulation", note: "Consent-aware Growth matching, offers, outcomes, and downstream value creation." },
       { label: "Affiliate network + cash-outs", original: "/admin/affiliate-cashouts", note: "Collective growth summary plus guarded customer/CSP affiliate payout rails." },
       { label: "Founding Circle", original: "/admin/founding-circle" },
       { label: "Providers", original: "/admin/providers" },
