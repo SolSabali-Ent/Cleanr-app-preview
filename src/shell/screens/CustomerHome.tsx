@@ -7,8 +7,7 @@ import { useProfile } from "../../lib/useProfile";
 import type { Booking } from "../../domain/booking";
 import { customerFacingServiceLabel } from "../../lib/serviceCatalog";
 import { isProviderCustomerMessagingOpen } from "../../lib/providerCustomerMessaging";
-
-const DEFAULT_SERVICE_TIMEZONE = "America/New_York";
+import { bookingServiceDayHasPassed } from "../../lib/bookingServiceDay";
 
 function normalizeAddress(address: unknown): string {
   if (!address) return "Address unavailable";
@@ -42,32 +41,6 @@ function formatTime(iso: string): string {
 function firstName(value: string | null | undefined): string | null {
   const clean = value?.trim();
   return clean ? clean.split(/\s+/)[0] : null;
-}
-
-function dateKeyInTimezone(date: Date, timeZone: string): string {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(date);
-  const part = (type: "year" | "month" | "day") => parts.find((entry) => entry.type === type)?.value ?? "";
-  return `${part("year")}-${part("month")}-${part("day")}`;
-}
-
-function acceptedServiceDayHasPassed(row: Record<string, unknown>, now = new Date()): boolean {
-  if (row.status !== "accepted") return false;
-  const scheduledStart = typeof row.scheduled_start === "string" ? new Date(row.scheduled_start) : null;
-  if (!scheduledStart || Number.isNaN(scheduledStart.getTime())) return false;
-  const requestedTimezone = typeof row.service_timezone === "string" && row.service_timezone.trim()
-    ? row.service_timezone.trim()
-    : DEFAULT_SERVICE_TIMEZONE;
-
-  try {
-    return dateKeyInTimezone(scheduledStart, requestedTimezone) < dateKeyInTimezone(now, requestedTimezone);
-  } catch {
-    return dateKeyInTimezone(scheduledStart, DEFAULT_SERVICE_TIMEZONE) < dateKeyInTimezone(now, DEFAULT_SERVICE_TIMEZONE);
-  }
 }
 
 type HomeBookingState = {
@@ -131,7 +104,10 @@ export function CustomerHome() {
       const row =
         rows.find((item) => item.status === "in_progress") ??
         rows.find((item) => item.status === "completed_by_provider") ??
-        rows.find((item) => item.status === "accepted" && !acceptedServiceDayHasPassed(item)) ??
+        rows.find((item) => item.status === "accepted" && !bookingServiceDayHasPassed({
+          scheduled_start: String(item.scheduled_start ?? ""),
+          service_timezone: (item.service_timezone as string | null | undefined) ?? null,
+        })) ??
         null;
 
       if (!row) {
@@ -149,6 +125,7 @@ export function CustomerHome() {
         address: normalizeAddress(row.address),
         scheduled_start: row.scheduled_start as string,
         scheduled_end: (row.scheduled_end as string) ?? null,
+        service_timezone: (row.service_timezone as string | null) ?? null,
         status: row.status as Booking["status"],
         provider_en_route_at: (row.provider_en_route_at as string | null) ?? null,
         provider_arrived_at: (row.provider_arrived_at as string | null) ?? null,
