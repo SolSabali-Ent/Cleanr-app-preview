@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { RefreshCw } from "lucide-react";
 import { supabase } from "../../lib/supabase";
 import { AdminEconomicAgencyActivity } from "./AdminEconomicAgencyActivity";
+import { AdminCollectiveCircularity } from "./AdminCollectiveCircularity";
 
 type Circle = {
   circle_id: string;
@@ -92,7 +93,7 @@ export function AdminTransformationMetrics() {
   const measuredCount = metrics.filter((metric) => metric.measurement_status === "measured").length;
   const gapCount = metrics.filter((metric) => metric.measurement_status === "not_yet_measurable").length;
   const selectedCircle = circles.find((circle) => circle.circle_id === scope) ?? null;
-  const economicScope = scope === "network" ? null : scope;
+  const scopedCircleId = scope === "network" ? null : scope;
 
   return (
     <main className="space-y-6">
@@ -165,7 +166,8 @@ export function AdminTransformationMetrics() {
         );
       })}
 
-      <AdminEconomicAgencyActivity circleId={economicScope} />
+      <AdminEconomicAgencyActivity circleId={scopedCircleId} />
+      <AdminCollectiveCircularity circleId={scopedCircleId} />
 
       <section className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
         <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-600">Measurement discipline</p>
