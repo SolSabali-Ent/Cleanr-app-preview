@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
-import { Gift, Wallet, Zap } from "lucide-react";
+import { Gift, UserRoundCheck, Wallet, Zap } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useBooking } from "../bookingStore";
 import { createBookingCheckoutSession } from "../../lib/bookingApi";
 import { createVerifiedBooking } from "../../lib/verifiedBookingApi";
 import { setMyBookingServiceRelationshipContext } from "../../lib/bookingRelationshipApi";
+import { setMyBookingRequestedProvider } from "../../lib/bookingRequestedProviderApi";
 import { recordBookingProgressEvent, serviceOptionKeyFromBookingService } from "../../lib/bookingProgress";
 import { emitBookingAbandoned } from "../../lib/kinex/events";
 import { customerFacingServiceLabel } from "../../lib/serviceCatalog";
@@ -39,6 +40,13 @@ function relationshipCheckoutBlocked(message: string): boolean {
     || message.includes("invalid_service_relationship_context");
 }
 
+function requestedProviderBlocked(message: string): boolean {
+  return message.includes("requested_provider_not_available_for_booking")
+    || message.includes("requested_provider_outside_service_radius")
+    || message.includes("requested_provider_rejects_booking")
+    || message.includes("requested_provider_not_marketplace_available");
+}
+
 export function StepReview({ onBack }: StepReviewProps) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -48,6 +56,7 @@ export function StepReview({ onBack }: StepReviewProps) {
   const [priorityRate, setPriorityRate] = useState(0.25);
   const [valueSummary, setValueSummary] = useState({ cleanrCreditBalanceCents: 0, acquisitionCreditCents: 0 });
   const serviceRelationshipId = searchParams.get("relationship")?.trim() || null;
+  const requestedProviderName = state.requestedProviderName?.trim() || "your selected CSP";
 
   useEffect(() => {
     let active = true;
@@ -75,16 +84,23 @@ export function StepReview({ onBack }: StepReviewProps) {
       }
 
       const bookingId = await createVerifiedBooking(state);
-      if (serviceRelationshipId) await setMyBookingServiceRelationshipContext(bookingId, serviceRelationshipId);
+      if (serviceRelationshipId) {
+        await setMyBookingServiceRelationshipContext(bookingId, serviceRelationshipId);
+      } else if (state.requestedProviderId) {
+        await setMyBookingRequestedProvider(bookingId, state.requestedProviderId);
+      }
 
       const priorityMetadata = state.priorityRequested ? { service_priority: "urgent" } : {};
+      const providerMetadata = state.requestedProviderId && !serviceRelationshipId
+        ? { requested_provider_id: state.requestedProviderId, provider_selection: "customer_selection" }
+        : {};
       void recordBookingProgressEvent({
         eventType: "booking_created_payment_not_started",
         currentStep: "review",
         bookingId,
         zip: state.zipcode ?? null,
         serviceOptionKey: serviceOptionKeyFromBookingService(state.serviceType),
-        metadata: { ...priorityMetadata, ...(serviceRelationshipId ? { relationship_context: "customer_selected_existing_relationship" } : {}) },
+        metadata: { ...priorityMetadata, ...providerMetadata, ...(serviceRelationshipId ? { relationship_context: "customer_selected_existing_relationship" } : {}) },
       });
       void recordBookingProgressEvent({
         eventType: "checkout_started_payment_not_completed",
@@ -92,7 +108,7 @@ export function StepReview({ onBack }: StepReviewProps) {
         bookingId,
         zip: state.zipcode ?? null,
         serviceOptionKey: serviceOptionKeyFromBookingService(state.serviceType),
-        metadata: { transport: "stripe_checkout_redirect", location_precision: "verified_street_address", ...priorityMetadata, ...(serviceRelationshipId ? { relationship_context: "customer_selected_existing_relationship" } : {}) },
+        metadata: { transport: "stripe_checkout_redirect", location_precision: "verified_street_address", ...priorityMetadata, ...providerMetadata, ...(serviceRelationshipId ? { relationship_context: "customer_selected_existing_relationship" } : {}) },
       });
 
       const { url } = await createBookingCheckoutSession(bookingId);
@@ -100,20 +116,35 @@ export function StepReview({ onBack }: StepReviewProps) {
     } catch (err) {
       const message = await checkoutErrorMessage(err);
       const relationshipBlocked = relationshipCheckoutBlocked(message);
-      if (message.includes("PROVIDER_SUPPLY_BUILDING") || message.includes("MARKET_NOT_ACTIVE") || message.includes("UNSUPPORTED_SERVICE_AREA") || relationshipBlocked) {
+      const providerBlocked = requestedProviderBlocked(message);
+      if (message.includes("PROVIDER_SUPPLY_BUILDING") || message.includes("MARKET_NOT_ACTIVE") || message.includes("UNSUPPORTED_SERVICE_AREA") || relationshipBlocked || providerBlocked) {
         const activationReason = relationshipBlocked
           ? "relationship_not_active"
-          : message.includes("PROVIDER_SUPPLY_BUILDING")
-            ? "provider_supply_building"
-            : message.includes("UNSUPPORTED_SERVICE_AREA")
-              ? "unsupported_service_area"
-              : "market_not_active";
+          : providerBlocked
+            ? "requested_provider_unavailable"
+            : message.includes("PROVIDER_SUPPLY_BUILDING")
+              ? "provider_supply_building"
+              : message.includes("UNSUPPORTED_SERVICE_AREA")
+                ? "unsupported_service_area"
+                : "market_not_active";
         void recordBookingProgressEvent({ eventType: "booking_created_payment_not_started", currentStep: "review", zip: state.zipcode ?? null, serviceOptionKey: serviceOptionKeyFromBookingService(state.serviceType), metadata: { checkout_block_reason: activationReason } });
         void supabase.auth.getUser().then(({ data: { user } }) => { if (user?.id) emitBookingAbandoned(user.id, "review_checkout_blocked", 0); });
       }
-      if (relationshipBlocked) setSubmitError("This relationship is paused or no longer active, so it can't start a new cleaning together. Manage the relationship or choose another CSP.");
-      else if (message.includes("PROVIDER_SUPPLY_BUILDING")) setSubmitError("No Cleanr provider is available for this time. Choose another arrival window.");
-      else if (message.includes("MARKET_NOT_ACTIVE")) setSubmitError("Booking is not open in this area yet. Check back soon.");
+      if (relationshipBlocked) {
+        setSubmitError("This relationship is paused or no longer active, so it can't start a new cleaning together. Manage the relationship or choose another CSP.");
+      } else if (message.includes("requested_provider_not_available_for_booking")) {
+        setSubmitError(`${requestedProviderName} isn't available for this arrival window. Go back to choose another time or CSP, or choose “Let Cleanr match me.”`);
+      } else if (message.includes("requested_provider_outside_service_radius")) {
+        setSubmitError(`${requestedProviderName} doesn't serve this exact address. Go back to choose another CSP or let Cleanr match you.`);
+      } else if (message.includes("requested_provider_rejects_booking")) {
+        setSubmitError(`${requestedProviderName} isn't accepting this service or frequency right now. Choose another CSP or let Cleanr match you.`);
+      } else if (message.includes("requested_provider_not_marketplace_available")) {
+        setSubmitError(`${requestedProviderName} is no longer accepting new Cleanr marketplace bookings. Choose another CSP or let Cleanr match you.`);
+      } else if (message.includes("PROVIDER_SUPPLY_BUILDING")) {
+        setSubmitError(state.requestedProviderId
+          ? `${requestedProviderName} isn't available for this time. Choose another arrival window or CSP.`
+          : "No Cleanr provider is available for this time. Choose another arrival window.");
+      } else if (message.includes("MARKET_NOT_ACTIVE")) setSubmitError("Booking is not open in this area yet. Check back soon.");
       else if (message.includes("UNSUPPORTED_SERVICE_AREA")) setSubmitError("Cleanr is not serving this ZIP yet.");
       else setSubmitError(message);
     } finally {
@@ -167,6 +198,16 @@ export function StepReview({ onBack }: StepReviewProps) {
           <p className="text-[13px] font-semibold text-[#166534]">Booking through your existing CSP relationship</p>
           <p className="mt-1 text-[12px] leading-5 text-[#3F6212]">We'll confirm the relationship is active and that this CSP is available before payment begins.</p>
         </div>
+      ) : state.requestedProviderId ? (
+        <div className="rounded-[14px] border border-[#BBF7D0] bg-[#F0FDF4] p-4">
+          <div className="flex items-start gap-3">
+            <div className="rounded-xl bg-white p-2 text-[#166534]"><UserRoundCheck className="h-4 w-4" /></div>
+            <div>
+              <p className="text-[13px] font-semibold text-[#166534]">Requested CSP: {requestedProviderName}</p>
+              <p className="mt-1 text-[12px] leading-5 text-[#3F6212]">Before payment starts, Cleanr will confirm this exact CSP serves your verified address and is available for the date and arrival window you chose.</p>
+            </div>
+          </div>
+        </div>
       ) : null}
 
       <div className="rounded-[14px] border border-[#E5E7EB] bg-white p-4 space-y-3 text-sm">
@@ -202,6 +243,12 @@ export function StepReview({ onBack }: StepReviewProps) {
             <p className="text-[12px] font-medium text-[#667085] uppercase">Where</p>
             <p className="mt-1 text-[13px] font-medium text-[#0B1220] leading-5">{state.serviceAddress.verified ? state.serviceAddress.formatted : "Address not verified"}</p>
           </div>
+        </div>
+
+        <div>
+          <p className="text-[12px] font-medium text-[#667085] uppercase">CSP preference</p>
+          <p className="mt-1 text-[13px] font-medium text-[#0B1220]">{state.requestedProviderId ? requestedProviderName : "Let Cleanr match me"}</p>
+          <p className="text-[12px] font-medium text-[#667085]">{state.requestedProviderId ? "Exact eligibility is checked before payment." : "Cleanr will match an eligible CSP for this visit."}</p>
         </div>
 
         <div>
