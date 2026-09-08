@@ -58,6 +58,11 @@ export function PublicProviderShowcase() {
   const [activeZip, setActiveZip] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [profile, setProfile] = useState<MarketplaceProviderChoice | null>(null);
+  const [directoryOpen, setDirectoryOpen] = useState(false);
+  const [directoryProviders, setDirectoryProviders] = useState<MarketplaceProviderChoice[]>([]);
+  const [directoryLoading, setDirectoryLoading] = useState(false);
+  const [directoryError, setDirectoryError] = useState<string | null>(null);
+  const [directorySearch, setDirectorySearch] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -70,12 +75,18 @@ export function PublicProviderShowcase() {
   }, []);
 
   useEffect(() => {
-    if (!profile || typeof document === "undefined") return;
+    if ((!profile && !directoryOpen) || typeof document === "undefined") return;
     const body = document.body;
-    const previous = body.style.overflow;
+    const html = document.documentElement;
+    const previousBodyOverflow = body.style.overflow;
+    const previousHtmlOverflow = html.style.overflow;
     body.style.overflow = "hidden";
-    return () => { body.style.overflow = previous; };
-  }, [profile]);
+    html.style.overflow = "hidden";
+    return () => {
+      body.style.overflow = previousBodyOverflow;
+      html.style.overflow = previousHtmlOverflow;
+    };
+  }, [profile, directoryOpen]);
 
   const submitZip = async () => {
     const normalized = zip.trim();
@@ -111,6 +122,24 @@ export function PublicProviderShowcase() {
     }
   };
 
+  const openDirectory = async () => {
+    setDirectoryOpen(true);
+    setDirectorySearch("");
+    setDirectoryError(null);
+    setDirectoryLoading(true);
+    try {
+      const rows = activeZip
+        ? await listMarketplaceProvidersForZip(activeZip, 50)
+        : await listMarketplaceProvidersPublic(50);
+      setDirectoryProviders(rows);
+    } catch {
+      setDirectoryProviders([]);
+      setDirectoryError("We couldn't load the full CSP directory right now.");
+    } finally {
+      setDirectoryLoading(false);
+    }
+  };
+
   const startBookingWith = (provider: MarketplaceProviderChoice) => {
     persistPublicProviderBookingIntent({
       providerId: provider.id,
@@ -118,10 +147,28 @@ export function PublicProviderShowcase() {
       zip: activeZip,
     });
     setProfile(null);
+    setDirectoryOpen(false);
     navigate("/book");
   };
 
-  const visibleProviders = useMemo(() => providers.slice(0, activeZip ? 12 : 6), [providers, activeZip]);
+  const visibleProviders = useMemo(() => providers.slice(0, 3), [providers]);
+  const filteredDirectoryProviders = useMemo(() => {
+    const query = directorySearch.trim().toLowerCase();
+    if (!query) return directoryProviders;
+    return directoryProviders.filter((provider) => {
+      const haystack = [
+        provider.full_name,
+        provider.preferred_name,
+        provider.provider_bio,
+        ...provider.specialties,
+        ...provider.service_area_labels,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return haystack.includes(query);
+    });
+  }, [directoryProviders, directorySearch]);
 
   return (
     <>
@@ -176,7 +223,7 @@ export function PublicProviderShowcase() {
           </div>
           {activeZip ? (
             <div className="mt-3 text-center text-sm text-[#667085]">
-              Showing CSPs that plausibly serve {activeZip}. <button type="button" onClick={() => void clearZip()} className="font-semibold text-[#0000FE] underline">Show all</button>
+              Showing top CSPs that plausibly serve {activeZip}. <button type="button" onClick={() => void clearZip()} className="font-semibold text-[#0000FE] underline">Show all areas</button>
             </div>
           ) : null}
           {error ? <p className="mx-auto mt-3 max-w-xl text-center text-sm text-amber-700">{error}</p> : null}
@@ -184,7 +231,7 @@ export function PublicProviderShowcase() {
           {loading ? <p className="mt-10 text-center text-sm text-[#667085]">Loading Cleanr CSPs…</p> : null}
 
           {!loading && visibleProviders.length > 0 ? (
-            <div className="mt-10 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+            <div className="mx-auto mt-10 grid max-w-6xl gap-5 md:grid-cols-2 xl:grid-cols-3">
               {visibleProviders.map((provider) => {
                 const name = displayName(provider);
                 return (
@@ -213,6 +260,19 @@ export function PublicProviderShowcase() {
             </div>
           ) : null}
 
+          {!loading && providers.length > 0 ? (
+            <div className="mt-7 text-center">
+              <button
+                type="button"
+                onClick={() => void openDirectory()}
+                className="inline-flex items-center gap-2 text-sm font-semibold text-[#0000FE] underline underline-offset-4"
+              >
+                {activeZip ? `View all CSPs in ${activeZip}` : "View all Cleanr CSPs"}
+                <ArrowRight className="h-4 w-4" />
+              </button>
+            </div>
+          ) : null}
+
           <div className="mt-8 text-center">
             <button type="button" onClick={() => navigate("/book")} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-6 font-semibold text-[#0B1220]">
               No preference? Let Cleanr match me <ArrowRight className="h-4 w-4" />
@@ -220,6 +280,68 @@ export function PublicProviderShowcase() {
           </div>
         </div>
       </section>
+
+      {directoryOpen && typeof document !== "undefined" ? createPortal(
+        <div className="fixed inset-0 z-[99990] bg-white" role="dialog" aria-modal="true" aria-label={activeZip ? `Cleanr CSPs in ${activeZip}` : "Cleanr CSP directory"}>
+          <div className="mx-auto flex h-[100dvh] w-full max-w-5xl flex-col overflow-hidden bg-white">
+            <header className="shrink-0 border-b border-slate-200 bg-white px-5 pb-4 pt-[max(20px,env(safe-area-inset-top))] sm:px-8">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-[#166534]">{activeZip ? `CSPs serving ${activeZip}` : "Cleanr CSP directory"}</p>
+                  <h2 className="mt-1 text-2xl font-bold text-[#0B1220]">Choose someone who feels like a fit</h2>
+                  <p className="mt-2 max-w-2xl text-sm leading-6 text-[#667085]">Browse the full marketplace list here without stretching the homepage. Exact address and date/time eligibility is still confirmed before payment.</p>
+                </div>
+                <button type="button" onClick={() => setDirectoryOpen(false)} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-slate-200" aria-label="Close CSP directory"><X className="h-5 w-5" /></button>
+              </div>
+              <div className="relative mt-4">
+                <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="search"
+                  value={directorySearch}
+                  onChange={(event) => setDirectorySearch(event.target.value)}
+                  placeholder="Search by name, specialty, or area"
+                  className="min-h-12 w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-12 pr-4 text-base text-[#0B1220] outline-none focus:border-[#0000FE] focus:ring-2 focus:ring-[#0000FE]/10"
+                />
+              </div>
+            </header>
+
+            <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-8">
+              {directoryLoading ? <p className="py-12 text-center text-sm text-[#667085]">Loading CSPs…</p> : null}
+              {directoryError ? <p className="py-8 text-center text-sm text-amber-700">{directoryError}</p> : null}
+              {!directoryLoading && !directoryError && filteredDirectoryProviders.length === 0 ? <p className="py-12 text-center text-sm text-[#667085]">No CSPs match that search.</p> : null}
+
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                {filteredDirectoryProviders.map((provider) => {
+                  const name = displayName(provider);
+                  return (
+                    <article key={provider.id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                      <div className="flex items-start gap-4">
+                        <ProviderPhoto provider={provider} />
+                        <div className="min-w-0 flex-1">
+                          <h3 className="text-lg font-semibold text-[#0B1220]">{name}</h3>
+                          <p className="mt-1 text-sm text-[#667085]">
+                            {provider.avg_rating !== null && provider.review_count > 0
+                              ? <span className="inline-flex items-center gap-1"><Star className="h-4 w-4 text-[#8DCC64]" />{provider.avg_rating.toFixed(1)} · {provider.review_count} reviews</span>
+                              : "New to marketplace"}
+                          </p>
+                          {provider.years_experience !== null ? <p className="mt-1 text-sm text-[#667085]">{provider.years_experience} years experience</p> : null}
+                        </div>
+                      </div>
+                      <div className="mt-4"><TrustSignals provider={provider} /></div>
+                      {provider.specialties.length > 0 ? <p className="mt-4 text-sm text-[#475467]">{provider.specialties.slice(0, 3).join(" · ")}</p> : null}
+                      <div className="mt-5 grid grid-cols-2 gap-2">
+                        <button type="button" onClick={() => setProfile(provider)} className="min-h-11 rounded-xl border border-slate-300 bg-white px-3 text-sm font-semibold text-[#0B1220]">View profile</button>
+                        <button type="button" onClick={() => startBookingWith(provider)} className="min-h-11 rounded-xl bg-[#0000FE] px-3 text-sm font-semibold text-white">Book with {name}</button>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>,
+        document.body,
+      ) : null}
 
       {profile && typeof document !== "undefined" ? createPortal(
         <div className="fixed inset-0 z-[99999] flex items-end bg-black/45 sm:items-center sm:justify-center" role="dialog" aria-modal="true" aria-label={`${displayName(profile)} profile`}>
