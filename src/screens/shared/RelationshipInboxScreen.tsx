@@ -31,6 +31,11 @@ type StatusHistoryRow = {
   created_at: string;
 };
 
+type PendingChange = {
+  relationshipId: string;
+  action: "pause" | "end";
+};
+
 function transitionVerb(status: RelationshipStatus): string {
   if (status === "paused") return "paused";
   if (status === "active") return "resumed";
@@ -59,6 +64,8 @@ export function RelationshipInboxScreen({ variant }: { variant: "customer" | "cs
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [pendingChange, setPendingChange] = useState<PendingChange | null>(null);
+  const [changeNote, setChangeNote] = useState("");
   const isCsp = variant === "csp";
 
   const load = async (showSpinner = true) => {
@@ -98,9 +105,7 @@ export function RelationshipInboxScreen({ variant }: { variant: "customer" | "cs
         : Promise.resolve({ data: [] as StatusHistoryRow[], error: null }),
     ]);
 
-    if (historyResult.error) {
-      setError(historyResult.error.message);
-    }
+    if (historyResult.error) setError(historyResult.error.message);
 
     const grouped: Record<string, StatusHistoryRow[]> = {};
     for (const event of (historyResult.data ?? []) as StatusHistoryRow[]) {
@@ -134,20 +139,24 @@ export function RelationshipInboxScreen({ variant }: { variant: "customer" | "cs
     navigate(isCsp ? `/csp/dashboard/relationships/${relationshipId}/message` : `/app/relationships/${relationshipId}/message`);
   };
 
-  const updateRelationship = async (row: RowWithPhoto, action: RelationshipAction) => {
+  const beginChange = (relationshipId: string, action: "pause" | "end") => {
+    setPendingChange({ relationshipId, action });
+    setChangeNote("");
+    setError(null);
+  };
+
+  const cancelChange = () => {
+    setPendingChange(null);
+    setChangeNote("");
+  };
+
+  const updateRelationship = async (row: RowWithPhoto, action: RelationshipAction, reason?: string) => {
     if (busyId) return;
-
-    if (action === "end") {
-      const confirmed = window.confirm(
-        `End your Cleanr relationship with ${row.counterpart_name}? Message history and prior bookings will remain available. This does not cancel any scheduled booking or recurring cleaning.`
-      );
-      if (!confirmed) return;
-    }
-
     setBusyId(row.service_relationship_id);
     setError(null);
     try {
-      await updateMyServiceRelationshipStatus(row.service_relationship_id, action);
+      await updateMyServiceRelationshipStatus(row.service_relationship_id, action, reason);
+      cancelChange();
       await load(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not update this relationship.");
@@ -178,6 +187,7 @@ export function RelationshipInboxScreen({ variant }: { variant: "customer" | "cs
           {rows.map((row) => {
             const busy = busyId === row.service_relationship_id;
             const history = historyByRelationship[row.service_relationship_id] ?? [];
+            const pending = pendingChange?.relationshipId === row.service_relationship_id ? pendingChange : null;
             return (
               <div
                 key={row.service_relationship_id}
@@ -208,7 +218,7 @@ export function RelationshipInboxScreen({ variant }: { variant: "customer" | "cs
                     <button
                       type="button"
                       disabled={busy}
-                      onClick={() => void updateRelationship(row, "pause")}
+                      onClick={() => beginChange(row.service_relationship_id, "pause")}
                       className={`inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-semibold disabled:opacity-50 ${isCsp ? "border-white/10 bg-white/5" : "border-[#D0D5DD] bg-white"}`}
                     >
                       <Pause className="h-3.5 w-3.5" /> Pause relationship
@@ -228,7 +238,7 @@ export function RelationshipInboxScreen({ variant }: { variant: "customer" | "cs
                     <button
                       type="button"
                       disabled={busy}
-                      onClick={() => void updateRelationship(row, "end")}
+                      onClick={() => beginChange(row.service_relationship_id, "end")}
                       className={`inline-flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold text-[#B42318] disabled:opacity-50 ${isCsp ? "bg-red-400/10" : "bg-[#FFF1F0]"}`}
                     >
                       <XCircle className="h-3.5 w-3.5" /> End relationship
@@ -239,6 +249,50 @@ export function RelationshipInboxScreen({ variant }: { variant: "customer" | "cs
                     </p>
                   )}
                 </div>
+
+                {pending ? (
+                  <div className={`mt-3 rounded-xl border p-3 ${isCsp ? "border-white/10 bg-black/10" : "border-[#E4E7EC] bg-[#F8FAFC]"}`}>
+                    <p className="text-sm font-semibold">
+                      {pending.action === "pause" ? "Pause this relationship?" : "End this relationship?"}
+                    </p>
+                    <p className={`mt-1 text-xs leading-5 ${isCsp ? "text-white/55" : "text-[#667085]"}`}>
+                      You can add a short note for {row.counterpart_name}, or leave it blank. Any note is shared with both of you in relationship history.
+                    </p>
+                    {pending.action === "end" ? (
+                      <p className={`mt-1 text-xs leading-5 ${isCsp ? "text-white/45" : "text-[#98A2B3]"}`}>
+                        Ending the relationship does not cancel a scheduled booking or end a recurring cleaning plan.
+                      </p>
+                    ) : null}
+                    <textarea
+                      value={changeNote}
+                      onChange={(event) => setChangeNote(event.target.value.slice(0, 280))}
+                      placeholder="Optional shared note"
+                      rows={3}
+                      className={`mt-3 w-full resize-none rounded-xl border px-3 py-2 text-sm outline-none ${isCsp ? "border-white/10 bg-white/5 text-white placeholder:text-white/30" : "border-[#D0D5DD] bg-white text-[#0B1220] placeholder:text-[#98A2B3]"}`}
+                    />
+                    <div className="mt-2 flex items-center justify-between gap-3">
+                      <span className={`text-[10px] ${isCsp ? "text-white/35" : "text-[#98A2B3]"}`}>{changeNote.length}/280</span>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={cancelChange}
+                          className={`rounded-lg px-3 py-2 text-xs font-semibold disabled:opacity-50 ${isCsp ? "text-white/60" : "text-[#667085]"}`}
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() => void updateRelationship(row, pending.action, changeNote)}
+                          className={`rounded-lg px-3 py-2 text-xs font-semibold disabled:opacity-50 ${pending.action === "end" ? "bg-[#B42318] text-white" : isCsp ? "bg-white text-[#0B1220]" : "bg-[#0B1220] text-white"}`}
+                        >
+                          {busy ? "Updating…" : pending.action === "pause" ? "Pause relationship" : "End relationship"}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
 
                 {history.length > 0 ? (
                   <details className={`mt-3 border-t pt-3 ${isCsp ? "border-white/10" : "border-[#E5E7EB]"}`}>
