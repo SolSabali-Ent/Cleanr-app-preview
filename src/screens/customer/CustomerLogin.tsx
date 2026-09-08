@@ -22,6 +22,7 @@ export default function CustomerLogin() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const returnSurface: ReturnSurface = searchParams.get("from") === "csp" ? "csp" : "customer";
+  const continueBooking = searchParams.get("continue") === "booking";
   const requestedMode = modeFromSearch(searchParams.get("mode"));
   const [mode, setMode] = useState<AuthMode>(requestedMode);
   const [fullName, setFullName] = useState("");
@@ -102,6 +103,7 @@ export default function CustomerLogin() {
       const redirectUrl = new URL("/signin", window.location.origin);
       redirectUrl.searchParams.set("mode", "reset");
       redirectUrl.searchParams.set("from", returnSurface);
+      if (continueBooking) redirectUrl.searchParams.set("continue", "booking");
 
       const { error: resetError } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
         redirectTo: redirectUrl.toString(),
@@ -141,7 +143,11 @@ export default function CustomerLogin() {
       }
 
       await supabase.auth.signOut();
-      const destination = returnSurface === "csp" ? "/csp/login?reset=success" : "/signin?reset=success";
+      const destination = returnSurface === "csp"
+        ? "/csp/login?reset=success"
+        : continueBooking
+          ? "/signin?reset=success&continue=booking"
+          : "/signin?reset=success";
       navigate(destination, { replace: true });
     } finally {
       setIsLoading(false);
@@ -180,14 +186,16 @@ export default function CustomerLogin() {
         }
 
         if (data.session) {
-          navigate(hasReferral ? "/app/provider" : "/app", { replace: true });
+          navigate(continueBooking ? "/book" : hasReferral ? "/app/provider" : "/app", { replace: true });
           return;
         }
 
         setNotice(
-          hasReferral
-            ? "Check your email to confirm your Cleanr account. Your CSP invitation will still be here when you return."
-            : "Check your email to confirm your Cleanr account, then sign in."
+          continueBooking
+            ? "Check your email to confirm your Cleanr account, then sign in. Your booking will still be here when you return."
+            : hasReferral
+              ? "Check your email to confirm your Cleanr account. Your CSP invitation will still be here when you return."
+              : "Check your email to confirm your Cleanr account, then sign in."
         );
         setMode("signin");
         return;
@@ -199,7 +207,7 @@ export default function CustomerLogin() {
         return;
       }
 
-      navigate(hasReferral ? "/app/provider" : "/dashboard", { replace: true });
+      navigate(continueBooking ? "/book" : hasReferral ? "/app/provider" : "/dashboard", { replace: true });
     } finally {
       setIsLoading(false);
     }
@@ -219,11 +227,13 @@ export default function CustomerLogin() {
       ? "Enter your account email and Cleanr will send a secure recovery link."
       : mode === "reset"
         ? "Set a new password for your Cleanr account."
-        : hasReferral
-          ? "A Cleanr CSP invited you. Sign in or create an account to continue."
-          : mode === "signup"
-            ? "Create your customer account to manage your cleaning relationship."
-            : "Sign in to manage your bookings.";
+        : continueBooking
+          ? "Sign in or create an account to continue your booking to secure payment. Your booking details will stay in place."
+          : hasReferral
+            ? "A Cleanr CSP invited you. Sign in or create an account to continue."
+            : mode === "signup"
+              ? "Create your customer account to manage your cleaning relationship."
+              : "Sign in to manage your bookings.";
 
   const showStandardTabs = mode === "signin" || mode === "signup";
   const showReferralContext = hasReferral && showStandardTabs;
@@ -332,7 +342,7 @@ export default function CustomerLogin() {
               onClick={() => {
                 clearMessages();
                 if (mode === "reset") setMode("forgot");
-                else navigate(returnSurface === "csp" ? "/csp/login" : "/signin", { replace: true });
+                else navigate(returnSurface === "csp" ? "/csp/login" : continueBooking ? "/signin?continue=booking" : "/signin", { replace: true });
               }}
               className="w-full text-center text-xs font-medium text-slate-500 underline"
             >
@@ -342,8 +352,8 @@ export default function CustomerLogin() {
         </form>
 
         <div className="mt-4 text-center">
-          <button onClick={() => navigate(returnSurface === "csp" ? "/csp/login" : "/")} className="text-xs text-slate-500 underline">
-            {returnSurface === "csp" ? "← Back to CSP sign in" : "← Back to home"}
+          <button onClick={() => navigate(returnSurface === "csp" ? "/csp/login" : continueBooking ? "/book" : "/")} className="text-xs text-slate-500 underline">
+            {returnSurface === "csp" ? "← Back to CSP sign in" : continueBooking ? "← Back to booking" : "← Back to home"}
           </button>
         </div>
       </div>
