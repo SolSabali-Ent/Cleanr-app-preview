@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { Check, ChevronRight, Search, ShieldCheck, Star, X } from "lucide-react";
 import {
   getProviderPresenceSummary,
@@ -128,11 +129,47 @@ export function ProviderPresenceStrip({
   }, [chooserOpen, zip]);
 
   useEffect(() => {
-    if (!chooserOpen || typeof document === "undefined") return;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    if (!chooserOpen || typeof document === "undefined" || typeof window === "undefined") return;
+
+    const scrollY = window.scrollY;
+    const html = document.documentElement;
+    const body = document.body;
+    const previous = {
+      htmlOverflow: html.style.overflow,
+      bodyOverflow: body.style.overflow,
+      bodyPosition: body.style.position,
+      bodyTop: body.style.top,
+      bodyLeft: body.style.left,
+      bodyRight: body.style.right,
+      bodyWidth: body.style.width,
+      bodyTouchAction: body.style.touchAction,
+    };
+
+    html.style.overflow = "hidden";
+    body.style.overflow = "hidden";
+    body.style.position = "fixed";
+    body.style.top = `-${scrollY}px`;
+    body.style.left = "0";
+    body.style.right = "0";
+    body.style.width = "100%";
+    body.style.touchAction = "none";
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setChooserOpen(false);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+
     return () => {
-      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+      html.style.overflow = previous.htmlOverflow;
+      body.style.overflow = previous.bodyOverflow;
+      body.style.position = previous.bodyPosition;
+      body.style.top = previous.bodyTop;
+      body.style.left = previous.bodyLeft;
+      body.style.right = previous.bodyRight;
+      body.style.width = previous.bodyWidth;
+      body.style.touchAction = previous.bodyTouchAction;
+      window.scrollTo(0, scrollY);
     };
   }, [chooserOpen]);
 
@@ -168,6 +205,127 @@ export function ProviderPresenceStrip({
   const containerClass = className
     ? `rounded-2xl border border-[#E5E7EB] bg-white p-4 ${className}`
     : "rounded-2xl border border-[#E5E7EB] bg-white p-4";
+
+  const chooser = chooserOpen && typeof document !== "undefined" ? createPortal(
+    <div
+      className="fixed inset-0 z-[99999] h-[100dvh] w-[100dvw] overflow-hidden overscroll-none bg-[#F7F9FC]"
+      role="dialog"
+      aria-modal="true"
+      aria-label={`Choose a Cleanr CSP in ${zip ?? "your area"}`}
+    >
+      <div className="mx-auto flex h-[100dvh] w-full max-w-[720px] flex-col overflow-hidden bg-white">
+        <header className="relative z-20 shrink-0 border-b border-[#E5E7EB] bg-white px-4 pb-3 pt-[max(16px,env(safe-area-inset-top))]">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-[#166534]">CSPs in {zip}</p>
+              <h2 className="mt-1 text-[20px] font-semibold leading-tight text-[#0B1220]">Choose someone who feels like a fit</h2>
+            </div>
+            <button
+              type="button"
+              onClick={() => setChooserOpen(false)}
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[#E5E7EB] bg-white"
+              aria-label="Close CSP chooser"
+            >
+              <X className="h-5 w-5 text-[#0B1220]" />
+            </button>
+          </div>
+          <p className="mt-2 text-[12px] leading-5 text-[#667085]">Browse now. Exact availability is confirmed after you choose your service, address, date, and time.</p>
+          <div className="relative mt-3">
+            <Search className="pointer-events-none absolute left-4 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-[#98A2B3]" aria-hidden="true" />
+            <input
+              type="search"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder="Search by name, specialty, or area"
+              aria-label="Search CSPs by name, specialty, or area"
+              className="w-full rounded-xl border border-[#DDE2EA] bg-[#F8FAFC] py-3 pr-3 text-base text-[#0B1220] outline-none focus:border-[#0000FE] focus:ring-2 focus:ring-[#0000FE]/10"
+              style={{ paddingLeft: "3rem" }}
+            />
+          </div>
+        </header>
+
+        <div
+          className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4"
+          style={{ WebkitOverflowScrolling: "touch", touchAction: "pan-y" }}
+        >
+          <button
+            type="button"
+            onClick={() => selectProvider(null, true)}
+            className={`mb-3 w-full rounded-2xl border p-4 text-left ${!selectedProviderId ? "border-[#8DCC64] bg-[#F3FAF1]" : "border-[#E5E7EB] bg-white"}`}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-[15px] font-semibold text-[#0B1220]">Let Cleanr match me</p>
+                <p className="mt-1 text-[12px] leading-5 text-[#667085]">Best if you care more about the right time and service fit than choosing a specific CSP.</p>
+              </div>
+              {!selectedProviderId ? <Check className="h-5 w-5 shrink-0 text-[#166534]" /> : null}
+            </div>
+          </button>
+
+          {chooserLoading ? <p className="py-8 text-center text-sm text-[#667085]">Loading CSPs in your area...</p> : null}
+
+          {!chooserLoading && filteredProviders.length === 0 ? (
+            <div className="rounded-2xl border border-[#E5E7EB] bg-[#F8FAFC] p-5 text-center">
+              <p className="text-sm font-semibold text-[#0B1220]">No CSPs match that search.</p>
+              <p className="mt-1 text-xs text-[#667085]">Try a different name or specialty.</p>
+            </div>
+          ) : null}
+
+          <div className="space-y-3">
+            {filteredProviders.map((provider) => {
+              const selected = selectedProviderId === provider.id;
+              const expanded = expandedId === provider.id;
+              const displayName = formatProviderName(provider.full_name, provider.preferred_name);
+              return (
+                <article key={provider.id} className={`rounded-2xl border p-4 ${selected ? "border-[#8DCC64] bg-[#F7FBF5]" : "border-[#E5E7EB] bg-white"}`}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-[16px] font-semibold text-[#0B1220]">{displayName}</p>
+                      <p className="mt-1 text-[12px] text-[#667085]"><ProviderSignal provider={provider} /></p>
+                    </div>
+                    {selected ? <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#E8F6E1] text-[#166534]"><Check className="h-5 w-5" /></span> : null}
+                  </div>
+
+                  <ProviderBadges provider={provider} />
+
+                  {(provider.years_experience !== null || provider.repeat_household_count > 0 || provider.specialties.length > 0) ? (
+                    <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-[#667085]">
+                      {provider.years_experience !== null ? <span>{provider.years_experience}y experience</span> : null}
+                      {provider.repeat_household_count > 0 ? <span>{provider.repeat_household_count} repeat household{provider.repeat_household_count === 1 ? "" : "s"}</span> : null}
+                      {provider.specialties.length > 0 ? <span>{provider.specialties.slice(0, 2).join(" · ")}</span> : null}
+                    </div>
+                  ) : null}
+
+                  {expanded ? (
+                    <div className="mt-3 rounded-xl bg-[#F8FAFC] p-3 text-[12px] leading-5 text-[#475467]">
+                      {provider.provider_bio ? <p>{provider.provider_bio}</p> : <p>This CSP has not added an introduction yet.</p>}
+                      {provider.specialties.length > 0 ? <p className="mt-2"><span className="font-semibold text-[#0B1220]">Strengths:</span> {provider.specialties.slice(0, 6).join(", ")}</p> : null}
+                      {provider.service_area_labels.length > 0 ? <p className="mt-2"><span className="font-semibold text-[#0B1220]">Areas served:</span> {provider.service_area_labels.slice(0, 6).join(", ")}</p> : null}
+                      <div className="mt-2 flex items-center gap-1.5 text-[#166534]"><ShieldCheck className="h-4 w-4" /><span className="font-medium">Exact service eligibility is verified before payment.</span></div>
+                    </div>
+                  ) : null}
+
+                  <div className="mt-4 flex items-center gap-2">
+                    <button type="button" onClick={() => setExpandedId(expanded ? null : provider.id)} className="min-h-11 flex-1 rounded-xl border border-[#DDE2EA] bg-white px-3 text-[12px] font-semibold text-[#0B1220]">
+                      {expanded ? "Hide profile" : "View profile"}
+                    </button>
+                    <button type="button" onClick={() => selectProvider(provider, true)} className="min-h-11 flex-1 rounded-xl bg-[#0000FE] px-3 text-[12px] font-semibold text-white">
+                      {selected ? "Keep this CSP" : "Choose this CSP"}
+                    </button>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </div>
+
+        <footer className="relative z-20 shrink-0 border-t border-[#E5E7EB] bg-white px-4 pb-[max(16px,env(safe-area-inset-bottom))] pt-3">
+          <p className="text-center text-[11px] leading-4 text-[#667085]">Choosing a CSP is a request until Cleanr confirms the exact address and date/time work for that CSP.</p>
+        </footer>
+      </div>
+    </div>,
+    document.body,
+  ) : null;
 
   return (
     <>
@@ -302,109 +460,7 @@ export function ProviderPresenceStrip({
         {!loading && !summary ? <p className="mt-2 text-[12px] text-[#667085]">Cleanr availability is being prepared for this area.</p> : null}
       </section>
 
-      {chooserOpen ? (
-        <div className="fixed inset-0 z-[100] bg-[#F7F9FC]" role="dialog" aria-modal="true" aria-label={`Choose a Cleanr CSP in ${zip ?? "your area"}`}>
-          <div className="mx-auto flex h-full w-full max-w-[720px] flex-col bg-white">
-            <header className="shrink-0 border-b border-[#E5E7EB] bg-white px-4 pb-3 pt-[max(16px,env(safe-area-inset-top))]">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-[#166534]">CSPs in {zip}</p>
-                  <h2 className="mt-1 text-[20px] font-semibold text-[#0B1220]">Choose someone who feels like a fit</h2>
-                </div>
-                <button type="button" onClick={() => setChooserOpen(false)} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[#E5E7EB] bg-white" aria-label="Close CSP chooser">
-                  <X className="h-5 w-5 text-[#0B1220]" />
-                </button>
-              </div>
-              <p className="mt-2 text-[12px] leading-5 text-[#667085]">Browse now. Exact availability is confirmed after you choose your service, address, date, and time.</p>
-              <div className="relative mt-3">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#98A2B3]" />
-                <input
-                  value={searchQuery}
-                  onChange={(event) => setSearchQuery(event.target.value)}
-                  placeholder="Search by name, specialty, or area"
-                  className="w-full rounded-xl border border-[#DDE2EA] bg-[#F8FAFC] py-3 pl-9 pr-3 text-sm text-[#0B1220] outline-none focus:border-[#0000FE] focus:ring-2 focus:ring-[#0000FE]/10"
-                />
-              </div>
-            </header>
-
-            <div className="flex-1 overflow-y-auto px-4 py-4">
-              <button
-                type="button"
-                onClick={() => selectProvider(null, true)}
-                className={`mb-3 w-full rounded-2xl border p-4 text-left ${!selectedProviderId ? "border-[#8DCC64] bg-[#F3FAF1]" : "border-[#E5E7EB] bg-white"}`}
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-[15px] font-semibold text-[#0B1220]">Let Cleanr match me</p>
-                    <p className="mt-1 text-[12px] leading-5 text-[#667085]">Best if you care more about the right time and service fit than choosing a specific CSP.</p>
-                  </div>
-                  {!selectedProviderId ? <Check className="h-5 w-5 shrink-0 text-[#166534]" /> : null}
-                </div>
-              </button>
-
-              {chooserLoading ? <p className="py-8 text-center text-sm text-[#667085]">Loading CSPs in your area...</p> : null}
-
-              {!chooserLoading && filteredProviders.length === 0 ? (
-                <div className="rounded-2xl border border-[#E5E7EB] bg-[#F8FAFC] p-5 text-center">
-                  <p className="text-sm font-semibold text-[#0B1220]">No CSPs match that search.</p>
-                  <p className="mt-1 text-xs text-[#667085]">Try a different name or specialty.</p>
-                </div>
-              ) : null}
-
-              <div className="space-y-3">
-                {filteredProviders.map((provider) => {
-                  const selected = selectedProviderId === provider.id;
-                  const expanded = expandedId === provider.id;
-                  const displayName = formatProviderName(provider.full_name, provider.preferred_name);
-                  return (
-                    <article key={provider.id} className={`rounded-2xl border p-4 ${selected ? "border-[#8DCC64] bg-[#F7FBF5]" : "border-[#E5E7EB] bg-white"}`}>
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="text-[16px] font-semibold text-[#0B1220]">{displayName}</p>
-                          <p className="mt-1 text-[12px] text-[#667085]"><ProviderSignal provider={provider} /></p>
-                        </div>
-                        {selected ? <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#E8F6E1] text-[#166534]"><Check className="h-5 w-5" /></span> : null}
-                      </div>
-
-                      <ProviderBadges provider={provider} />
-
-                      {(provider.years_experience !== null || provider.repeat_household_count > 0 || provider.specialties.length > 0) ? (
-                        <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-[#667085]">
-                          {provider.years_experience !== null ? <span>{provider.years_experience}y experience</span> : null}
-                          {provider.repeat_household_count > 0 ? <span>{provider.repeat_household_count} repeat household{provider.repeat_household_count === 1 ? "" : "s"}</span> : null}
-                          {provider.specialties.length > 0 ? <span>{provider.specialties.slice(0, 2).join(" · ")}</span> : null}
-                        </div>
-                      ) : null}
-
-                      {expanded ? (
-                        <div className="mt-3 rounded-xl bg-[#F8FAFC] p-3 text-[12px] leading-5 text-[#475467]">
-                          {provider.provider_bio ? <p>{provider.provider_bio}</p> : <p>This CSP has not added an introduction yet.</p>}
-                          {provider.specialties.length > 0 ? <p className="mt-2"><span className="font-semibold text-[#0B1220]">Strengths:</span> {provider.specialties.slice(0, 6).join(", ")}</p> : null}
-                          {provider.service_area_labels.length > 0 ? <p className="mt-2"><span className="font-semibold text-[#0B1220]">Areas served:</span> {provider.service_area_labels.slice(0, 6).join(", ")}</p> : null}
-                          <div className="mt-2 flex items-center gap-1.5 text-[#166534]"><ShieldCheck className="h-4 w-4" /><span className="font-medium">Exact service eligibility is verified before payment.</span></div>
-                        </div>
-                      ) : null}
-
-                      <div className="mt-4 flex items-center gap-2">
-                        <button type="button" onClick={() => setExpandedId(expanded ? null : provider.id)} className="min-h-11 flex-1 rounded-xl border border-[#DDE2EA] bg-white px-3 text-[12px] font-semibold text-[#0B1220]">
-                          {expanded ? "Hide profile" : "View profile"}
-                        </button>
-                        <button type="button" onClick={() => selectProvider(provider, true)} className="min-h-11 flex-1 rounded-xl bg-[#0000FE] px-3 text-[12px] font-semibold text-white">
-                          {selected ? "Keep this CSP" : "Choose this CSP"}
-                        </button>
-                      </div>
-                    </article>
-                  );
-                })}
-              </div>
-            </div>
-
-            <footer className="shrink-0 border-t border-[#E5E7EB] bg-white px-4 pb-[max(16px,env(safe-area-inset-bottom))] pt-3">
-              <p className="text-center text-[11px] leading-4 text-[#667085]">Choosing a CSP is a request until Cleanr confirms the exact address and date/time work for that CSP.</p>
-            </footer>
-          </div>
-        </div>
-      ) : null}
+      {chooser}
     </>
   );
 }
