@@ -45,6 +45,7 @@ function formatContinuityDate(value: string | null): string | null {
 }
 
 function continuitySourceLabel(summary: ProviderHouseholdRelationshipSummary): string {
+  if (summary.relationship?.status === "paused") return "Relationship paused · history preserved";
   return summary.source === "durable_relationship" ? "Relationship preserved" : "Booking history";
 }
 
@@ -216,6 +217,7 @@ export default function NetworkScreen() {
             {households.map((household, index) => {
               const lastServed = formatContinuityDate(household.lastServedAt);
               const nextVisit = formatContinuityDate(household.nextScheduledAt);
+              const activeDurableRelationship = household.relationship?.status === "active";
               return (
                 <div key={`${household.customerId}-${index}`} className="rounded-2xl border" style={{ backgroundColor: CSP_SURFACE, borderColor: "rgba(248,250,252,.08)", padding: CSP_CARD_PADDING }}>
                   <div className="flex items-start justify-between gap-3">
@@ -225,7 +227,7 @@ export default function NetworkScreen() {
                         {household.completedServicesCount} completed service{household.completedServicesCount === 1 ? "" : "s"} together
                       </p>
                     </div>
-                    <span className="text-[11px]" style={{ color: household.source === "durable_relationship" ? CSP_PRIMARY_BUTTON : CSP_TEXT_SECONDARY }}>
+                    <span className="text-[11px]" style={{ color: activeDurableRelationship ? CSP_PRIMARY_BUTTON : CSP_TEXT_SECONDARY }}>
                       {continuitySourceLabel(household)}
                     </span>
                   </div>
