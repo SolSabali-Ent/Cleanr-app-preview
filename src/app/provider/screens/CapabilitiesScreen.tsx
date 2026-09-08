@@ -1,15 +1,12 @@
 import { useEffect, useState } from "react";
-import { ArrowLeft, BadgeCheck, Plus, Sparkles } from "lucide-react";
+import { ArrowLeft, BadgeCheck, Plus } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import type { PersonCapability } from "@/domain/growth";
 import { isOfflinePreviewMode } from "@/lib/supabase";
 import { CSP_GROWTH_ROUTES } from "@/app/provider/growthRoutes";
 import { listMyCapabilities, setMySelfCapability } from "@/lib/growthApi";
 import {
-  CSP_CARD_PADDING,
   CSP_PRIMARY_BUTTON,
-  CSP_SURFACE,
-  CSP_SECTION_GAP,
   CSP_TEXT_PRIMARY,
   CSP_TEXT_SECONDARY,
 } from "@/theme/cspTheme";
@@ -19,7 +16,7 @@ function sourceLabel(source: PersonCapability["source"]): string {
     case "verified": return "Verified by Cleanr";
     case "cleanr": return "Recognized by Cleanr";
     case "network": return "Recognized by the network";
-    default: return "Self-declared";
+    default: return "Added by you";
   }
 }
 
@@ -35,7 +32,7 @@ export default function CapabilitiesScreen() {
       setError(null);
       setCapabilities(await listMyCapabilities());
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to load capabilities");
+      setError(err instanceof Error ? err.message : "Unable to load skills");
     }
   }
 
@@ -50,7 +47,7 @@ export default function CapabilitiesScreen() {
       setLabel("");
       await refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to save capability");
+      setError(err instanceof Error ? err.message : "Unable to save skill");
     } finally {
       setSaving(false);
     }
@@ -62,51 +59,55 @@ export default function CapabilitiesScreen() {
         <ArrowLeft size={16} /> Growth
       </button>
 
-      <header style={{ marginBottom: CSP_SECTION_GAP }}>
-        <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs">
-          <Sparkles size={14} style={{ color: CSP_PRIMARY_BUTTON }} />
-          <span style={{ color: CSP_TEXT_SECONDARY }}>What you can create</span>
-        </div>
-        <h1 className="text-2xl font-semibold">Capabilities</h1>
-        <p className="mt-2 text-sm leading-6" style={{ color: CSP_TEXT_SECONDARY }}>
-          Cleaning is one capability, not your permanent identity. Track skills and strengths that can create value for households, other CSPs, businesses, and the network.
+      <header className="mb-6">
+        <h1 className="text-2xl font-semibold">Skills & strengths</h1>
+        <p className="mt-1 text-sm" style={{ color: CSP_TEXT_SECONDARY }}>
+          Add what you&apos;re good at.
         </p>
       </header>
 
       {error ? <p className="mb-4 text-sm text-red-300">{error}</p> : null}
 
-      <section style={{ marginBottom: CSP_SECTION_GAP }}>
-        <div className="rounded-2xl border" style={{ backgroundColor: CSP_SURFACE, borderColor: "rgba(248,250,252,.08)", padding: CSP_CARD_PADDING }}>
-          <p className="text-sm font-medium">Add something you can do</p>
-          <p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>
-            Self-declared capabilities are yours to add. Cleanr-verified capabilities remain separate so provenance stays clear.
-          </p>
-          <div className="mt-4 flex gap-2">
-            <input value={label} onChange={(event) => setLabel(event.target.value)} disabled={isOfflinePreviewMode} placeholder={isOfflinePreviewMode ? "Available when backend returns" : "e.g. mentoring new CSPs"} className="min-w-0 flex-1 rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-sm outline-none disabled:opacity-60" />
-            <button type="button" disabled={isOfflinePreviewMode || label.trim().length < 2 || saving} onClick={() => void addCapability()} className="flex items-center justify-center rounded-xl px-4 text-white disabled:opacity-50" style={{ backgroundColor: CSP_PRIMARY_BUTTON }}><Plus size={18} /></button>
-          </div>
+      <section className="mb-7">
+        <div className="flex gap-2">
+          <input
+            value={label}
+            onChange={(event) => setLabel(event.target.value)}
+            disabled={isOfflinePreviewMode}
+            placeholder={isOfflinePreviewMode ? "Available when backend returns" : "e.g. mentoring new CSPs"}
+            className="min-w-0 flex-1 rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-sm outline-none disabled:opacity-60"
+          />
+          <button
+            type="button"
+            aria-label="Add skill"
+            disabled={isOfflinePreviewMode || label.trim().length < 2 || saving}
+            onClick={() => void addCapability()}
+            className="flex min-h-12 min-w-12 items-center justify-center rounded-xl text-white disabled:opacity-50"
+            style={{ backgroundColor: CSP_PRIMARY_BUTTON }}
+          >
+            <Plus size={18} />
+          </button>
         </div>
+        <p className="mt-2 text-[11px] leading-4" style={{ color: CSP_TEXT_SECONDARY }}>
+          Cleanr keeps verified skills labeled separately.
+        </p>
       </section>
 
       <section>
-        <h2 className="mb-3 text-sm font-medium" style={{ color: CSP_TEXT_SECONDARY }}>Your capabilities</h2>
+        <h2 className="mb-2 text-sm font-medium" style={{ color: CSP_TEXT_SECONDARY }}>Your skills</h2>
         {capabilities.length === 0 ? (
-          <div className="rounded-2xl border" style={{ backgroundColor: CSP_SURFACE, borderColor: "rgba(248,250,252,.08)", padding: CSP_CARD_PADDING }}>
-            <p className="text-sm font-medium">No capabilities recorded yet.</p>
-            <p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>
-              As Cleanr learns what you do well, this can include service expertise, mentoring, leadership, business skills, and other strengths.
-            </p>
+          <div className="border-y border-white/10 py-5">
+            <p className="text-sm font-medium">Nothing added yet.</p>
+            <p className="mt-1 text-xs" style={{ color: CSP_TEXT_SECONDARY }}>Start with one skill you want Cleanr to know about.</p>
           </div>
         ) : (
-          <div className="space-y-3">
-            {capabilities.map((capability) => (
-              <div key={capability.id} className="rounded-2xl border" style={{ backgroundColor: CSP_SURFACE, borderColor: "rgba(248,250,252,.08)", padding: CSP_CARD_PADDING }}>
-                <div className="flex items-start gap-3">
-                  <BadgeCheck size={19} style={{ color: capability.status === "verified" ? CSP_PRIMARY_BUTTON : CSP_TEXT_SECONDARY, marginTop: 2 }} />
-                  <div>
-                    <p className="text-sm font-medium">{capability.label}</p>
-                    <p className="mt-1 text-xs" style={{ color: CSP_TEXT_SECONDARY }}>{sourceLabel(capability.source)} · {capability.status}</p>
-                  </div>
+          <div className="border-y border-white/10">
+            {capabilities.map((capability, index) => (
+              <div key={capability.id} className={`flex items-start gap-3 py-4 ${index > 0 ? "border-t border-white/10" : ""}`}>
+                <BadgeCheck size={18} className="mt-0.5 shrink-0" style={{ color: capability.status === "verified" ? CSP_PRIMARY_BUTTON : CSP_TEXT_SECONDARY }} />
+                <div className="min-w-0">
+                  <p className="text-sm font-medium">{capability.label}</p>
+                  <p className="mt-1 text-xs" style={{ color: CSP_TEXT_SECONDARY }}>{sourceLabel(capability.source)}</p>
                 </div>
               </div>
             ))}
