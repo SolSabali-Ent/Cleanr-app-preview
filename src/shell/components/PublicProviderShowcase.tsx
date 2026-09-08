@@ -9,7 +9,6 @@ import {
 } from "../../lib/providerPresence";
 import { getSignedProfilePhotoUrl } from "../../lib/profilePhotoApi";
 import { persistPublicProviderBookingIntent } from "../../lib/publicBookingIntent";
-import { supabase } from "../../lib/supabase";
 
 function displayName(provider: MarketplaceProviderChoice): string {
   return provider.preferred_name?.trim() || provider.full_name?.trim() || "Cleanr CSP";
@@ -112,15 +111,14 @@ export function PublicProviderShowcase() {
     }
   };
 
-  const startBookingWith = async (provider: MarketplaceProviderChoice) => {
+  const startBookingWith = (provider: MarketplaceProviderChoice) => {
     persistPublicProviderBookingIntent({
       providerId: provider.id,
       providerName: displayName(provider),
       zip: activeZip,
     });
-    const { data: { user } } = await supabase.auth.getUser();
     setProfile(null);
-    navigate(user ? "/book" : "/signin?continue=booking");
+    navigate("/book");
   };
 
   const visibleProviders = useMemo(() => providers.slice(0, activeZip ? 12 : 6), [providers, activeZip]);
@@ -207,7 +205,7 @@ export function PublicProviderShowcase() {
                     {provider.specialties.length > 0 ? <p className="mt-4 text-sm text-[#475467]">{provider.specialties.slice(0, 3).join(" · ")}</p> : null}
                     <div className="mt-5 grid grid-cols-2 gap-2">
                       <button type="button" onClick={() => setProfile(provider)} className="min-h-11 rounded-xl border border-slate-300 bg-white px-3 text-sm font-semibold text-[#0B1220]">View profile</button>
-                      <button type="button" onClick={() => void startBookingWith(provider)} className="min-h-11 rounded-xl bg-[#0000FE] px-3 text-sm font-semibold text-white">Book with {name}</button>
+                      <button type="button" onClick={() => startBookingWith(provider)} className="min-h-11 rounded-xl bg-[#0000FE] px-3 text-sm font-semibold text-white">Book with {name}</button>
                     </div>
                   </article>
                 );
@@ -249,10 +247,10 @@ export function PublicProviderShowcase() {
               <div className="flex items-start gap-2 rounded-xl bg-[#F3FAF1] p-3 text-[#166534]"><ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" /><span>Choosing a CSP is a request. Cleanr confirms the exact address, service fit, and date/time before payment begins.</span></div>
             </div>
 
-            <button type="button" onClick={() => void startBookingWith(profile)} className="mt-6 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#0000FE] px-5 font-semibold text-white">
+            <button type="button" onClick={() => startBookingWith(profile)} className="mt-6 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#0000FE] px-5 font-semibold text-white">
               Book with {displayName(profile)} <ArrowRight className="h-4 w-4" />
             </button>
-            <p className="mt-3 text-center text-xs text-[#667085]">Already have a Cleanr account? Your CSP choice carries into your booking either way.</p>
+            <p className="mt-3 text-center text-xs text-[#667085]">We'll keep your CSP choice while you build the booking. Sign in or create an account only when it's needed to continue to secure payment.</p>
           </div>
         </div>,
         document.body,
