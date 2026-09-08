@@ -47,7 +47,7 @@ export async function listMarketplaceProvidersForZip(
 
   const { data, error } = await supabase.rpc("list_marketplace_providers_for_zip", {
     p_zip: normalizedZip,
-    p_limit: Math.max(1, Math.min(limit, 12)),
+    p_limit: Math.max(1, Math.min(limit, 50)),
   });
   if (error) throw error;
 
