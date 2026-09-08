@@ -3,7 +3,7 @@ import type { FormEvent } from "react";
 import { useBooking } from "../bookingStore";
 import { Button } from "../../components/ui/Button";
 import { ProviderPresenceStrip } from "../../components/provider/ProviderPresenceStrip";
-import type { MarketplaceProviderChoice } from "@/lib/providerPresence";
+import { listMarketplaceProvidersForZip, type MarketplaceProviderChoice } from "@/lib/providerPresence";
 import {
   getCustomerActivationStatus,
   type CustomerActivationStatus,
@@ -53,11 +53,9 @@ export function StepZipCode({ onNext }: StepZipCodeProps) {
     if (next !== state.zipcode) {
       setActivationStatus(null);
       setActivationHint(null);
-      if (state.zipcode || state.requestedProviderId) {
+      if (state.zipcode) {
         update({
           zipcode: null,
-          requestedProviderId: null,
-          requestedProviderName: null,
           serviceAddress: {
             ...state.serviceAddress,
             zip: "",
@@ -89,8 +87,6 @@ export function StepZipCode({ onNext }: StepZipCodeProps) {
       return;
     }
 
-    // Once this ZIP is confirmed, the primary action advances without re-running
-    // activation. The customer can choose a CSP first or continue with Cleanr matching.
     if (zipConfirmed) {
       onNext();
       return;
@@ -105,14 +101,15 @@ export function StepZipCode({ onNext }: StepZipCodeProps) {
 
     const status = await getCustomerActivationStatus(zipTrimmed);
     setActivationStatus(status);
-    setLoading(false);
 
     if (status.reason === "unknown") {
+      setLoading(false);
       setError("Unable to confirm booking availability for this ZIP right now. Please try again.");
       return;
     }
 
     if (!status.serviceable || status.reason === "unsupported_zip") {
+      setLoading(false);
       void recordBookingProgressEvent({
         eventType: "zip_blocked_waitlist_offered",
         currentStep: "zip",
@@ -126,6 +123,7 @@ export function StepZipCode({ onNext }: StepZipCodeProps) {
     }
 
     if (!status.bookingEnabled) {
+      setLoading(false);
       if (status.reason === "provider_supply_building") {
         void recordBookingProgressEvent({
           eventType: "zip_blocked_provider_supply_building",
@@ -158,12 +156,34 @@ export function StepZipCode({ onNext }: StepZipCodeProps) {
       return;
     }
 
+    let requestedProviderId = state.requestedProviderId;
+    let requestedProviderName = state.requestedProviderName;
+    let providerHint: string | null = null;
+
+    if (requestedProviderId && state.zipcode !== zipTrimmed) {
+      try {
+        const providers = await listMarketplaceProvidersForZip(zipTrimmed, 50);
+        const selected = providers.find((provider) => provider.id === requestedProviderId) ?? null;
+        if (selected) {
+          requestedProviderName = selected.preferred_name?.trim() || selected.full_name?.trim() || requestedProviderName;
+          providerHint = `${requestedProviderName || "Your selected CSP"} serves this ZIP. We'll confirm your exact address and time before payment.`;
+        } else {
+          requestedProviderId = null;
+          requestedProviderName = null;
+          providerHint = "The CSP you chose does not currently cover this ZIP, so you can choose another CSP below or let Cleanr match you.";
+        }
+      } catch {
+        providerHint = "Your CSP choice is still saved. Cleanr will verify exact eligibility before payment.";
+      }
+    }
+
     update({
       zipcode: zipTrimmed,
-      requestedProviderId: state.zipcode === zipTrimmed ? state.requestedProviderId : null,
-      requestedProviderName: state.zipcode === zipTrimmed ? state.requestedProviderName : null,
+      requestedProviderId,
+      requestedProviderName,
     });
-    setActivationHint("Cleanr is available in your area. Choose a CSP below, or let Cleanr match you.");
+    setLoading(false);
+    setActivationHint(providerHint ?? "Cleanr is available in your area. Choose a CSP below, or let Cleanr match you.");
   };
 
   const handleLeadSubmit = async (e: FormEvent) => {
