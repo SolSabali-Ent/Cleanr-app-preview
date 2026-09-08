@@ -4,6 +4,8 @@ import { dormantFeatureError, isSupabaseFeatureUnavailable } from "@/lib/supabas
 export type RecurringCleaningCadence = "weekly" | "bi-weekly" | "monthly";
 export type RecurringCleaningPlanStatus = "active" | "paused" | "ended";
 
+type RelationshipStatus = "active" | "paused" | "ended";
+
 export type RecurringCleaningPlan = {
   id: string;
   customerId: string;
@@ -39,6 +41,12 @@ type RecurringCleaningPlanRow = {
   updated_at: string;
 };
 
+type RelationshipRow = {
+  customer_id: string;
+  provider_id: string;
+  status: RelationshipStatus;
+};
+
 export type MissedVisitResolutionResult = {
   bookingId: string;
   recurringPlanId: string | null;
@@ -66,12 +74,52 @@ async function providerNames(ids: string[]): Promise<Map<string, string>> {
   );
 }
 
-function mapPlan(row: RecurringCleaningPlanRow, names: Map<string, string>): RecurringCleaningPlan {
+async function relationshipBlockedProviderIds(rows: RecurringCleaningPlanRow[]): Promise<Set<string>> {
+  const pairs = rows
+    .filter((row) => row.preferred_provider_id)
+    .map((row) => ({ customerId: row.customer_id, providerId: row.preferred_provider_id as string }));
+  const providerIds = [...new Set(pairs.map((pair) => pair.providerId))];
+  if (providerIds.length === 0) return new Set();
+
+  const { data, error } = await supabase
+    .from("service_relationships")
+    .select("customer_id,provider_id,status")
+    .in("provider_id", providerIds);
+  if (error) return new Set();
+
+  const byPair = new Map<string, RelationshipStatus[]>();
+  for (const row of (data ?? []) as RelationshipRow[]) {
+    const key = `${row.customer_id}:${row.provider_id}`;
+    const statuses = byPair.get(key) ?? [];
+    statuses.push(row.status);
+    byPair.set(key, statuses);
+  }
+
+  const blocked = new Set<string>();
+  for (const pair of pairs) {
+    const statuses = byPair.get(`${pair.customerId}:${pair.providerId}`);
+    // No relationship row yet is valid before the first completed cleaning.
+    // Any active chapter keeps continuity valid. Otherwise an explicit paused/ended
+    // chapter suppresses future continuity claims without deleting provider provenance.
+    if (statuses && statuses.length > 0 && !statuses.includes("active")) {
+      blocked.add(pair.providerId);
+    }
+  }
+  return blocked;
+}
+
+function mapPlan(
+  row: RecurringCleaningPlanRow,
+  names: Map<string, string>,
+  blockedProviderIds: Set<string>
+): RecurringCleaningPlan {
+  const providerBlocked = row.preferred_provider_id ? blockedProviderIds.has(row.preferred_provider_id) : false;
   return {
     id: row.id,
     customerId: row.customer_id,
     preferredProviderId: row.preferred_provider_id,
-    preferredProviderName: row.preferred_provider_id ? names.get(row.preferred_provider_id) ?? null : null,
+    preferredProviderName:
+      row.preferred_provider_id && !providerBlocked ? names.get(row.preferred_provider_id) ?? null : null,
     originBookingId: row.origin_booking_id,
     currentBookingId: row.current_booking_id,
     cadence: row.cadence,
@@ -86,6 +134,15 @@ function mapPlan(row: RecurringCleaningPlanRow, names: Map<string, string>): Rec
   };
 }
 
+async function enrichPlans(rows: RecurringCleaningPlanRow[]): Promise<RecurringCleaningPlan[]> {
+  const ids = rows.flatMap((row) => (row.preferred_provider_id ? [row.preferred_provider_id] : []));
+  const [names, blockedProviderIds] = await Promise.all([
+    providerNames(ids),
+    relationshipBlockedProviderIds(rows),
+  ]);
+  return rows.map((row) => mapPlan(row, names, blockedProviderIds));
+}
+
 export async function listMyRecurringCleaningPlans(): Promise<RecurringCleaningPlan[]> {
   if (isOfflinePreviewMode) return [];
 
@@ -98,9 +155,7 @@ export async function listMyRecurringCleaningPlans(): Promise<RecurringCleaningP
   if (isSupabaseFeatureUnavailable(error)) return [];
   if (error) throw error;
 
-  const rows = (data ?? []) as RecurringCleaningPlanRow[];
-  const names = await providerNames(rows.flatMap((row) => (row.preferred_provider_id ? [row.preferred_provider_id] : [])));
-  return rows.map((row) => mapPlan(row, names));
+  return enrichPlans((data ?? []) as RecurringCleaningPlanRow[]);
 }
 
 export async function updateMyRecurringCleaningPlan(
@@ -119,9 +174,8 @@ export async function updateMyRecurringCleaningPlan(
   if (isSupabaseFeatureUnavailable(error)) throw dormantFeatureError("Recurring cleaning controls");
   if (error) throw error;
 
-  const row = data as RecurringCleaningPlanRow;
-  const names = await providerNames(row.preferred_provider_id ? [row.preferred_provider_id] : []);
-  return mapPlan(row, names);
+  const [plan] = await enrichPlans([data as RecurringCleaningPlanRow]);
+  return plan;
 }
 
 export async function resolveMyMissedVisitWithoutReschedule(
