@@ -172,7 +172,7 @@ export function RelationshipInboxScreen({ variant }: { variant: "customer" | "cs
         <p className={`text-xs font-semibold uppercase tracking-[0.16em] ${isCsp ? "text-emerald-300" : "text-[#166534]"}`}>Relationships</p>
         <h1 className="mt-2 text-2xl font-semibold">Messages</h1>
         <p className={`mt-2 text-sm leading-6 ${isCsp ? "text-white/60" : "text-[#667085]"}`}>
-          Established customer–CSP relationships can stay connected between bookings. Either person can pause, resume, or end the relationship without deleting shared history.
+          Established customer–CSP relationships can stay connected between bookings. Either person can pause or end the relationship without deleting shared history. A pause stays in place until the person who initiated it resumes it.
         </p>
       </header>
 
@@ -188,6 +188,12 @@ export function RelationshipInboxScreen({ variant }: { variant: "customer" | "cs
             const busy = busyId === row.service_relationship_id;
             const history = historyByRelationship[row.service_relationship_id] ?? [];
             const pending = pendingChange?.relationshipId === row.service_relationship_id ? pendingChange : null;
+            const currentPause = row.relationship_status === "paused"
+              ? history.find((event) => event.to_status === "paused") ?? null
+              : null;
+            const pauseOwnedByViewer = Boolean(
+              currentPause?.changed_by && currentUserId && currentPause.changed_by === currentUserId
+            );
             return (
               <div
                 key={row.service_relationship_id}
@@ -213,7 +219,7 @@ export function RelationshipInboxScreen({ variant }: { variant: "customer" | "cs
                   <MessageCircle size={18} className="shrink-0 opacity-70" />
                 </button>
 
-                <div className={`mt-4 flex flex-wrap gap-2 border-t pt-3 ${isCsp ? "border-white/10" : "border-[#E5E7EB]"}`}>
+                <div className={`mt-4 flex flex-wrap items-center gap-2 border-t pt-3 ${isCsp ? "border-white/10" : "border-[#E5E7EB]"}`}>
                   {row.relationship_status === "active" ? (
                     <button
                       type="button"
@@ -223,7 +229,7 @@ export function RelationshipInboxScreen({ variant }: { variant: "customer" | "cs
                     >
                       <Pause className="h-3.5 w-3.5" /> Pause relationship
                     </button>
-                  ) : row.relationship_status === "paused" ? (
+                  ) : row.relationship_status === "paused" && pauseOwnedByViewer ? (
                     <button
                       type="button"
                       disabled={busy}
@@ -232,6 +238,10 @@ export function RelationshipInboxScreen({ variant }: { variant: "customer" | "cs
                     >
                       <Play className="h-3.5 w-3.5" /> Resume relationship
                     </button>
+                  ) : row.relationship_status === "paused" ? (
+                    <p className={`text-xs leading-5 ${isCsp ? "text-white/50" : "text-[#667085]"}`}>
+                      {currentPause?.changed_by ? `${row.counterpart_name} paused this relationship. Only they can resume this pause.` : "This pause can only be resumed by the person who initiated it."}
+                    </p>
                   ) : null}
 
                   {row.relationship_status !== "ended" ? (
@@ -258,11 +268,15 @@ export function RelationshipInboxScreen({ variant }: { variant: "customer" | "cs
                     <p className={`mt-1 text-xs leading-5 ${isCsp ? "text-white/55" : "text-[#667085]"}`}>
                       You can add a short note for {row.counterpart_name}, or leave it blank. Any note is shared with both of you in relationship history.
                     </p>
-                    {pending.action === "end" ? (
+                    {pending.action === "pause" ? (
+                      <p className={`mt-1 text-xs leading-5 ${isCsp ? "text-white/45" : "text-[#98A2B3]"}`}>
+                        Because you are initiating this pause, only you can resume it later. {row.counterpart_name} can still end the relationship.
+                      </p>
+                    ) : (
                       <p className={`mt-1 text-xs leading-5 ${isCsp ? "text-white/45" : "text-[#98A2B3]"}`}>
                         Ending the relationship does not cancel a scheduled booking or end a recurring cleaning plan.
                       </p>
-                    ) : null}
+                    )}
                     <textarea
                       value={changeNote}
                       onChange={(event) => setChangeNote(event.target.value.slice(0, 280))}
