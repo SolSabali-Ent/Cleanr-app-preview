@@ -1,275 +1,101 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
+import { RefreshCw } from "lucide-react";
 import { supabase } from "../../lib/supabase";
-import { adminTheme } from "../../theme/adminTheme";
+import {
+  AdminEmptyState,
+  AdminNotice,
+  AdminPage,
+  AdminPageHeader,
+  AdminPrimaryButton,
+  AdminSecondaryButton,
+  AdminStatus,
+  AdminTableShell,
+  AdminTabs,
+} from "./AdminUi";
 
-type ProviderRow = {
-  id: string;
-  role: string;
-  service_radius_miles: number | null;
-};
-type JobRow = {
-  id: string;
-  booking_id?: string;
-  status: string;
-  service_type: string;
-  scheduled_start: string;
-  price_cents: number;
-  distance_meters: number;
-  address: string | { zip?: string; postal_code?: string } | null;
-};
-
-type ProviderSuggestion = {
-  provider_id: string;
-  distance_meters: number;
-  service_radius_miles: number;
-};
+type ProviderRow = { id: string; role: string; service_radius_miles: number | null };
+type JobRow = { id: string; booking_id?: string; status: string; service_type: string; scheduled_start: string; price_cents: number; distance_meters: number; address: string | { zip?: string; postal_code?: string } | null };
+type ProviderSuggestion = { provider_id: string; distance_meters: number; service_radius_miles: number };
+type View = "jobs" | "providers";
 
 export default function GeoHarness() {
   const [me, setMe] = useState<{ id: string } | null>(null);
   const [myProfile, setMyProfile] = useState<ProviderRow | null>(null);
-
   const [jobs, setJobs] = useState<JobRow[]>([]);
   const [selectedBookingId, setSelectedBookingId] = useState<string>("");
-
   const [suggestions, setSuggestions] = useState<ProviderSuggestion[]>([]);
   const [dispatchResult, setDispatchResult] = useState<string>("");
-
   const [error, setError] = useState<string>("");
-
+  const [view, setView] = useState<View>("jobs");
   const fmtMiles = (m: number) => (m / 1609.344).toFixed(2);
 
   useEffect(() => {
-    (async () => {
+    void (async () => {
       setError("");
       const { data: userData, error: userErr } = await supabase.auth.getUser();
       if (userErr) return setError(userErr.message);
       if (!userData.user) return setError("Not signed in. Sign in as CSP or admin.");
       setMe({ id: userData.user.id });
-
-      const { data: profile, error: pErr } = await supabase
-        .from("profiles")
-        .select("id, role, service_radius_miles")
-        .eq("id", userData.user.id)
-        .single();
-
+      const { data: profile, error: pErr } = await supabase.from("profiles").select("id, role, service_radius_miles").eq("id", userData.user.id).single();
       if (pErr) return setError(pErr.message);
       setMyProfile(profile as ProviderRow);
     })();
   }, []);
 
   const loadJobs = async () => {
-    setError("");
-    setDispatchResult("");
+    setError(""); setDispatchResult("");
     if (!me?.id) return setError("No user session.");
-
-    const { data, error } = await supabase.rpc("find_available_jobs_for_provider", {
-      p_provider_id: me.id,
-      p_limit: 100,
-    });
-
+    const { data, error } = await supabase.rpc("find_available_jobs_for_provider", { p_provider_id: me.id, p_limit: 100 });
     if (error) return setError(error.message);
-    setJobs((data ?? []) as JobRow[]);
+    setJobs((data ?? []) as JobRow[]); setView("jobs");
   };
 
   const loadSuggestions = async () => {
-    setError("");
-    setDispatchResult("");
+    setError(""); setDispatchResult("");
     if (!selectedBookingId) return setError("Enter a booking id.");
-
-    const { data, error } = await supabase.rpc("find_providers_for_booking", {
-      p_booking_id: selectedBookingId,
-      p_limit: 10,
-    });
-
+    const { data, error } = await supabase.rpc("find_providers_for_booking", { p_booking_id: selectedBookingId, p_limit: 10 });
     if (error) return setError(error.message);
-    setSuggestions((data ?? []) as ProviderSuggestion[]);
+    setSuggestions((data ?? []) as ProviderSuggestion[]); setView("providers");
   };
 
   const dispatch = async () => {
-    setError("");
-    setDispatchResult("");
+    setError(""); setDispatchResult("");
     if (!selectedBookingId) return setError("Enter a booking id.");
-
-    const { data, error } = await supabase.rpc("auto_dispatch_booking", {
-      p_booking_id: selectedBookingId,
-    });
-
+    if (!window.confirm("Run auto-dispatch for this booking? This invokes the real privileged assignment RPC.")) return;
+    const { data, error } = await supabase.rpc("auto_dispatch_booking", { p_booking_id: selectedBookingId });
     if (error) return setError(error.message);
-    setDispatchResult(`Assigned provider_id: ${String(data)}`);
-    await loadJobs();
-    await loadSuggestions();
+    setDispatchResult(`Assigned provider: ${String(data)}`);
+    await Promise.all([loadJobs(), loadSuggestions()]);
   };
 
-  const header = useMemo(() => {
-    if (!me) return "Geo Harness (not signed in)";
-    return `Geo Harness (user: ${me.id})`;
-  }, [me]);
-
   return (
-    <main className="mx-auto max-w-6xl">
-      <h1 className="text-2xl font-semibold" style={{ color: adminTheme.textPrimary }}>
-        {header}
-      </h1>
+    <AdminPage width="wide">
+      <AdminPageHeader
+        eyebrow="Tool"
+        title="Geo harness"
+        description="Inspect geographic eligibility and privileged dispatch behavior against real booking/provider location data."
+        meta={myProfile ? <span className="text-xs text-slate-500">Session role {myProfile.role} · radius {myProfile.service_radius_miles ?? "—"} mi</span> : undefined}
+      />
 
-      {myProfile && (
-        <div className="mt-3 mb-4 text-sm" style={{ color: adminTheme.textSecondary }}>
-          <div>
-            Role: <b>{myProfile.role}</b>
-          </div>
-          <div>
-            Radius (mi): <b>{myProfile.service_radius_miles ?? "null"}</b>
-          </div>
-          <div style={{ fontSize: 12 }}>
-            * Provider must have profiles.location set, and bookings must have bookings.location
-            set, or matching returns 0.
-          </div>
-        </div>
-      )}
+      {error ? <AdminNotice tone="danger">{error}</AdminNotice> : null}
+      {dispatchResult ? <AdminNotice tone="success">{dispatchResult}</AdminNotice> : null}
 
-      {error && (
-        <div
-          className="mb-3 rounded-lg border px-3 py-2 text-sm"
-          style={{
-            borderColor: adminTheme.danger,
-            background: "#FEF2F2",
-            color: adminTheme.danger,
-          }}
-        >
-          <b>Error:</b> {error}
-        </div>
-      )}
-
-      <div className="mb-3 flex flex-wrap gap-2">
-        <button
-          onClick={loadJobs}
-          className="h-10 rounded-md px-3 text-sm font-medium text-white"
-          style={{ backgroundColor: adminTheme.primary }}
-        >
-          Load Available Jobs Near Me
-        </button>
-
-        <input
-          value={selectedBookingId}
-          onChange={(e) => setSelectedBookingId(e.target.value)}
-          placeholder="Booking ID to inspect/dispatch"
-          className="h-10 min-w-[320px] rounded-md border px-3 text-sm"
-          style={{ borderColor: adminTheme.border, backgroundColor: adminTheme.surface }}
-        />
-        <button
-          onClick={loadSuggestions}
-          className="h-10 rounded-md px-3 text-sm font-medium text-white"
-          style={{ backgroundColor: adminTheme.primary }}
-        >
-          Find Providers For Booking
-        </button>
-        <button
-          onClick={dispatch}
-          className="h-10 rounded-md px-3 text-sm font-medium text-white"
-          style={{ backgroundColor: adminTheme.success }}
-        >
-          Auto-Dispatch Booking
-        </button>
+      <div className="flex flex-wrap gap-2 rounded-2xl border border-slate-200 bg-white p-4">
+        <AdminSecondaryButton onClick={() => void loadJobs()}><RefreshCw className="h-4 w-4" /> Available jobs near session user</AdminSecondaryButton>
+        <input value={selectedBookingId} onChange={(e) => setSelectedBookingId(e.target.value)} placeholder="Booking ID" className="min-h-10 min-w-[300px] flex-1 rounded-lg border border-slate-200 px-3 text-sm text-slate-900 outline-none focus:border-slate-400" />
+        <AdminSecondaryButton onClick={() => void loadSuggestions()}>Find eligible providers</AdminSecondaryButton>
+        <AdminPrimaryButton onClick={() => void dispatch()}>Auto-dispatch</AdminPrimaryButton>
       </div>
 
-      {dispatchResult && (
-        <div
-          className="mb-3 rounded-lg border px-3 py-2 text-sm"
-          style={{
-            borderColor: adminTheme.success,
-            background: "#F0FDF4",
-            color: adminTheme.success,
-          }}
-        >
-          {dispatchResult}
-        </div>
+      <AdminTabs value={view} onChange={setView} items={[{ value: "jobs", label: "Available jobs", count: jobs.length }, { value: "providers", label: "Provider suggestions", count: suggestions.length }]} />
+
+      {view === "jobs" ? (
+        jobs.length === 0 ? <AdminEmptyState title="No jobs loaded" description="Run the nearby-jobs query to inspect geo eligibility for the current session user." /> : <AdminTableShell><div className="grid grid-cols-[minmax(240px,1.2fr)_150px_190px_160px_100px] gap-4 border-b border-slate-200 bg-slate-50 px-5 py-3 text-[11px] font-semibold uppercase tracking-wide text-slate-500"><span>Booking</span><span>Status</span><span>When</span><span>Distance</span><span>ZIP</span></div>{jobs.map((job) => <div key={job.id} className="grid grid-cols-[minmax(240px,1.2fr)_150px_190px_160px_100px] items-center gap-4 border-b border-slate-200 px-5 py-4 text-xs last:border-b-0"><button type="button" onClick={() => setSelectedBookingId(job.id)} className="truncate text-left font-mono font-semibold text-[#0000FE] hover:underline">{job.id}</button><AdminStatus>{job.status.replaceAll("_", " ")}</AdminStatus><p className="text-slate-500">{new Date(job.scheduled_start).toLocaleString()}</p><p className="text-slate-600">{fmtMiles(job.distance_meters)} mi</p><p className="text-slate-500">{typeof job.address === "object" && job.address ? job.address.zip ?? job.address.postal_code ?? "—" : "—"}</p></div>)}</AdminTableShell>
+      ) : (
+        suggestions.length === 0 ? <AdminEmptyState title="No provider suggestions loaded" description="Enter a booking ID and run the provider-eligibility query." /> : <AdminTableShell><div className="grid grid-cols-[minmax(280px,1fr)_180px_180px] gap-4 border-b border-slate-200 bg-slate-50 px-5 py-3 text-[11px] font-semibold uppercase tracking-wide text-slate-500"><span>Provider</span><span>Distance</span><span>Service radius</span></div>{suggestions.map((suggestion) => <div key={suggestion.provider_id} className="grid grid-cols-[minmax(280px,1fr)_180px_180px] gap-4 border-b border-slate-200 px-5 py-4 text-sm last:border-b-0"><p className="font-mono text-xs text-slate-700">{suggestion.provider_id}</p><p className="text-slate-600">{fmtMiles(suggestion.distance_meters)} mi</p><p className="text-slate-600">{suggestion.service_radius_miles} mi</p></div>)}</AdminTableShell>
       )}
 
-      <h2 className="mt-6 text-lg font-semibold" style={{ color: adminTheme.textPrimary }}>
-        Available Jobs
-      </h2>
-      <div
-        className="mt-2 overflow-hidden rounded-xl border"
-        style={{ borderColor: adminTheme.border, backgroundColor: adminTheme.surface }}
-      >
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
-          <thead style={{ background: adminTheme.background }}>
-            <tr>
-              <th style={{ textAlign: "left", padding: 8 }}>Booking</th>
-              <th style={{ textAlign: "left", padding: 8 }}>Status</th>
-              <th style={{ textAlign: "left", padding: 8 }}>When</th>
-              <th style={{ textAlign: "left", padding: 8 }}>Distance</th>
-              <th style={{ textAlign: "left", padding: 8 }}>ZIP</th>
-            </tr>
-          </thead>
-          <tbody>
-            {jobs.map((j) => (
-              <tr key={j.id} style={{ borderTop: `1px solid ${adminTheme.border}` }}>
-                <td style={{ padding: 8 }}>
-                  <button
-                    onClick={() => setSelectedBookingId(j.id)}
-                    style={{ textAlign: "left", color: adminTheme.primary }}
-                  >
-                    {j.id}
-                  </button>
-                </td>
-                <td style={{ padding: 8 }}>{j.status}</td>
-                <td style={{ padding: 8 }}>{new Date(j.scheduled_start).toLocaleString()}</td>
-                <td style={{ padding: 8 }}>
-                  {Math.round(j.distance_meters)} m ({fmtMiles(j.distance_meters)} mi)
-                </td>
-                <td style={{ padding: 8 }}>
-                  {typeof j.address === "object" && j.address
-                    ? j.address?.zip ?? j.address?.postal_code ?? "—"
-                    : "—"}
-                </td>
-              </tr>
-            ))}
-            {jobs.length === 0 && (
-              <tr>
-                <td colSpan={5} style={{ padding: 12, opacity: 0.7 }}>
-                  No jobs returned.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      <h2 className="mt-6 text-lg font-semibold" style={{ color: adminTheme.textPrimary }}>
-        Provider Suggestions For Booking
-      </h2>
-      <div
-        className="mt-2 overflow-hidden rounded-xl border"
-        style={{ borderColor: adminTheme.border, backgroundColor: adminTheme.surface }}
-      >
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
-          <thead style={{ background: adminTheme.background }}>
-            <tr>
-              <th style={{ textAlign: "left", padding: 8 }}>Provider</th>
-              <th style={{ textAlign: "left", padding: 8 }}>Distance</th>
-              <th style={{ textAlign: "left", padding: 8 }}>Radius (mi)</th>
-            </tr>
-          </thead>
-          <tbody>
-            {suggestions.map((s) => (
-              <tr key={s.provider_id} style={{ borderTop: `1px solid ${adminTheme.border}` }}>
-                <td style={{ padding: 8 }}>{s.provider_id}</td>
-                <td style={{ padding: 8 }}>
-                  {Math.round(s.distance_meters)} m ({fmtMiles(s.distance_meters)} mi)
-                </td>
-                <td style={{ padding: 8 }}>{s.service_radius_miles}</td>
-              </tr>
-            ))}
-            {suggestions.length === 0 && (
-              <tr>
-                <td colSpan={3} style={{ padding: 12, opacity: 0.7 }}>
-                  No providers returned.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-    </main>
+      <details className="rounded-2xl border border-slate-200 bg-white"><summary className="cursor-pointer list-none px-5 py-4 text-sm font-semibold text-slate-950">Harness requirements</summary><p className="border-t border-slate-200 px-5 py-4 text-xs leading-5 text-slate-600">Provider profiles and bookings must both have valid location data or geo matching returns no results. Auto-dispatch invokes the real privileged assignment boundary; use it only with an intentional test booking.</p></details>
+    </AdminPage>
   );
 }

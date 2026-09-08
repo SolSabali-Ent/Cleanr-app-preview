@@ -10,6 +10,16 @@ import { AdminHouseholdMemoryAssets } from "./AdminHouseholdMemoryAssets";
 import { AdminRelationshipLifecycleMetrics } from "./AdminRelationshipLifecycleMetrics";
 import { AdminDemandSpendTransformationEvidence } from "./AdminDemandSpendTransformationEvidence";
 import { AdminTrustedHandoffFulfillmentMetrics } from "./AdminTrustedHandoffFulfillmentMetrics";
+import {
+  AdminEmptyState,
+  AdminNotice,
+  AdminPage,
+  AdminPageHeader,
+  AdminSecondaryButton,
+  AdminStatus,
+  AdminTableShell,
+  AdminTabs,
+} from "./AdminUi";
 
 type Circle = {
   circle_id: string;
@@ -32,19 +42,19 @@ type MetricRow = {
   sort_order: number;
 };
 
-const GROUP_LABELS: Record<string, string> = {
-  relationship: "Relationship",
+type MetricView = "relationship" | "collective" | "economic_agency" | "north_star" | "continuum" | "demand" | "evidence";
+
+const GROUP_LABELS: Record<Exclude<MetricView, "evidence">, string> = {
+  relationship: "Relationships",
   collective: "Collective capacity",
   economic_agency: "Economic agency",
   north_star: "North Star",
   continuum: "Continuum",
-  demand: "Collective demand",
+  demand: "Demand",
 };
 
-const GROUP_ORDER = ["relationship", "collective", "economic_agency", "north_star", "continuum", "demand"];
-
 function formatMetric(metric: MetricRow) {
-  if (metric.measurement_status !== "measured" || metric.value_numeric == null) return "Not yet measurable";
+  if (metric.measurement_status !== "measured" || metric.value_numeric == null) return "Not measurable yet";
   if (metric.unit === "percent") return `${metric.value_numeric}%`;
   if (metric.unit === "days") return `${metric.value_numeric} days`;
   return Number(metric.value_numeric).toLocaleString();
@@ -53,6 +63,7 @@ function formatMetric(metric: MetricRow) {
 export function AdminTransformationMetrics() {
   const [circles, setCircles] = useState<Circle[]>([]);
   const [scope, setScope] = useState<string>("network");
+  const [view, setView] = useState<MetricView>("relationship");
   const [metrics, setMetrics] = useState<MetricRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -83,9 +94,7 @@ export function AdminTransformationMetrics() {
     setLoading(false);
   }
 
-  useEffect(() => {
-    void Promise.all([loadCircles(), loadMetrics("network")]);
-  }, []);
+  useEffect(() => { void Promise.all([loadCircles(), loadMetrics("network")]); }, []);
 
   const grouped = useMemo(() => {
     const map = new Map<string, MetricRow[]>();
@@ -99,96 +108,107 @@ export function AdminTransformationMetrics() {
 
   const measuredCount = metrics.filter((metric) => metric.measurement_status === "measured").length;
   const gapCount = metrics.filter((metric) => metric.measurement_status === "not_yet_measurable").length;
-  const selectedCircle = circles.find((circle) => circle.circle_id === scope) ?? null;
   const scopedCircleId = scope === "network" ? null : scope;
+  const currentRows = view === "evidence" ? [] : grouped.get(view) ?? [];
 
   return (
-    <main className="space-y-6">
-      <section className="rounded-2xl border border-slate-200 bg-white p-6">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-emerald-700">Transformation metrics</p>
-            <h1 className="mt-1 text-2xl font-bold text-slate-950">Is Cleanr increasing collective capacity?</h1>
-            <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-              Evidence from durable product truth across relationships, collective value, economic agency, North Stars, Continuum participation, and repeated demand. There is no synthetic transformation score.
-            </p>
-          </div>
-          <button type="button" onClick={() => void loadMetrics()} className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700">
-            <RefreshCw size={15} /> Refresh
-          </button>
-        </div>
+    <AdminPage width="wide">
+      <AdminPageHeader
+        eyebrow="Network intelligence"
+        title="Transformation metrics"
+        description="Evidence that shows whether Cleanr is increasing relationship strength, agency, and collective capacity."
+        meta={<span className="text-xs text-slate-500">{measuredCount} measured · {gapCount} truth gap{gapCount === 1 ? "" : "s"}</span>}
+        actions={
+          <>
+            <label className="text-xs font-semibold text-slate-500">
+              Scope
+              <select
+                value={scope}
+                onChange={(event) => {
+                  const next = event.target.value;
+                  setScope(next);
+                  void loadMetrics(next);
+                }}
+                className="ml-2 min-h-10 rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-900"
+              >
+                <option value="network">Entire network</option>
+                {circles.map((circle) => <option key={circle.circle_id} value={circle.circle_id}>{circle.name}</option>)}
+              </select>
+            </label>
+            <AdminSecondaryButton onClick={() => void loadMetrics()}><RefreshCw className="h-4 w-4" /> Refresh</AdminSecondaryButton>
+          </>
+        }
+      />
 
-        <div className="mt-5 grid gap-4 md:grid-cols-[minmax(0,360px)_1fr]">
-          <label className="text-xs font-semibold text-slate-600">Scope
-            <select
-              value={scope}
-              onChange={(event) => {
-                const next = event.target.value;
-                setScope(next);
-                void loadMetrics(next);
-              }}
-              className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm font-normal text-slate-900"
-            >
-              <option value="network">Entire Cleanr network</option>
-              {circles.map((circle) => <option key={circle.circle_id} value={circle.circle_id}>{circle.name}</option>)}
-            </select>
-          </label>
-          <div className="flex flex-wrap items-end gap-3">
-            <div className="rounded-xl bg-emerald-50 px-4 py-3"><p className="text-xs font-semibold text-emerald-700">Measured now</p><p className="mt-1 text-xl font-bold text-emerald-950">{measuredCount}</p></div>
-            <div className="rounded-xl bg-amber-50 px-4 py-3"><p className="text-xs font-semibold text-amber-700">Truth gaps</p><p className="mt-1 text-xl font-bold text-amber-950">{gapCount}</p></div>
-          </div>
-        </div>
-        {selectedCircle ? <p className="mt-3 text-xs text-slate-500">Circle scope: {selectedCircle.locality_label || [selectedCircle.city, selectedCircle.region].filter(Boolean).join(", ") || selectedCircle.name}</p> : <p className="mt-3 text-xs text-slate-500">Network scope includes all durable Cleanr records, whether or not the people are currently assigned to a Circle.</p>}
-      </section>
+      {error ? <AdminNotice tone="danger">{error}</AdminNotice> : null}
 
-      {error ? <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
+      <AdminTabs
+        value={view}
+        onChange={setView}
+        items={[
+          { value: "relationship", label: "Relationships", count: (grouped.get("relationship") ?? []).length },
+          { value: "collective", label: "Collective", count: (grouped.get("collective") ?? []).length },
+          { value: "economic_agency", label: "Agency", count: (grouped.get("economic_agency") ?? []).length },
+          { value: "north_star", label: "North Star", count: (grouped.get("north_star") ?? []).length },
+          { value: "continuum", label: "Continuum", count: (grouped.get("continuum") ?? []).length },
+          { value: "demand", label: "Demand", count: (grouped.get("demand") ?? []).length },
+          { value: "evidence", label: "Deep dives" },
+        ]}
+      />
 
-      {loading ? <section className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-500">Loading transformation evidence…</section> : GROUP_ORDER.map((group) => {
-        const rows = grouped.get(group) ?? [];
-        if (rows.length === 0) return null;
-        return (
-          <section key={group} className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-            <div className="border-b border-slate-200 px-5 py-4">
-              <h2 className="font-semibold text-slate-950">{GROUP_LABELS[group] ?? group}</h2>
+      {view !== "evidence" ? (
+        loading ? (
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 text-sm text-slate-500">Loading metrics…</div>
+        ) : currentRows.length === 0 ? (
+          <AdminEmptyState title={`No ${GROUP_LABELS[view]} metrics in this scope`} />
+        ) : (
+          <AdminTableShell>
+            <div className="grid grid-cols-[minmax(260px,1.1fr)_180px_150px_minmax(320px,1.5fr)] gap-4 border-b border-slate-200 bg-slate-50 px-5 py-3 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+              <span>Metric</span><span>Value</span><span>Status</span><span>What it means</span>
             </div>
-            <div className="grid gap-px bg-slate-100 md:grid-cols-2 xl:grid-cols-3">
-              {rows.map((metric) => {
-                const measured = metric.measurement_status === "measured";
-                return (
-                  <div key={metric.metric_key} className="bg-white p-5">
-                    <div className="flex items-start justify-between gap-3">
-                      <p className="text-sm font-semibold text-slate-900">{metric.label}</p>
-                      <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${measured ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>
-                        {measured ? "Measured" : "Truth gap"}
-                      </span>
-                    </div>
-                    <p className={`mt-3 font-bold ${measured ? "text-2xl text-slate-950" : "text-sm text-amber-800"}`}>{formatMetric(metric)}</p>
-                    {measured && metric.numerator != null && metric.denominator != null ? <p className="mt-1 text-xs text-slate-500">{metric.numerator} / {metric.denominator}</p> : null}
-                    <p className="mt-3 text-xs leading-5 text-slate-500">{metric.detail}</p>
+            {currentRows.map((metric) => {
+              const measured = metric.measurement_status === "measured";
+              return (
+                <div key={metric.metric_key} className="grid grid-cols-[minmax(260px,1.1fr)_180px_150px_minmax(320px,1.5fr)] items-start gap-4 border-b border-slate-200 px-5 py-4 last:border-b-0">
+                  <p className="text-sm font-semibold text-slate-950">{metric.label}</p>
+                  <div>
+                    <p className={`font-semibold ${measured ? "text-xl text-slate-950" : "text-sm text-amber-700"}`}>{formatMetric(metric)}</p>
+                    {measured && metric.numerator != null && metric.denominator != null ? <p className="mt-1 text-[11px] text-slate-500">{metric.numerator} / {metric.denominator}</p> : null}
                   </div>
-                );
-              })}
-            </div>
-          </section>
-        );
-      })}
+                  <AdminStatus tone={measured ? "success" : "warning"}>{measured ? "Measured" : "Truth gap"}</AdminStatus>
+                  <p className="text-xs leading-5 text-slate-600">{metric.detail}</p>
+                </div>
+              );
+            })}
+          </AdminTableShell>
+        )
+      ) : (
+        <div className="space-y-3">
+          {[
+            ["Household memory", <AdminHouseholdMemoryAssets key="memory" circleId={scopedCircleId} />],
+            ["Relationship lifecycle", <AdminRelationshipLifecycleMetrics key="lifecycle" circleId={scopedCircleId} />],
+            ["Trusted handoffs", <AdminTrustedHandoffFulfillmentMetrics key="handoffs" circleId={scopedCircleId} />],
+            ["Relationship recovery", <AdminRelationshipRecoveryMetrics key="recovery" circleId={scopedCircleId} />],
+            ["Economic agency", <AdminEconomicAgencyActivity key="agency" circleId={scopedCircleId} />],
+            ["Fee policy economics", <AdminFeePolicyEconomics key="fees" circleId={scopedCircleId} />],
+            ["Demand and spend evidence", <AdminDemandSpendTransformationEvidence key="demand" circleId={scopedCircleId} />],
+            ["Collective circularity", <AdminCollectiveCircularity key="circularity" circleId={scopedCircleId} />],
+            ["Post-cleaning Continuum", <AdminPostCleaningContinuum key="continuum" circleId={scopedCircleId} />],
+          ].map(([label, content]) => (
+            <details key={String(label)} className="rounded-2xl border border-slate-200 bg-white">
+              <summary className="cursor-pointer list-none px-5 py-4 text-sm font-semibold text-slate-950">{label}</summary>
+              <div className="border-t border-slate-200 p-4">{content}</div>
+            </details>
+          ))}
+        </div>
+      )}
 
-      <AdminHouseholdMemoryAssets circleId={scopedCircleId} />
-      <AdminRelationshipLifecycleMetrics circleId={scopedCircleId} />
-      <AdminTrustedHandoffFulfillmentMetrics circleId={scopedCircleId} />
-      <AdminRelationshipRecoveryMetrics circleId={scopedCircleId} />
-      <AdminEconomicAgencyActivity circleId={scopedCircleId} />
-      <AdminFeePolicyEconomics circleId={scopedCircleId} />
-      <AdminDemandSpendTransformationEvidence circleId={scopedCircleId} />
-      <AdminCollectiveCircularity circleId={scopedCircleId} />
-      <AdminPostCleaningContinuum circleId={scopedCircleId} />
-
-      <section className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-600">Measurement discipline</p>
-        <p className="mt-2 text-sm leading-6 text-slate-600">
-          A zero means Cleanr can measure the metric and currently has zero qualifying evidence. “Not yet measurable” means the underlying durable product truth does not exist strongly enough to make the claim. Those are intentionally different states.
+      <details className="rounded-2xl border border-slate-200 bg-white">
+        <summary className="cursor-pointer list-none px-5 py-4 text-sm font-semibold text-slate-950">Measurement rules</summary>
+        <p className="border-t border-slate-200 px-5 py-4 text-xs leading-5 text-slate-600">
+          Zero means Cleanr can measure the metric and currently has zero qualifying evidence. “Not measurable yet” means the underlying durable product truth is not strong enough to make the claim. Cleanr does not create a synthetic transformation score.
         </p>
-      </section>
-    </main>
+      </details>
+    </AdminPage>
   );
 }

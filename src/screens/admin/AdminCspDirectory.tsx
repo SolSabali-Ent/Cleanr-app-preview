@@ -1,9 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
-import { ExternalLink, Search, ShieldCheck, Star, UsersRound } from "lucide-react";
+import { ExternalLink, ShieldCheck, Star } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { getSignedProfilePhotoUrl } from "../../lib/profilePhotoApi";
 import { supabase } from "../../lib/supabase";
-import { adminTheme } from "../../theme/adminTheme";
+import {
+  AdminEmptyState,
+  AdminNotice,
+  AdminPage,
+  AdminPageHeader,
+  AdminSearchField,
+  AdminStatus,
+  AdminTableShell,
+  AdminTabs,
+} from "./AdminUi";
 
 type CspDirectoryRow = {
   id: string;
@@ -41,11 +50,11 @@ type DirectoryFilter = "all" | "marketplace" | "pending" | "approved_not_active"
 
 const FILTERS: Array<{ key: DirectoryFilter; label: string }> = [
   { key: "all", label: "All" },
-  { key: "marketplace", label: "Marketplace Active" },
+  { key: "marketplace", label: "Marketplace" },
   { key: "pending", label: "Pending" },
-  { key: "approved_not_active", label: "Approved / Not Active" },
+  { key: "approved_not_active", label: "Approved / inactive" },
   { key: "paused", label: "Paused" },
-  { key: "former", label: "No Longer Cleaning" },
+  { key: "former", label: "Former" },
 ];
 
 function displayName(row: CspDirectoryRow) {
@@ -53,14 +62,14 @@ function displayName(row: CspDirectoryRow) {
 }
 
 function servicePracticeLabel(state: string | null) {
-  if (state === "active_cleaning_practice") return "Active cleaning practice";
-  if (state === "temporarily_not_taking_cleaning_work") return "Not taking cleaning work";
+  if (state === "active_cleaning_practice") return "Active practice";
+  if (state === "temporarily_not_taking_cleaning_work") return "Paused";
   if (state === "no_longer_taking_cleaning_work") return "No longer cleaning";
-  return "Practice state unknown";
+  return "Practice unknown";
 }
 
 function applicationLabel(value: string | null) {
-  if (!value) return "No application status";
+  if (!value) return "No application";
   return value.replaceAll("_", " ");
 }
 
@@ -75,6 +84,10 @@ function matchesFilter(row: CspDirectoryRow, filter: DirectoryFilter) {
   if (filter === "approved_not_active") return (row.application_status ?? "").toLowerCase() === "approved" && !row.marketplace_access;
   if (filter === "paused") return row.service_practice_state === "temporarily_not_taking_cleaning_work";
   return row.service_practice_state === "no_longer_taking_cleaning_work";
+}
+
+function trustCleared(value: string | null) {
+  return ["clear", "approved", "verified", "complete", "completed"].includes((value ?? "").toLowerCase());
 }
 
 export function AdminCspDirectory() {
@@ -110,164 +123,106 @@ export function AdminCspDirectory() {
           .map(async (row) => [row.id, await getSignedProfilePhotoUrl(row.profile_photo_path)] as const)
       );
       if (!active) return;
-      setPhotoUrls(
-        Object.fromEntries(photoEntries.filter((entry): entry is readonly [string, string] => Boolean(entry[1])))
-      );
+      setPhotoUrls(Object.fromEntries(photoEntries.filter((entry): entry is readonly [string, string] => Boolean(entry[1]))));
     }
     void load();
-    return () => {
-      active = false;
-    };
+    return () => { active = false; };
   }, []);
 
-  const counts = useMemo(() => {
-    return Object.fromEntries(
-      FILTERS.map(({ key }) => [key, rows.filter((row) => matchesFilter(row, key)).length])
-    ) as Record<DirectoryFilter, number>;
-  }, [rows]);
+  const counts = useMemo(() => Object.fromEntries(FILTERS.map(({ key }) => [key, rows.filter((row) => matchesFilter(row, key)).length])) as Record<DirectoryFilter, number>, [rows]);
 
   const visibleRows = useMemo(() => {
     const needle = search.trim().toLowerCase();
     return rows.filter((row) => {
       if (!matchesFilter(row, filter)) return false;
       if (!needle) return true;
-      const haystack = [
-        displayName(row),
-        row.full_name,
-        row.first_name,
-        row.last_name,
-        row.preferred_name,
-        row.zip_code,
-        ...(row.service_area_labels ?? []),
-        ...(row.languages ?? []),
-        ...(row.specialties ?? []),
-      ]
+      return [displayName(row), row.full_name, row.first_name, row.last_name, row.preferred_name, row.zip_code, ...(row.service_area_labels ?? []), ...(row.languages ?? []), ...(row.specialties ?? [])]
         .filter(Boolean)
         .join(" ")
-        .toLowerCase();
-      return haystack.includes(needle);
+        .toLowerCase()
+        .includes(needle);
     });
   }, [rows, filter, search]);
 
   return (
-    <main className="mx-auto max-w-[1500px]">
-      <header className="mb-6 flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.14em]" style={{ color: adminTheme.primary }}>Cleanr ecosystem</p>
-          <h1 className="mt-1 text-2xl font-semibold" style={{ color: adminTheme.textPrimary }}>CSP Directory</h1>
-          <p className="mt-1 max-w-3xl text-sm leading-6" style={{ color: adminTheme.textSecondary }}>
-            Read-only organizational roster of every CSP in Cleanr. Marketplace visibility is shown as a status, not used to remove people from this directory.
-          </p>
-        </div>
-        <div className="rounded-xl border px-4 py-3 text-right" style={{ borderColor: adminTheme.border, backgroundColor: adminTheme.card }}>
-          <p className="text-2xl font-semibold" style={{ color: adminTheme.textPrimary }}>{rows.length}</p>
-          <p className="text-xs" style={{ color: adminTheme.textSecondary }}>CSPs in ecosystem</p>
-        </div>
-      </header>
+    <AdminPage width="wide">
+      <AdminPageHeader
+        eyebrow="People"
+        title="CSP directory"
+        description="Every CSP in the Cleanr ecosystem, regardless of current marketplace visibility."
+        meta={<span className="text-xs text-slate-500">{rows.length} CSP{rows.length === 1 ? "" : "s"}</span>}
+      />
 
-      <div className="mb-5 rounded-2xl border p-4" style={{ borderColor: adminTheme.border, backgroundColor: adminTheme.card }}>
-        <div className="flex flex-wrap gap-2">
-          {FILTERS.map(({ key, label }) => {
-            const active = filter === key;
-            return (
-              <button
-                key={key}
-                type="button"
-                onClick={() => setFilter(key)}
-                className="rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors"
-                style={{
-                  borderColor: active ? adminTheme.primary : adminTheme.border,
-                  backgroundColor: active ? adminTheme.primary : adminTheme.surface,
-                  color: active ? "#fff" : adminTheme.textPrimary,
-                }}
-              >
-                {label} · {counts[key] ?? 0}
-              </button>
-            );
-          })}
-        </div>
-        <label className="mt-4 flex max-w-xl items-center gap-2 rounded-xl border px-3" style={{ borderColor: adminTheme.border, backgroundColor: adminTheme.surface }}>
-          <Search className="h-4 w-4 shrink-0" style={{ color: adminTheme.textSecondary }} />
-          <input
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search name, ZIP, service area, language, specialty…"
-            className="min-w-0 flex-1 bg-transparent py-2.5 text-sm outline-none"
-            style={{ color: adminTheme.textPrimary }}
-          />
-        </label>
+      {error ? <AdminNotice tone="danger">{error}</AdminNotice> : null}
+
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <AdminTabs
+          value={filter}
+          onChange={setFilter}
+          items={FILTERS.map(({ key, label }) => ({ value: key, label, count: counts[key] ?? 0 }))}
+        />
+        <AdminSearchField value={search} onChange={setSearch} placeholder="Search name, ZIP, area, language, specialty…" className="w-full max-w-md" />
       </div>
 
-      {error ? (
-        <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">{error}</div>
-      ) : loading ? (
-        <p className="text-sm" style={{ color: adminTheme.textSecondary }}>Loading CSP directory…</p>
+      {loading ? (
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 text-sm text-slate-500">Loading CSP directory…</div>
       ) : visibleRows.length === 0 ? (
-        <div className="rounded-xl border p-6 text-center text-sm" style={{ borderColor: adminTheme.border, backgroundColor: adminTheme.card, color: adminTheme.textSecondary }}>
-          No CSPs match this view.
-        </div>
+        <AdminEmptyState title="No CSPs match this view" />
       ) : (
-        <div className="overflow-hidden rounded-2xl border" style={{ borderColor: adminTheme.border, backgroundColor: adminTheme.card }}>
-          <div className="grid grid-cols-[minmax(280px,1.5fr)_minmax(180px,.9fr)_minmax(260px,1.15fr)_minmax(180px,.8fr)_150px] gap-4 border-b px-5 py-3 text-[11px] font-semibold uppercase tracking-wide" style={{ borderColor: adminTheme.border, color: adminTheme.textSecondary, backgroundColor: adminTheme.surface }}>
-            <span>CSP</span><span>Status</span><span>Relationship / service</span><span>Trust / profile</span><span className="text-right">Preview</span>
+        <AdminTableShell>
+          <div className="grid grid-cols-[minmax(270px,1.4fr)_180px_minmax(250px,1.1fr)_210px_150px] gap-4 border-b border-slate-200 bg-slate-50 px-5 py-3 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+            <span>CSP</span><span>Status</span><span>Service relationships</span><span>Trust</span><span className="text-right">Preview</span>
           </div>
           {visibleRows.map((row) => {
             const name = displayName(row);
             const initial = name.charAt(0).toUpperCase();
-            const activeMarketplace = row.marketplace_access;
-            const backgroundChecked = ["clear", "approved", "verified", "complete", "completed"].includes((row.background_check_status ?? "").toLowerCase());
-            const identityVerified = ["verified", "approved", "clear", "complete", "completed"].includes((row.identity_status ?? "").toLowerCase());
+            const identityVerified = trustCleared(row.identity_status);
+            const backgroundChecked = trustCleared(row.background_check_status);
             return (
-              <div key={row.id} className="grid grid-cols-[minmax(280px,1.5fr)_minmax(180px,.9fr)_minmax(260px,1.15fr)_minmax(180px,.8fr)_150px] items-center gap-4 border-b px-5 py-4 last:border-b-0" style={{ borderColor: adminTheme.border }}>
+              <div key={row.id} className="grid grid-cols-[minmax(270px,1.4fr)_180px_minmax(250px,1.1fr)_210px_150px] items-center gap-4 border-b border-slate-200 px-5 py-4 last:border-b-0">
                 <div className="flex min-w-0 items-center gap-3">
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full border bg-slate-100 text-sm font-semibold text-slate-600" style={{ borderColor: adminTheme.border }}>
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full border border-slate-200 bg-slate-100 text-xs font-semibold text-slate-600">
                     {photoUrls[row.id] ? <img src={photoUrls[row.id]} alt="" className="h-full w-full object-cover" /> : initial}
                   </div>
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold" style={{ color: adminTheme.textPrimary }}>{name}</p>
-                    <p className="mt-0.5 truncate text-xs" style={{ color: adminTheme.textSecondary }}>
-                      {row.zip_code ? `ZIP ${row.zip_code}` : "No ZIP"}{row.service_radius_miles ? ` · ${row.service_radius_miles} mi radius` : ""}
-                    </p>
-                    {row.service_area_labels?.length ? <p className="mt-1 truncate text-[11px]" style={{ color: adminTheme.textSecondary }}>{row.service_area_labels.join(" · ")}</p> : null}
+                    <p className="truncate text-sm font-semibold text-slate-950">{name}</p>
+                    <p className="mt-0.5 truncate text-xs text-slate-500">{row.zip_code ? `ZIP ${row.zip_code}` : "No ZIP"}{row.service_radius_miles ? ` · ${row.service_radius_miles} mi` : ""}</p>
+                    {row.specialties?.length ? <p className="mt-1 truncate text-[11px] text-slate-400">{row.specialties.slice(0, 3).join(" · ")}</p> : null}
                   </div>
                 </div>
 
                 <div className="space-y-1.5">
-                  <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${activeMarketplace ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-700"}`}>
-                    {activeMarketplace ? "Marketplace active" : "Not marketplace active"}
-                  </span>
-                  <p className="text-xs capitalize" style={{ color: adminTheme.textSecondary }}>{applicationLabel(row.application_status)}</p>
-                  <p className="text-[11px]" style={{ color: adminTheme.textSecondary }}>{servicePracticeLabel(row.service_practice_state)}</p>
+                  <AdminStatus tone={row.marketplace_access ? "success" : isPending(row) ? "warning" : "neutral"}>{row.marketplace_access ? "Marketplace" : applicationLabel(row.application_status)}</AdminStatus>
+                  <p className="text-[11px] text-slate-500">{servicePracticeLabel(row.service_practice_state)}</p>
                 </div>
 
-                <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
-                  <div><p className="font-semibold" style={{ color: adminTheme.textPrimary }}>{row.completed_jobs}</p><p style={{ color: adminTheme.textSecondary }}>completed cleans</p></div>
-                  <div><p className="font-semibold" style={{ color: adminTheme.textPrimary }}>{row.repeat_household_count}</p><p style={{ color: adminTheme.textSecondary }}>repeat households</p></div>
-                  <div><p className="font-semibold" style={{ color: adminTheme.textPrimary }}>{row.existing_client_relationship_count}</p><p style={{ color: adminTheme.textSecondary }}>existing-client relationships</p></div>
-                  <div><p className="inline-flex items-center gap-1 font-semibold" style={{ color: adminTheme.textPrimary }}><Star className="h-3.5 w-3.5" />{row.avg_rating ?? "—"}</p><p style={{ color: adminTheme.textSecondary }}>{row.review_count} reviews</p></div>
+                <div className="grid grid-cols-3 gap-3 text-xs">
+                  <div><p className="font-semibold text-slate-950">{row.completed_jobs}</p><p className="mt-0.5 text-[11px] text-slate-500">Cleans</p></div>
+                  <div><p className="font-semibold text-slate-950">{row.repeat_household_count}</p><p className="mt-0.5 text-[11px] text-slate-500">Repeat homes</p></div>
+                  <div><p className="font-semibold text-slate-950">{row.existing_client_relationship_count}</p><p className="mt-0.5 text-[11px] text-slate-500">Existing clients</p></div>
+                  <div className="col-span-3 flex items-center gap-1 text-[11px] text-slate-500"><Star className="h-3 w-3" /> {row.avg_rating ?? "—"} · {row.review_count} reviews</div>
                 </div>
 
-                <div className="space-y-2 text-xs" style={{ color: adminTheme.textSecondary }}>
-                  <p className="flex items-center gap-1.5"><ShieldCheck className="h-3.5 w-3.5" />{identityVerified ? "Identity verified" : "Identity not verified"}</p>
-                  <p className="flex items-center gap-1.5"><ShieldCheck className="h-3.5 w-3.5" />{backgroundChecked ? "Background checked" : "Background not cleared"}</p>
-                  <p className="flex items-center gap-1.5"><UsersRound className="h-3.5 w-3.5" />{row.profile_photo_path ? "Profile photo" : "No profile photo"}</p>
+                <div className="space-y-1.5 text-xs text-slate-600">
+                  <p className="flex items-center gap-1.5"><ShieldCheck className="h-3.5 w-3.5" /> {identityVerified ? "Identity verified" : "Identity pending"}</p>
+                  <p className="flex items-center gap-1.5"><ShieldCheck className="h-3.5 w-3.5" /> {backgroundChecked ? "Background clear" : "Background pending"}</p>
+                  <p className="text-[11px] text-slate-500">{row.stripe_connect_ready ? "Payout ready" : "Payout setup needed"}</p>
                 </div>
 
                 <div className="text-right">
                   <button
                     type="button"
                     onClick={() => navigate(`/admin/device/customer/provider/${row.id}`)}
-                    className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-semibold"
-                    style={{ borderColor: adminTheme.border, backgroundColor: adminTheme.surface, color: adminTheme.textPrimary }}
+                    className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
                   >
-                    View as customer <ExternalLink className="h-3.5 w-3.5" />
+                    Customer view <ExternalLink className="h-3.5 w-3.5" />
                   </button>
                 </div>
               </div>
             );
           })}
-        </div>
+        </AdminTableShell>
       )}
-    </main>
+    </AdminPage>
   );
 }

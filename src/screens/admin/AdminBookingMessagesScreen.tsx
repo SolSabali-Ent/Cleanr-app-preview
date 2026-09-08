@@ -1,19 +1,24 @@
 import { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { ArrowLeft } from "lucide-react";
+import { useNavigate, useParams } from "react-router-dom";
 import {
   getBookingThreadByBookingId,
   listBookingMessages,
   type BookingMessage,
   type BookingMessageThread,
 } from "../../lib/messagingApi";
-import { adminTheme } from "../../theme/adminTheme";
+import {
+  AdminEmptyState,
+  AdminNotice,
+  AdminPage,
+  AdminPageHeader,
+  AdminSecondaryButton,
+  AdminStatus,
+} from "./AdminUi";
 
 function formatTime(iso: string) {
   try {
-    return new Date(iso).toLocaleString(undefined, {
-      dateStyle: "short",
-      timeStyle: "short",
-    });
+    return new Date(iso).toLocaleString(undefined, { dateStyle: "short", timeStyle: "short" });
   } catch {
     return iso;
   }
@@ -37,157 +42,72 @@ export function AdminBookingMessagesScreen() {
     setLoading(true);
     setError(null);
     getBookingThreadByBookingId(bookingId)
-      .then((t) => {
-        if (!mounted) return;
-        setThread(t ?? null);
-        if (!t) return [];
-        return listBookingMessages(t.id);
+      .then((nextThread) => {
+        if (!mounted) return [];
+        setThread(nextThread ?? null);
+        return nextThread ? listBookingMessages(nextThread.id) : [];
       })
       .then((list) => {
-        if (!mounted) return;
-        setMessages(list ?? []);
+        if (mounted) setMessages(list ?? []);
       })
       .catch((err) => {
         if (!mounted) return;
-        setError(err?.message ?? "Failed to load conversation");
+        setError(err instanceof Error ? err.message : "Failed to load conversation");
         setThread(null);
         setMessages([]);
       })
       .finally(() => {
         if (mounted) setLoading(false);
       });
-    return () => {
-      mounted = false;
-    };
+    return () => { mounted = false; };
   }, [bookingId]);
 
-  if (!bookingId) {
-    return (
-      <div style={{ color: adminTheme.textPrimary }}>
-        <button
-          type="button"
-          onClick={() => navigate("/admin/ops")}
-          className="text-sm underline"
-          style={{ color: adminTheme.primary }}
-        >
-          ← Back to Operations
-        </button>
-        <p className="mt-2 text-sm" style={{ color: adminTheme.textSecondary }}>
-          Missing booking ID.
-        </p>
-      </div>
-    );
-  }
-
-  if (loading) {
-    return (
-      <div style={{ color: adminTheme.textPrimary }}>
-        <button
-          type="button"
-          onClick={() => navigate("/admin/ops")}
-          className="text-sm underline"
-          style={{ color: adminTheme.primary }}
-        >
-          ← Back to Operations
-        </button>
-        <p className="mt-4 text-sm" style={{ color: adminTheme.textSecondary }}>
-          Loading conversation…
-        </p>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div style={{ color: adminTheme.textPrimary }}>
-        <button
-          type="button"
-          onClick={() => navigate("/admin/ops")}
-          className="text-sm underline"
-          style={{ color: adminTheme.primary }}
-        >
-          ← Back to Operations
-        </button>
-        <p className="mt-2 text-sm" style={{ color: adminTheme.danger }}>
-          {error}
-        </p>
-      </div>
-    );
-  }
-
-  if (thread === null || thread === undefined) {
-    return (
-      <div style={{ color: adminTheme.textPrimary }}>
-        <button
-          type="button"
-          onClick={() => navigate("/admin/ops")}
-          className="text-sm underline"
-          style={{ color: adminTheme.primary }}
-        >
-          ← Back to Operations
-        </button>
-        <h1 className="mt-4 text-xl font-semibold">Booking conversation</h1>
-        <p className="mt-2 text-sm" style={{ color: adminTheme.textSecondary }}>
-          Booking: {bookingId}
-        </p>
-        <p className="mt-4 text-sm" style={{ color: adminTheme.textSecondary }}>
-          No conversation yet for this booking.
-        </p>
-      </div>
-    );
-  }
-
   return (
-    <div style={{ color: adminTheme.textPrimary }}>
-      <button
-        type="button"
-        onClick={() => navigate("/admin/ops")}
-        className="text-sm underline"
-        style={{ color: adminTheme.primary }}
-      >
-        ← Back to Operations
-      </button>
-      <h1 className="mt-4 text-xl font-semibold">Booking conversation</h1>
-      <p className="mt-1 text-sm" style={{ color: adminTheme.textSecondary }}>
-        Booking: {bookingId} · Read-only
-      </p>
+    <AdminPage width="standard">
+      <AdminPageHeader
+        eyebrow="Booking inspection"
+        title="Conversation"
+        description="Read-only booking communication shown in chronological order."
+        meta={bookingId ? <span className="font-mono text-xs text-slate-500">Booking {bookingId}</span> : undefined}
+        actions={
+          <AdminSecondaryButton onClick={() => navigate("/admin/ops")}>
+            <ArrowLeft className="h-4 w-4" /> Operations
+          </AdminSecondaryButton>
+        }
+      />
 
-      <div
-        className="mt-4 space-y-3 rounded-xl border p-4"
-        style={{ borderColor: adminTheme.border, backgroundColor: adminTheme.card }}
-      >
-        {messages.length === 0 ? (
-          <p className="text-sm" style={{ color: adminTheme.textSecondary }}>
-            No messages in this thread yet.
-          </p>
-        ) : (
-          messages.map((m) => (
-            <div
-              key={m.id}
-              className="rounded-lg border p-3"
-              style={{
-                borderColor: adminTheme.border,
-                backgroundColor: adminTheme.surface,
-              }}
-            >
-              <div className="flex items-center justify-between gap-2">
-                <span
-                  className="text-xs font-medium capitalize"
-                  style={{ color: adminTheme.primary }}
-                >
-                  {m.sender_role}
-                </span>
-                <span className="text-xs" style={{ color: adminTheme.textSecondary }}>
-                  {formatTime(m.created_at)}
-                </span>
-              </div>
-              <p className="mt-1 whitespace-pre-wrap break-words text-sm">
-                {m.body}
-              </p>
-            </div>
-          ))
-        )}
-      </div>
-    </div>
+      {error ? <AdminNotice tone="danger">{error}</AdminNotice> : null}
+
+      {loading ? (
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 text-sm text-slate-500">Loading conversation…</div>
+      ) : !bookingId ? (
+        <AdminEmptyState title="Missing booking ID" />
+      ) : thread === null || thread === undefined ? (
+        <AdminEmptyState title="No conversation yet" description="This booking does not have a message thread." />
+      ) : messages.length === 0 ? (
+        <AdminEmptyState title="No messages yet" description="The thread exists, but no messages have been sent." />
+      ) : (
+        <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+          <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-5 py-3">
+            <span className="text-xs font-semibold text-slate-600">{messages.length} message{messages.length === 1 ? "" : "s"}</span>
+            <AdminStatus>Read-only</AdminStatus>
+          </div>
+          <div className="divide-y divide-slate-200">
+            {messages.map((message) => (
+              <article key={message.id} className="grid gap-3 px-5 py-4 md:grid-cols-[130px_minmax(0,1fr)_170px] md:items-start">
+                <div><AdminStatus tone={message.sender_role === "customer" ? "info" : "neutral"}>{message.sender_role}</AdminStatus></div>
+                <p className="whitespace-pre-wrap break-words text-sm leading-6 text-slate-800">{message.body}</p>
+                <time className="text-xs text-slate-500 md:text-right">{formatTime(message.created_at)}</time>
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
+
+      <details className="rounded-2xl border border-slate-200 bg-white">
+        <summary className="cursor-pointer list-none px-5 py-4 text-sm font-semibold text-slate-950">Inspection boundary</summary>
+        <p className="border-t border-slate-200 px-5 py-4 text-xs leading-5 text-slate-600">This view is for context and audit. It does not let admin speak as the customer or CSP and does not create a parallel messaging path.</p>
+      </details>
+    </AdminPage>
   );
 }

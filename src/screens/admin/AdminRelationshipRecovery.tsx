@@ -1,10 +1,22 @@
 import { useEffect, useMemo, useState } from "react";
 import { RefreshCw } from "lucide-react";
 import { supabase } from "../../lib/supabase";
+import {
+  AdminEmptyState,
+  AdminNotice,
+  AdminPage,
+  AdminPageHeader,
+  AdminPrimaryButton,
+  AdminSecondaryButton,
+  AdminStatus,
+  AdminTableShell,
+  AdminTabs,
+} from "./AdminUi";
 
 type Circle = { circle_id: string; name: string; locality_label: string | null; city: string | null; region: string | null };
 type Candidate = { trigger_type: string; trigger_id: string; trigger_occurred_at: string; booking_id: string | null; customer_id: string; provider_id: string; signal_label: string; already_opened: boolean };
 type RecoveryCase = { case_id: string; service_relationship_id: string; customer_id: string; provider_id: string; booking_id: string | null; trigger_type: string; trigger_occurred_at: string; status: string; outcome: string | null; outcome_evidence: string | null; created_at: string; updated_at: string; resolved_at: string | null };
+type View = "signals" | "active" | "resolved";
 
 function humanize(value: string | null | undefined) {
   if (!value) return "—";
@@ -19,6 +31,7 @@ function dateLabel(value: string | null | undefined) {
 export function AdminRelationshipRecovery() {
   const [circles, setCircles] = useState<Circle[]>([]);
   const [scope, setScope] = useState("network");
+  const [view, setView] = useState<View>("signals");
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [cases, setCases] = useState<RecoveryCase[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
@@ -56,6 +69,7 @@ export function AdminRelationshipRecovery() {
     });
     setBusy(null);
     if (rpcError) { setError(rpcError.message); return; }
+    setView("active");
     await load();
   }
 
@@ -92,57 +106,123 @@ export function AdminRelationshipRecovery() {
   }
 
   return (
-    <main className="space-y-6">
-      <section className="rounded-2xl border border-slate-200 bg-white p-6">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-emerald-700">Relationship recovery</p>
-            <h1 className="mt-1 text-2xl font-bold text-slate-950">Repair truth after real friction</h1>
-            <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">Open recovery cases only from a customer dispute or a 1–2 star review. A future booking never auto-means the relationship was repaired. Terminal outcomes require an explicit evidence basis.</p>
+    <AdminPage width="wide">
+      <AdminPageHeader
+        eyebrow="Relationship health"
+        title="Recovery"
+        description="Track friction signals and document what actually happened after a recovery effort."
+        actions={
+          <>
+            <label className="text-xs font-semibold text-slate-500">
+              Scope
+              <select
+                value={scope}
+                onChange={(event) => { setScope(event.target.value); void load(event.target.value); }}
+                className="ml-2 min-h-10 rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-900"
+              >
+                <option value="network">Entire network</option>
+                {circles.map((circle) => <option key={circle.circle_id} value={circle.circle_id}>{circle.name}</option>)}
+              </select>
+            </label>
+            <AdminSecondaryButton onClick={() => void load()}><RefreshCw className="h-4 w-4" /> Refresh</AdminSecondaryButton>
+          </>
+        }
+      />
+
+      {error ? <AdminNotice tone="danger">{error}</AdminNotice> : null}
+
+      <AdminTabs
+        value={view}
+        onChange={setView}
+        items={[
+          { value: "signals", label: "Signals", count: unopened.length },
+          { value: "active", label: "Active", count: activeCases.length },
+          { value: "resolved", label: "Resolved", count: resolvedCases.length },
+        ]}
+      />
+
+      {view === "signals" ? (
+        unopened.length === 0 ? (
+          <AdminEmptyState title="No unopened recovery signals" description="Qualifying disputes and low reviews will appear here when a relationship may need attention." />
+        ) : (
+          <AdminTableShell>
+            <div className="grid grid-cols-[minmax(260px,1.2fr)_180px_180px_180px] gap-4 border-b border-slate-200 bg-slate-50 px-5 py-3 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+              <span>Signal</span><span>Triggered</span><span>Booking</span><span className="text-right">Action</span>
+            </div>
+            {unopened.map((candidate) => (
+              <div key={`${candidate.trigger_type}:${candidate.trigger_id}`} className="grid grid-cols-[minmax(260px,1.2fr)_180px_180px_180px] items-center gap-4 border-b border-slate-200 px-5 py-4 last:border-b-0">
+                <div>
+                  <p className="text-sm font-semibold text-slate-950">{candidate.signal_label}</p>
+                  <p className="mt-1 text-xs text-slate-500">{humanize(candidate.trigger_type)}</p>
+                </div>
+                <p className="text-xs text-slate-500">{dateLabel(candidate.trigger_occurred_at)}</p>
+                <p className="font-mono text-xs text-slate-500">{candidate.booking_id ? `…${candidate.booking_id.slice(-8)}` : "—"}</p>
+                <div className="text-right"><AdminPrimaryButton disabled={busy === candidate.trigger_id} onClick={() => void openCase(candidate)}>Open case</AdminPrimaryButton></div>
+              </div>
+            ))}
+          </AdminTableShell>
+        )
+      ) : null}
+
+      {view === "active" ? (
+        activeCases.length === 0 ? (
+          <AdminEmptyState title="No active recovery cases" />
+        ) : (
+          <div className="space-y-3">
+            {activeCases.map((item) => (
+              <div key={item.case_id} className="rounded-2xl border border-slate-200 bg-white p-5">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-semibold text-slate-950">{humanize(item.trigger_type)}</p>
+                      <AdminStatus tone={item.status === "engaged" ? "info" : "warning"}>{humanize(item.status)}</AdminStatus>
+                    </div>
+                    <p className="mt-1 text-xs text-slate-500">Triggered {dateLabel(item.trigger_occurred_at)}{item.booking_id ? ` · Booking …${item.booking_id.slice(-8)}` : ""}</p>
+                  </div>
+                  {item.status === "identified" ? <AdminSecondaryButton disabled={busy === item.case_id} onClick={() => void engageCase(item)}>Mark engaged</AdminSecondaryButton> : null}
+                </div>
+
+                <div className="mt-4 grid gap-3 lg:grid-cols-[220px_minmax(0,1fr)_auto]">
+                  <select value={outcomeByCase[item.case_id] ?? "unclear"} onChange={(event) => setOutcomeByCase((current) => ({ ...current, [item.case_id]: event.target.value }))} className="min-h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900">
+                    <option value="relationship_continued">Relationship continued</option>
+                    <option value="relationship_ended">Relationship ended</option>
+                    <option value="unclear">Outcome still unclear</option>
+                  </select>
+                  <input value={evidenceByCase[item.case_id] ?? ""} onChange={(event) => setEvidenceByCase((current) => ({ ...current, [item.case_id]: event.target.value }))} placeholder="Evidence supporting this outcome" className="min-h-10 rounded-lg border border-slate-200 px-3 text-sm text-slate-900" />
+                  <AdminPrimaryButton disabled={busy === item.case_id || !(evidenceByCase[item.case_id]?.trim())} onClick={() => void resolveCase(item)}>Resolve</AdminPrimaryButton>
+                </div>
+              </div>
+            ))}
           </div>
-          <button type="button" onClick={() => void load()} className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700"><RefreshCw size={15}/> Refresh</button>
-        </div>
-        <label className="mt-5 block max-w-sm text-xs font-semibold text-slate-600">Scope
-          <select value={scope} onChange={(event) => { setScope(event.target.value); void load(event.target.value); }} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm font-normal text-slate-900">
-            <option value="network">Entire Cleanr network</option>
-            {circles.map((circle) => <option key={circle.circle_id} value={circle.circle_id}>{circle.name}</option>)}
-          </select>
-        </label>
-      </section>
+        )
+      ) : null}
 
-      {error ? <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
+      {view === "resolved" ? (
+        resolvedCases.length === 0 ? (
+          <AdminEmptyState title="No resolved recovery cases yet" />
+        ) : (
+          <AdminTableShell>
+            <div className="grid grid-cols-[180px_170px_minmax(320px,1.5fr)_190px] gap-4 border-b border-slate-200 bg-slate-50 px-5 py-3 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+              <span>Trigger</span><span>Outcome</span><span>Evidence</span><span>Resolved</span>
+            </div>
+            {resolvedCases.map((item) => (
+              <div key={item.case_id} className="grid grid-cols-[180px_170px_minmax(320px,1.5fr)_190px] gap-4 border-b border-slate-200 px-5 py-4 text-xs last:border-b-0">
+                <p className="font-medium text-slate-900">{humanize(item.trigger_type)}</p>
+                <AdminStatus tone={item.outcome === "relationship_continued" ? "success" : item.outcome === "relationship_ended" ? "neutral" : "warning"}>{humanize(item.outcome)}</AdminStatus>
+                <p className="leading-5 text-slate-600">{item.outcome_evidence || "—"}</p>
+                <p className="text-slate-500">{dateLabel(item.resolved_at)}</p>
+              </div>
+            ))}
+          </AdminTableShell>
+        )
+      ) : null}
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-5">
-        <h2 className="font-semibold text-slate-950">Friction signals not yet opened</h2>
-        <p className="mt-1 text-xs leading-5 text-slate-500">Only qualifying disputes and low reviews appear here. Incidents remain operational/safety evidence unless a separate relationship-friction signal exists.</p>
-        {unopened.length === 0 ? <p className="mt-4 text-sm text-slate-500">No unopened recovery candidates in this scope.</p> : <div className="mt-4 space-y-3">{unopened.map((candidate) => <div key={`${candidate.trigger_type}:${candidate.trigger_id}`} className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-slate-200 p-4"><div><p className="text-sm font-semibold text-slate-900">{candidate.signal_label}</p><p className="mt-1 text-xs text-slate-500">{dateLabel(candidate.trigger_occurred_at)} · Booking {candidate.booking_id ? `…${candidate.booking_id.slice(-8)}` : "not linked"}</p></div><button type="button" disabled={busy === candidate.trigger_id} onClick={() => void openCase(candidate)} className="rounded-lg bg-slate-950 px-3 py-2 text-xs font-semibold text-white disabled:opacity-40">Open recovery case</button></div>)}</div>}
-      </section>
-
-      <section className="rounded-2xl border border-slate-200 bg-white p-5">
-        <h2 className="font-semibold text-slate-950">Active recovery cases</h2>
-        <p className="mt-1 text-xs leading-5 text-slate-500">“Engaged” means a recovery effort is underway. Resolution should describe what supports the relationship outcome, not what Admin hopes happened.</p>
-        {activeCases.length === 0 ? <p className="mt-4 text-sm text-slate-500">No active recovery cases.</p> : <div className="mt-4 space-y-4">{activeCases.map((item) => <div key={item.case_id} className="rounded-xl border border-slate-200 p-4">
-          <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-sm font-semibold text-slate-900">{humanize(item.trigger_type)}</p><p className="mt-1 text-xs text-slate-500">Triggered {dateLabel(item.trigger_occurred_at)} · {humanize(item.status)}</p></div>{item.status === "identified" ? <button type="button" disabled={busy === item.case_id} onClick={() => void engageCase(item)} className="rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 disabled:opacity-40">Mark engaged</button> : null}</div>
-          <div className="mt-4 grid gap-3 md:grid-cols-[220px_minmax(0,1fr)_auto]">
-            <select value={outcomeByCase[item.case_id] ?? "unclear"} onChange={(event) => setOutcomeByCase((current) => ({ ...current, [item.case_id]: event.target.value }))} className="rounded-lg border border-slate-200 px-3 py-2.5 text-sm text-slate-900">
-              <option value="relationship_continued">Relationship continued</option>
-              <option value="relationship_ended">Relationship ended</option>
-              <option value="unclear">Outcome still unclear</option>
-            </select>
-            <input value={evidenceByCase[item.case_id] ?? ""} onChange={(event) => setEvidenceByCase((current) => ({ ...current, [item.case_id]: event.target.value }))} placeholder="Evidence supporting this outcome" className="rounded-lg border border-slate-200 px-3 py-2.5 text-sm text-slate-900" />
-            <button type="button" disabled={busy === item.case_id || !(evidenceByCase[item.case_id]?.trim())} onClick={() => void resolveCase(item)} className="rounded-lg bg-slate-950 px-3 py-2 text-xs font-semibold text-white disabled:opacity-40">Resolve</button>
-          </div>
-        </div>)}</div>}
-      </section>
-
-      <section className="rounded-2xl border border-slate-200 bg-white p-5">
-        <h2 className="font-semibold text-slate-950">Resolved recovery evidence</h2>
-        {resolvedCases.length === 0 ? <p className="mt-4 text-sm text-slate-500">No resolved recovery cases yet.</p> : <div className="mt-4 space-y-3">{resolvedCases.map((item) => <div key={item.case_id} className="rounded-xl bg-slate-50 p-4"><div className="flex flex-wrap items-center gap-2"><p className="text-sm font-semibold text-slate-900">{humanize(item.outcome)}</p><span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-semibold text-slate-600">{humanize(item.trigger_type)}</span></div><p className="mt-2 text-sm text-slate-700">{item.outcome_evidence}</p><p className="mt-2 text-xs text-slate-500">Resolved {dateLabel(item.resolved_at)}</p></div>)}</div>}
-      </section>
-
-      <section className="rounded-2xl border border-slate-200 bg-slate-50 p-5 text-sm leading-6 text-slate-600">
-        Relationship continuation is not the only good outcome. Respecting a boundary and ending a relationship can be the right resolution. Cleanr measures what happened; it does not pressure people to stay connected.
-      </section>
-    </main>
+      <details className="rounded-2xl border border-slate-200 bg-white">
+        <summary className="cursor-pointer list-none px-5 py-4 text-sm font-semibold text-slate-950">Recovery rules</summary>
+        <p className="border-t border-slate-200 px-5 py-4 text-xs leading-5 text-slate-600">
+          A future booking does not automatically mean a relationship was repaired. Resolution records the outcome supported by evidence; respecting a boundary and ending a relationship can also be the right result.
+        </p>
+      </details>
+    </AdminPage>
   );
 }
