@@ -1,27 +1,8 @@
-import { useEffect, useState, type ReactNode } from "react";
-import {
-  ArrowRight,
-  BadgeCheck,
-  CalendarDays,
-  ChevronDown,
-  ClipboardList,
-  Clock,
-  FileCheck,
-  Home,
-  MapPin,
-  Repeat,
-  Shield,
-  Sparkles,
-  Star,
-  UserCircle,
-} from "lucide-react";
+import { useEffect, type ReactNode } from "react";
+import { ArrowRight } from "lucide-react";
 import { Link } from "react-router-dom";
 import { captureReferralCodeFromUrl } from "../../lib/referralRef";
-import {
-  CUSTOMER_ENTRY_PATH,
-  CSP_ENTRY_PATH,
-  LOGIN_PATH,
-} from "../../lib/entryRoutes";
+import { CUSTOMER_ENTRY_PATH, CSP_ENTRY_PATH, LOGIN_PATH } from "../../lib/entryRoutes";
 import {
   cleanrBrand,
   LANDING_LOGO_FOOTER_CLASS,
@@ -30,217 +11,9 @@ import {
   LANDING_LOGO_SRC,
 } from "../../lib/brand";
 import { PublicProviderShowcase } from "../components/PublicProviderShowcase";
+import { PublicFaq } from "../components/PublicFaq";
 
 const c = cleanrBrand.color;
-
-type FeatureCardProps = {
-  icon: ReactNode;
-  title: string;
-  description: string;
-};
-
-type FaqItem = {
-  question: string;
-  answer: string;
-};
-
-type FaqGroup = {
-  title: string;
-  description: string;
-  items: FaqItem[];
-};
-
-const FAQ_GROUPS: FaqGroup[] = [
-  {
-    title: "For customers",
-    description: "Booking, continuity, payments, safety, and what happens around a visit.",
-    items: [
-      {
-        question: "What is Cleanr?",
-        answer:
-          "Cleanr is a residential cleaning platform built around reliable service and lasting relationships. We handle booking, scheduling, payments, communication, and support so households and service providers can focus more on the actual service experience.",
-      },
-      {
-        question: "How does booking work?",
-        answer:
-          "Enter your service address, choose the cleaning service you need, select an available time, and complete payment securely online. Cleanr verifies the service location and confirms an eligible provider for the visit.",
-      },
-      {
-        question: "Can I book recurring cleaning?",
-        answer:
-          "Yes. Cleanr supports recurring residential cleaning, where familiarity with your home and preferences can make future visits smoother over time.",
-      },
-      {
-        question: "Will I get the same service provider each time?",
-        answer:
-          "Whenever possible, Cleanr prioritizes continuity. If you and a provider work well together, we want that relationship to continue instead of unnecessarily rematching every visit.",
-      },
-      {
-        question: "Can I reschedule my cleaning?",
-        answer:
-          "Yes. Customers and service providers can request schedule changes. Cleanr is designed to help both sides find a workable solution while preserving a good relationship whenever possible.",
-      },
-      {
-        question: "What if there is a problem with my cleaning?",
-        answer:
-          "You can report a booking-specific issue through Cleanr. The visit can be placed under review while the situation is evaluated, and an open issue prevents the booking from automatically moving forward to payout.",
-      },
-      {
-        question: "How long do I have to review a completed service?",
-        answer:
-          "After the provider finishes the service and Cleanr verifies that they have safely departed, you have a 24-hour review window to confirm the visit or report an issue. If no issue is open and no action is taken, the visit can automatically confirm after that window.",
-      },
-      {
-        question: "Does Cleanr show me my provider’s exact location?",
-        answer:
-          "No. Cleanr can use provider location for specific operational milestones such as on-the-way, arrival, start, and safe-departure verification. Customers receive useful visit updates, not a live map of the provider’s exact location.",
-      },
-      {
-        question: "Are photos taken inside my home?",
-        answer:
-          "Providers may optionally document relevant before- or after-service conditions when it helps protect the household or provider. Visit evidence is private by default and is not automatically treated as household memory or shown to the customer.",
-      },
-    ],
-  },
-  {
-    title: "For service providers",
-    description: "Independent work, earnings, scheduling, safety, and long-term opportunity.",
-    items: [
-      {
-        question: "Who can become a Cleanr service provider?",
-        answer:
-          "Cleanr works with independent residential cleaning professionals who meet current provider requirements and want access to customers, scheduling tools, payments, support, and a trusted local network.",
-      },
-      {
-        question: "Are Cleanr service providers employees?",
-        answer:
-          "Cleanr service providers participate as independent contractors under the applicable provider agreement. They manage their own availability and independent business activity within the platform’s operating requirements.",
-      },
-      {
-        question: "Do I have to give up my existing customers to join Cleanr?",
-        answer:
-          "No. Cleanr is designed to support relationships, not take ownership of them. Providers can bring existing relationships into Cleanr where appropriate and use the platform for infrastructure such as scheduling, payments, support, and business tools.",
-      },
-      {
-        question: "Can providers reschedule their own appointments?",
-        answer:
-          "Providers can request schedule changes through Cleanr. The goal is to resolve timing issues collaboratively while protecting customer continuity whenever possible.",
-      },
-      {
-        question: "When do providers get paid?",
-        answer:
-          "Provider earnings move through service completion, customer review, payout approval, and Stripe transfer. Cleanr’s longer-term direction is to support faster eligible-provider payouts after safely completed jobs while preserving appropriate customer and platform protections.",
-      },
-      {
-        question: "Why does Cleanr verify that I have left the property after a job?",
-        answer:
-          "Provider safety matters. Cleanr separates finishing the cleaning work from closing the visit. A provider marks the service finished while still at the property, then Cleanr verifies that they have moved away from the service address before the visit fully closes.",
-      },
-      {
-        question: "Is Cleanr only for people who want to clean forever?",
-        answer:
-          "No. A strong, profitable cleaning practice can absolutely be the goal. For others, cleaning may become a starting point toward mentorship, business ownership, education, another profession, investing, or other long-term goals. Cleanr is meant to expand choice, not define one version of success.",
-      },
-    ],
-  },
-  {
-    title: "About Cleanr",
-    description: "What we are building and why the experience is different.",
-    items: [
-      {
-        question: "How is Cleanr different from a typical cleaning marketplace?",
-        answer:
-          "Most marketplaces optimize around individual transactions. Cleanr is building around continuity: repeated service, stronger customer-provider relationships, trusted local networks, and technology that removes administrative friction instead of replacing human connection.",
-      },
-      {
-        question: "Does Cleanr own the customer-provider relationship?",
-        answer:
-          "No. Cleanr supports the relationship through scheduling, payments, protection, communication, reputation, coverage, and other infrastructure. The goal is to keep creating enough value that people choose to remain connected—not to manufacture dependency.",
-      },
-      {
-        question: "Where is Cleanr available?",
-        answer:
-          "Cleanr is currently focused on building residential service density in the Atlanta area. Availability can vary by address and provider coverage.",
-      },
-      {
-        question: "Is Cleanr only a cleaning company?",
-        answer:
-          "Residential cleaning is the foundation of Cleanr today. Over time, the network can create additional opportunities for people inside the ecosystem when those opportunities emerge from real relationships, capabilities, and demonstrated demand.",
-      },
-      {
-        question: "What does ‘Cleaning is the transaction; connection is the experience’ mean?",
-        answer:
-          "A clean home is the service being purchased. Recurring service can also create familiarity, trust, accountability, and human connection. Cleanr is designed to automate the administrative work around the visit so those relationships have room to develop naturally.",
-      },
-    ],
-  },
-];
-
-function FeatureCard({ icon, title, description }: FeatureCardProps) {
-  return (
-    <div
-      className="rounded-2xl border bg-white p-6 shadow-sm transition-shadow hover:shadow-md"
-      style={{ borderColor: c.border }}
-    >
-      <div
-        className="flex h-12 w-12 items-center justify-center rounded-xl"
-        style={{ backgroundColor: c.iconBg, color: c.icon }}
-      >
-        {icon}
-      </div>
-      <h3 className="mt-4 text-lg font-semibold" style={{ color: c.ink }}>
-        {title}
-      </h3>
-      <p className="mt-2 text-sm leading-relaxed" style={{ color: c.inkMuted }}>
-        {description}
-      </p>
-    </div>
-  );
-}
-
-function SectionHeading({
-  eyebrow,
-  title,
-  description,
-}: {
-  eyebrow: string;
-  title: string;
-  description: string;
-}) {
-  return (
-    <div className="mx-auto max-w-3xl text-center">
-      <p className="text-sm font-semibold uppercase tracking-wide" style={{ color: c.primary }}>
-        {eyebrow}
-      </p>
-      <h2 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl" style={{ color: c.ink }}>
-        {title}
-      </h2>
-      <p className="mt-4 text-lg leading-relaxed" style={{ color: c.inkMuted }}>
-        {description}
-      </p>
-    </div>
-  );
-}
-
-function FaqItemRow({ item }: { item: FaqItem }) {
-  return (
-    <details className="group border-b last:border-b-0" style={{ borderColor: c.border }}>
-      <summary className="flex cursor-pointer list-none items-start justify-between gap-4 py-5 text-left [&::-webkit-details-marker]:hidden">
-        <span className="text-sm font-semibold leading-6 sm:text-base" style={{ color: c.ink }}>
-          {item.question}
-        </span>
-        <ChevronDown
-          className="mt-1 h-4 w-4 shrink-0 transition-transform duration-200 group-open:rotate-180"
-          style={{ color: c.inkMuted }}
-          aria-hidden
-        />
-      </summary>
-      <p className="pb-5 pr-7 text-sm leading-6" style={{ color: c.inkMuted }}>
-        {item.answer}
-      </p>
-    </details>
-  );
-}
 
 function HeroPrimaryLink({ to, children }: { to: string; children: ReactNode }) {
   return (
@@ -269,8 +42,7 @@ function BluePrimaryLink({ to, children }: { to: string; children: ReactNode }) 
   return (
     <Link
       to={to}
-      className="inline-flex min-h-[3rem] items-center justify-center gap-2 rounded-lg px-8 py-4 text-center font-medium text-white shadow-md transition-colors"
-      style={{ backgroundColor: c.primary, boxShadow: `0 4px 14px ${c.primary}4D` }}
+      className="inline-flex min-h-[3rem] items-center justify-center gap-2 rounded-lg bg-[#0000FE] px-8 py-4 text-center font-medium text-white transition-opacity hover:opacity-90"
     >
       {children}
     </Link>
@@ -278,9 +50,6 @@ function BluePrimaryLink({ to, children }: { to: string; children: ReactNode }) 
 }
 
 export default function Landing() {
-  const [activeFaqGroup, setActiveFaqGroup] = useState(0);
-  const activeFaq = FAQ_GROUPS[activeFaqGroup] ?? FAQ_GROUPS[0];
-
   useEffect(() => {
     captureReferralCodeFromUrl();
   }, []);
@@ -301,69 +70,35 @@ export default function Landing() {
         >
           <source src="/media/cleanr-hero.mp4" type="video/mp4" />
         </video>
-
         <div className="pointer-events-none absolute inset-0 bg-[#071A2F]/45" />
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/20 via-[#071A2F]/20 to-[#071A2F]/65" />
 
         <div className="relative z-10 mx-auto flex min-h-[100svh] w-full max-w-7xl flex-col px-6 pb-10 pt-8 sm:pb-12 lg:pt-10">
           <div className="flex min-w-0 items-start justify-between gap-3 md:items-center md:gap-4">
             <Link to="/" className="block min-w-0 shrink sm:max-w-none" aria-label="Cleanr home">
-              <img
-                src={LANDING_LOGO_HERO_SRC}
-                alt="Cleanr"
-                width={906}
-                height={209}
-                loading="eager"
-                decoding="async"
-                className={LANDING_LOGO_HERO_CLASS}
-              />
+              <img src={LANDING_LOGO_HERO_SRC} alt="Cleanr" width={906} height={209} loading="eager" decoding="async" className={LANDING_LOGO_HERO_CLASS} />
             </Link>
-
             <nav className="mt-0.5 flex shrink-0 items-center justify-end gap-2" aria-label="Public navigation">
-              <a
-                href="#meet-cleanr-csps"
-                className="hidden min-h-11 items-center justify-center rounded-lg px-3 py-2 text-xs font-medium text-white/90 transition-colors hover:text-white sm:inline-flex sm:px-3.5 sm:text-sm"
-              >
-                Meet CSPs
-              </a>
-              <a
-                href="#faq"
-                className="inline-flex min-h-11 min-w-[44px] items-center justify-center rounded-lg px-3 py-2 text-xs font-medium text-white/90 transition-colors hover:text-white sm:px-3.5 sm:text-sm"
-              >
-                FAQ
-              </a>
-              <Link
-                to={LOGIN_PATH}
-                className="inline-flex min-h-11 min-w-[44px] items-center justify-center rounded-lg border border-white/45 bg-black/10 px-3 py-2 text-xs font-medium text-white shadow-sm backdrop-blur-md transition-colors hover:border-white/65 hover:bg-black/20 sm:px-3.5 sm:text-sm"
-              >
-                Log in
-              </Link>
+              <a href="#meet-cleanr-csps" className="hidden min-h-11 items-center justify-center px-3 py-2 text-xs font-medium text-white/90 transition-colors hover:text-white sm:inline-flex sm:text-sm">Meet CSPs</a>
+              <a href="#faq" className="inline-flex min-h-11 items-center justify-center px-3 py-2 text-xs font-medium text-white/90 transition-colors hover:text-white sm:text-sm">FAQ</a>
+              <Link to={LOGIN_PATH} className="inline-flex min-h-11 items-center justify-center rounded-lg border border-white/45 bg-black/10 px-3 py-2 text-xs font-medium text-white backdrop-blur-md sm:text-sm">Log in</Link>
             </nav>
           </div>
 
           <div className="flex flex-1 items-center py-10 sm:py-14 lg:py-16">
             <div className="max-w-3xl">
-              <h1 className="max-w-[12ch] text-[44px] font-bold leading-[0.98] text-white drop-shadow-lg sm:text-5xl sm:leading-[0.95] lg:text-7xl lg:leading-[0.93]">
+              <h1 className="max-w-[12ch] text-[44px] font-bold leading-[0.98] text-white drop-shadow-lg sm:text-5xl lg:text-7xl lg:leading-[0.93]">
                 A cleaner home,
                 <br />
                 without the back-and-forth.
               </h1>
-
               <p className="mt-6 max-w-2xl text-lg leading-[1.55] text-white/95 drop-shadow-md sm:text-xl md:mt-8 md:text-2xl">
                 Book trusted residential cleaning support with a clear, simple service experience.
               </p>
-
               <div className="mt-8 flex flex-col gap-4 sm:mt-10 sm:flex-row">
-                <HeroPrimaryLink to={CUSTOMER_ENTRY_PATH}>
-                  Book a clean
-                  <ArrowRight className="h-5 w-5 shrink-0" />
-                </HeroPrimaryLink>
+                <HeroPrimaryLink to={CUSTOMER_ENTRY_PATH}>Book a clean <ArrowRight className="h-4 w-4" /></HeroPrimaryLink>
                 <HeroSecondaryLink to={CSP_ENTRY_PATH}>Earn with Cleanr</HeroSecondaryLink>
               </div>
-
-              <p className="mt-6 text-sm font-medium text-white/80 drop-shadow-sm sm:mt-8">
-                Residential cleaning. Clear booking. Reliable support.
-              </p>
             </div>
           </div>
         </div>
@@ -371,218 +106,87 @@ export default function Landing() {
 
       <PublicProviderShowcase />
 
-      <section className="bg-white px-6 py-16 sm:py-20">
-        <div className="mx-auto max-w-7xl">
-          <SectionHeading
-            eyebrow="For customers"
-            title="Book residential cleaning in a few clear steps"
-            description="Choose what you need, share home details, and follow a straightforward booking flow—built for homes, not facilities."
-          />
-          <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-            <FeatureCard icon={<Sparkles className="h-6 w-6" />} title="Choose your clean" description="Pick a residential service type that fits your home and schedule." />
-            <FeatureCard icon={<CalendarDays className="h-6 w-6" />} title="Pick a time" description="Select a visit window that works for your household." />
-            <FeatureCard icon={<Home className="h-6 w-6" />} title="Add home details" description="Share access notes and preferences so your provider knows what to expect." />
-            <FeatureCard icon={<FileCheck className="h-6 w-6" />} title="Get confirmation" description="See booking details in one place after you submit your request." />
-            <FeatureCard icon={<Star className="h-6 w-6" />} title="Review after service" description="Share feedback when the visit is complete to help future bookings." />
-          </div>
-          <div className="mt-10 flex justify-center">
-            <BluePrimaryLink to={CUSTOMER_ENTRY_PATH}>
-              Book now
-              <ArrowRight className="h-5 w-5 shrink-0" />
-            </BluePrimaryLink>
-          </div>
-        </div>
-      </section>
-
-      <section className="px-6 py-16 sm:py-20" style={{ backgroundColor: c.sectionAlt }}>
-        <div className="mx-auto max-w-7xl">
-          <SectionHeading
-            eyebrow="For Cleanr service providers"
-            title="Grow your residential cleaning work on your terms"
-            description="Independent providers use Cleanr to manage availability, complete home cleans, and build trust with customers."
-          />
-          <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-            <FeatureCard icon={<UserCircle className="h-6 w-6" />} title="Create your profile" description="Introduce your experience and service area so customers know who you are." />
-            <FeatureCard icon={<Clock className="h-6 w-6" />} title="Set your availability" description="Choose when you are open for residential jobs that fit your calendar." />
-            <FeatureCard icon={<MapPin className="h-6 w-6" />} title="Get matched" description="Receive residential opportunities aligned with your service area and preferences." />
-            <FeatureCard icon={<ClipboardList className="h-6 w-6" />} title="Complete cleans" description="Follow job details, check in, and finish visits with clear status updates." />
-            <FeatureCard icon={<BadgeCheck className="h-6 w-6" />} title="Build your reputation" description="Earn reviews and repeat interest from customers who value reliable home care." />
-          </div>
-          <div className="mt-10 flex justify-center">
-            <BluePrimaryLink to={CSP_ENTRY_PATH}>
-              Earn with Cleanr
-              <ArrowRight className="h-5 w-5 shrink-0" />
-            </BluePrimaryLink>
-          </div>
-        </div>
-      </section>
-
-      <section className="bg-white px-6 py-16 sm:py-20">
-        <div className="mx-auto max-w-6xl overflow-hidden rounded-[28px] border border-slate-200 bg-[#F7F9FC] shadow-sm">
-          <div className="grid gap-10 px-6 py-10 sm:px-10 lg:grid-cols-[1.15fr_0.85fr] lg:items-center lg:px-12 lg:py-12">
-            <div>
-              <p className="text-sm font-semibold uppercase tracking-wide text-[#166534]">Built for repeat trust</p>
-              <h2 className="mt-3 max-w-3xl text-3xl font-bold tracking-tight text-[#0B1220] sm:text-4xl">
-                Choose who cleans your home. Keep the connection when it works.
-              </h2>
-              <p className="mt-4 max-w-2xl text-lg leading-relaxed text-[#667085]">
-                Browse real CSPs or let Cleanr match you. Cleanr handles scheduling, payments, service updates, and support so a good household-CSP fit can continue without starting over each visit.
-              </p>
-              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                <BluePrimaryLink to={CUSTOMER_ENTRY_PATH}>
-                  Book now
-                  <ArrowRight className="h-5 w-5 shrink-0" />
-                </BluePrimaryLink>
-                <a
-                  href="#meet-cleanr-csps"
-                  className="inline-flex min-h-[3rem] items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-8 py-4 text-center font-medium text-[#0B1220]"
-                >
-                  Meet CSPs
-                  <ArrowRight className="h-5 w-5 shrink-0" />
-                </a>
-              </div>
-            </div>
-
-            <div className="grid gap-3">
-              <div className="rounded-2xl border border-slate-200 bg-white p-5">
-                <div className="flex items-start gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#ECF8E8] text-[#166534]">
-                    <UserCircle className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <p className="font-semibold text-[#0B1220]">Know who you're booking</p>
-                    <p className="mt-1 text-sm leading-6 text-[#667085]">See real CSP profiles before deciding who may come into your home.</p>
-                  </div>
-                </div>
-              </div>
-              <div className="rounded-2xl border border-slate-200 bg-white p-5">
-                <div className="flex items-start gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#ECF8E8] text-[#166534]">
-                    <Repeat className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <p className="font-semibold text-[#0B1220]">Keep continuity</p>
-                    <p className="mt-1 text-sm leading-6 text-[#667085]">When the fit is good, your shared Cleanr history stays connected instead of resetting every visit.</p>
-                  </div>
-                </div>
-              </div>
-              <div className="rounded-2xl border border-slate-200 bg-white p-5">
-                <div className="flex items-start gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#ECF8E8] text-[#166534]">
-                    <Shield className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <p className="font-semibold text-[#0B1220]">Cleanr handles the admin</p>
-                    <p className="mt-1 text-sm leading-6 text-[#667085]">Scheduling, payments, service updates, and support stay in one place around the relationship.</p>
-                  </div>
-                </div>
-              </div>
+      <section className="bg-white px-6 py-16 sm:py-24">
+        <div className="mx-auto grid max-w-6xl gap-12 lg:grid-cols-[0.9fr_1.1fr] lg:gap-20">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-wide text-[#166534]">For Cleanr service providers</p>
+            <h2 className="mt-3 max-w-xl text-3xl font-bold tracking-tight text-[#0B1220] sm:text-4xl">Grow the work without giving up the relationship.</h2>
+            <p className="mt-4 max-w-xl text-lg leading-relaxed text-[#667085]">
+              Cleanr gives independent residential cleaning professionals infrastructure for opportunity, scheduling, payments, reputation, and continuity—while keeping the human relationship visible.
+            </p>
+            <div className="mt-8">
+              <BluePrimaryLink to={CSP_ENTRY_PATH}>Earn with Cleanr <ArrowRight className="h-4 w-4" /></BluePrimaryLink>
             </div>
           </div>
-        </div>
-      </section>
 
-      <section className="px-6 py-16 sm:py-20" style={{ backgroundColor: c.sectionAlt }}>
-        <div className="mx-auto max-w-7xl">
-          <SectionHeading
-            eyebrow="Residential services"
-            title="Home cleaning options"
-            description="Service availability may vary by market. Choose the clean type that matches your home."
-          />
-          <div className="mt-10 flex flex-wrap justify-center gap-3">
-            {["Standard clean", "Deep clean", "Move-out clean", "Recurring upkeep", "Home reset"].map((label) => (
-              <span key={label} className="inline-flex items-center gap-2 rounded-full border bg-white px-4 py-2 text-sm font-medium shadow-sm" style={{ borderColor: c.border, color: c.ink }}>
-                <Sparkles className="h-4 w-4" aria-hidden />
-                {label}
-              </span>
+          <div className="border-y border-slate-200">
+            {[
+              ["01", "Bring your reputation with you", "Your experience, trust signals, customer history, and profile become durable assets—not disposable marketplace data."],
+              ["02", "Work around your actual life", "Set availability, manage visits, and handle schedule changes through one operating system instead of scattered texts and calls."],
+              ["03", "Build toward what comes next", "A strong cleaning practice can be the goal—or the foundation for mentorship, business ownership, and other North-Star-aligned opportunities."],
+            ].map(([number, title, body]) => (
+              <div key={number} className="grid gap-3 border-b border-slate-200 py-7 last:border-b-0 sm:grid-cols-[72px_1fr] sm:gap-6">
+                <p className="text-2xl font-semibold tracking-tight text-slate-300">{number}</p>
+                <div>
+                  <h3 className="text-lg font-semibold text-[#0B1220]">{title}</h3>
+                  <p className="mt-2 max-w-2xl text-sm leading-6 text-[#667085]">{body}</p>
+                </div>
+              </div>
             ))}
           </div>
         </div>
       </section>
 
-      <section id="faq" className="scroll-mt-6 bg-[#F7F9FC] px-6 py-16 sm:py-24">
-        <div className="mx-auto grid max-w-6xl gap-10 lg:grid-cols-[0.72fr_1.28fr] lg:gap-16">
-          <div className="lg:sticky lg:top-8 lg:self-start">
-            <p className="text-sm font-semibold uppercase tracking-wide text-[#166534]">Questions?</p>
-            <h2 className="mt-3 max-w-xl text-3xl font-bold tracking-tight text-[#0B1220] sm:text-4xl">
-              Everything you need before you book.
-            </h2>
-            <p className="mt-4 max-w-lg text-lg leading-relaxed text-[#667085]">
-              Start the booking first. Choose a CSP if you want one. We’ll only ask you to sign in when it’s time to continue securely toward payment.
-            </p>
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row lg:flex-col lg:items-start xl:flex-row">
-              <BluePrimaryLink to={CUSTOMER_ENTRY_PATH}>
-                Book now
-                <ArrowRight className="h-5 w-5 shrink-0" />
-              </BluePrimaryLink>
-              <a
-                href="#meet-cleanr-csps"
-                className="inline-flex min-h-[3rem] items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-7 py-4 text-center font-medium text-[#0B1220]"
-              >
-                Meet CSPs
-              </a>
-            </div>
-            <p className="mt-4 max-w-md text-xs leading-5 text-[#667085]">
-              Need help with a visit already in progress? Use the support tools inside that booking so Cleanr keeps the right context attached.
-            </p>
-          </div>
-
+      <section className="bg-[#0B1220] px-6 py-16 text-white sm:py-24">
+        <div className="mx-auto grid max-w-6xl gap-12 lg:grid-cols-[1fr_1fr] lg:items-end lg:gap-20">
           <div>
-            <div
-              className="flex gap-1 overflow-x-auto rounded-xl border border-slate-200 bg-white p-1 shadow-sm"
-              role="tablist"
-              aria-label="FAQ categories"
-            >
-              {FAQ_GROUPS.map((group, index) => {
-                const active = activeFaqGroup === index;
-                const shortLabel = index === 0 ? "Customers" : index === 1 ? "Providers" : "About Cleanr";
-                return (
-                  <button
-                    key={group.title}
-                    type="button"
-                    role="tab"
-                    aria-selected={active}
-                    onClick={() => setActiveFaqGroup(index)}
-                    className={`min-h-11 flex-1 whitespace-nowrap rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors ${
-                      active
-                        ? "bg-[#0B1220] text-white"
-                        : "bg-transparent text-[#667085] hover:bg-slate-50 hover:text-[#0B1220]"
-                    }`}
-                  >
-                    {shortLabel}
-                  </button>
-                );
-              })}
-            </div>
+            <p className="text-sm font-semibold uppercase tracking-wide text-[#8DCC64]">Built for repeat trust</p>
+            <h2 className="mt-3 max-w-3xl text-3xl font-bold tracking-tight sm:text-4xl">Choose who cleans your home. Keep the connection when it works.</h2>
+            <p className="mt-4 max-w-2xl text-lg leading-relaxed text-white/70">Cleanr handles the administration around the visit so a good household-CSP relationship can continue without restarting from zero every time.</p>
+          </div>
+          <div className="divide-y divide-white/15 border-y border-white/15">
+            {[
+              ["Know who you're booking", "See real CSP profiles before deciding who may come into your home."],
+              ["Keep continuity", "When the fit is good, your shared history and preferences remain connected."],
+              ["Let Cleanr handle the admin", "Scheduling, payments, service updates, and support stay organized around the relationship."],
+            ].map(([title, body]) => (
+              <div key={title} className="py-5">
+                <p className="font-semibold text-white">{title}</p>
+                <p className="mt-1 text-sm leading-6 text-white/60">{body}</p>
+              </div>
+            ))}
+          </div>
+          <div className="flex flex-col gap-3 sm:flex-row lg:col-span-2">
+            <Link to={CUSTOMER_ENTRY_PATH} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-[#0000FE] px-7 py-3 font-medium text-white">Book now <ArrowRight className="h-4 w-4" /></Link>
+            <a href="#meet-cleanr-csps" className="inline-flex min-h-12 items-center justify-center border-b border-white/40 px-2 font-medium text-white">Meet CSPs</a>
+          </div>
+        </div>
+      </section>
 
-            <div
-              key={activeFaq.title}
-              className="mt-4 overflow-hidden rounded-[24px] border border-slate-200 bg-white px-5 shadow-sm sm:px-7"
-              role="tabpanel"
-            >
-              <div className="border-b border-slate-200 py-6">
-                <p className="text-lg font-semibold text-[#0B1220]">{activeFaq.title}</p>
-                <p className="mt-1 text-sm leading-6 text-[#667085]">{activeFaq.description}</p>
-              </div>
-              <div>
-                {activeFaq.items.map((item) => (
-                  <FaqItemRow key={item.question} item={item} />
-                ))}
-              </div>
+      <section className="bg-white px-6 py-16 sm:py-20">
+        <div className="mx-auto max-w-6xl border-y border-slate-200 py-10">
+          <div className="grid gap-8 lg:grid-cols-[0.7fr_1.3fr] lg:items-center">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-wide text-[#166534]">Residential services</p>
+              <h2 className="mt-2 text-3xl font-bold tracking-tight text-[#0B1220]">Home cleaning options</h2>
+            </div>
+            <div className="grid gap-x-8 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
+              {["Standard clean", "Deep clean", "Move-out clean", "Recurring upkeep", "Home reset"].map((label) => (
+                <p key={label} className="border-b border-slate-200 pb-3 text-sm font-medium text-[#0B1220]">{label}</p>
+              ))}
             </div>
           </div>
         </div>
       </section>
 
+      <PublicFaq />
+
       <section className="px-6 py-16 sm:py-24" style={{ backgroundColor: c.heroBg }}>
         <div className="mx-auto max-w-3xl text-center text-white">
           <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">Ready for a cleaner home?</h2>
-          <p className="mt-4 text-lg leading-relaxed text-white/90">Start with a simple booking flow built for residential cleaning.</p>
-          <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
-            <HeroPrimaryLink to={CUSTOMER_ENTRY_PATH}>
-              Book a clean
-              <ArrowRight className="h-5 w-5 shrink-0" />
-            </HeroPrimaryLink>
+          <p className="mt-4 text-lg leading-relaxed text-white/85">Start the booking, choose a CSP if you want one, and keep moving without unnecessary setup.</p>
+          <div className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row">
+            <HeroPrimaryLink to={CUSTOMER_ENTRY_PATH}>Book a clean <ArrowRight className="h-4 w-4" /></HeroPrimaryLink>
             <HeroSecondaryLink to={CSP_ENTRY_PATH}>Earn with Cleanr</HeroSecondaryLink>
           </div>
         </div>
