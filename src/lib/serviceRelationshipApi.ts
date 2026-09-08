@@ -114,7 +114,6 @@ export async function listMyHouseholdContinuity(): Promise<ProviderHouseholdRela
     .from("service_relationships")
     .select(SERVICE_RELATIONSHIP_SELECT)
     .eq("provider_id", providerId)
-    .in("status", ["active", "paused"])
     .order("updated_at", { ascending: false });
 
   if (isSupabaseFeatureUnavailable(error)) {
@@ -122,8 +121,18 @@ export async function listMyHouseholdContinuity(): Promise<ProviderHouseholdRela
   }
   if (error) throw error;
 
+  const rows = (data ?? []) as ServiceRelationshipRow[];
   const durableByCustomer = new Map<string, ProviderHouseholdRelationshipSummary>();
-  for (const row of (data ?? []) as ServiceRelationshipRow[]) {
+  const explicitlyEndedCustomers = new Set<string>();
+
+  // The query is newest-first. An active/paused chapter is current continuity truth.
+  // An ended chapter is retained as history, but must not be reintroduced onto this
+  // current-continuity surface through booking-history fallback.
+  for (const row of rows) {
+    if (row.status === "ended") {
+      explicitlyEndedCustomers.add(row.customer_id);
+      continue;
+    }
     if (durableByCustomer.has(row.customer_id)) continue;
     const relationship = mapServiceRelationship(row);
     durableByCustomer.set(row.customer_id, {
@@ -139,9 +148,9 @@ export async function listMyHouseholdContinuity(): Promise<ProviderHouseholdRela
   }
 
   for (const fallback of fallbackSummaries) {
-    if (!durableByCustomer.has(fallback.customerId)) {
-      durableByCustomer.set(fallback.customerId, fallback);
-    }
+    if (durableByCustomer.has(fallback.customerId)) continue;
+    if (explicitlyEndedCustomers.has(fallback.customerId)) continue;
+    durableByCustomer.set(fallback.customerId, fallback);
   }
 
   return Array.from(durableByCustomer.values()).sort(
