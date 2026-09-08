@@ -7,6 +7,7 @@ import { AdminCollectiveCircularity } from "./AdminCollectiveCircularity";
 import { AdminPostCleaningContinuum } from "./AdminPostCleaningContinuum";
 import { AdminRelationshipRecoveryMetrics } from "./AdminRelationshipRecoveryMetrics";
 import { AdminHouseholdMemoryAssets } from "./AdminHouseholdMemoryAssets";
+import { AdminRelationshipLifecycleMetrics } from "./AdminRelationshipLifecycleMetrics";
 import { AdminDemandSpendTransformationEvidence } from "./AdminDemandSpendTransformationEvidence";
 import { AdminTrustedHandoffFulfillmentMetrics } from "./AdminTrustedHandoffFulfillmentMetrics";
 
@@ -173,6 +174,7 @@ export function AdminTransformationMetrics() {
       })}
 
       <AdminHouseholdMemoryAssets circleId={scopedCircleId} />
+      <AdminRelationshipLifecycleMetrics circleId={scopedCircleId} />
       <AdminTrustedHandoffFulfillmentMetrics circleId={scopedCircleId} />
       <AdminRelationshipRecoveryMetrics circleId={scopedCircleId} />
       <AdminEconomicAgencyActivity circleId={scopedCircleId} />
