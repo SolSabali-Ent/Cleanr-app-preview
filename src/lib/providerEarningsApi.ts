@@ -14,6 +14,9 @@ export type ProviderEarningsBookingRow = {
   priority_surcharge_cents: number | null;
   service_priority: string;
   priority_surcharge_rate: number | null;
+  cancellation_fee_cents: number;
+  cancellation_provider_compensation_cents: number;
+  cancellation_platform_retained_cents: number;
   payout_approved_at: string | null;
   payout_released: boolean;
   payout_released_at: string | null;
@@ -27,7 +30,7 @@ export type ProviderEarningsBookingRow = {
 };
 
 const PROVIDER_EARNINGS_SELECT =
-  "id,status,service_type,scheduled_start,scheduled_end,price_cents,platform_fee_cents,platform_fee_policy,platform_fee_rate_applied,platform_fee_basis_cents,priority_surcharge_cents,service_priority,priority_surcharge_rate,payout_approved_at,payout_released,payout_released_at,payout_reversed_at,stripe_transfer_id,customer_id,address,updated_at,created_at,zip_code";
+  "id,status,service_type,scheduled_start,scheduled_end,price_cents,platform_fee_cents,platform_fee_policy,platform_fee_rate_applied,platform_fee_basis_cents,priority_surcharge_cents,service_priority,priority_surcharge_rate,cancellation_fee_cents,cancellation_provider_compensation_cents,cancellation_platform_retained_cents,payout_approved_at,payout_released,payout_released_at,payout_reversed_at,stripe_transfer_id,customer_id,address,updated_at,created_at,zip_code";
 
 function toInt(v: unknown, fallback = 0): number {
   if (typeof v === "number" && Number.isFinite(v)) return v;
@@ -63,6 +66,9 @@ function rowToProviderEarningsBooking(row: Record<string, unknown>): ProviderEar
     priority_surcharge_cents: row.priority_surcharge_cents == null ? null : toInt(row.priority_surcharge_cents),
     service_priority: String(row.service_priority ?? "standard"),
     priority_surcharge_rate: toNumberOrNull(row.priority_surcharge_rate),
+    cancellation_fee_cents: toInt(row.cancellation_fee_cents),
+    cancellation_provider_compensation_cents: toInt(row.cancellation_provider_compensation_cents),
+    cancellation_platform_retained_cents: toInt(row.cancellation_platform_retained_cents),
     payout_approved_at: (row.payout_approved_at as string | null) ?? null,
     payout_released: row.payout_released === true,
     payout_released_at: (row.payout_released_at as string | null) ?? null,
@@ -92,15 +98,22 @@ export async function listProviderEarningsBookings(): Promise<ProviderEarningsBo
   return ((data ?? []) as Record<string, unknown>[]).map(rowToProviderEarningsBooking);
 }
 
+export function isLateCancellationCompensation(row: ProviderEarningsBookingRow): boolean {
+  return row.status === "cancelled" && row.cancellation_provider_compensation_cents > 0;
+}
+
 export function providerEarningCentsFromRow(row: ProviderEarningsBookingRow): number {
+  if (isLateCancellationCompensation(row)) return row.cancellation_provider_compensation_cents;
   return row.price_cents - (row.platform_fee_cents ?? 0);
 }
 
 export function isProviderPendingEarning(row: ProviderEarningsBookingRow): boolean {
+  if (isLateCancellationCompensation(row)) return row.payout_released !== true;
   if (!["completed_by_provider", "confirmed", "completed"].includes(row.status)) return false;
   return row.payout_released !== true;
 }
 
 export function isProviderPaidEarning(row: ProviderEarningsBookingRow): boolean {
-  return row.payout_released === true;
+  if (isLateCancellationCompensation(row)) return row.payout_released === true;
+  return row.payout_released === true && ["completed_by_provider", "confirmed", "completed"].includes(row.status);
 }
