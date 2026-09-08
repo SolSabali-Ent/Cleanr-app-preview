@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { MessageCircle, Pause, Play, XCircle } from "lucide-react";
+import { History, MessageCircle, Pause, Play, XCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { getSignedProfilePhotoUrl } from "../../lib/profilePhotoApi";
 import { supabase } from "../../lib/supabase";
@@ -20,48 +20,110 @@ type DirectoryRow = {
 
 type RowWithPhoto = DirectoryRow & { photoUrl: string | null };
 
+type StatusHistoryRow = {
+  id: string;
+  service_relationship_id: string;
+  from_status: RelationshipStatus;
+  to_status: RelationshipStatus;
+  changed_by: string | null;
+  changed_by_role: "customer" | "csp" | "system" | "admin";
+  reason: string | null;
+  created_at: string;
+};
+
+function transitionVerb(status: RelationshipStatus): string {
+  if (status === "paused") return "paused";
+  if (status === "active") return "resumed";
+  return "ended";
+}
+
+function formatHistoryDate(value: string): string {
+  try {
+    return new Date(value).toLocaleString(undefined, {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  } catch {
+    return value;
+  }
+}
+
 export function RelationshipInboxScreen({ variant }: { variant: "customer" | "csp" }) {
   const navigate = useNavigate();
   const [rows, setRows] = useState<RowWithPhoto[]>([]);
+  const [historyByRelationship, setHistoryByRelationship] = useState<Record<string, StatusHistoryRow[]>>({});
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const isCsp = variant === "csp";
 
-  const load = async () => {
-    setLoading(true);
+  const load = async (showSpinner = true) => {
+    if (showSpinner) setLoading(true);
     setError(null);
-    const { data, error: rpcError } = await supabase.rpc("get_my_relationship_message_directory");
-    if (rpcError) {
-      setError(rpcError.message);
+
+    const [{ data: sessionData }, directoryResult] = await Promise.all([
+      supabase.auth.getSession(),
+      supabase.rpc("get_my_relationship_message_directory"),
+    ]);
+
+    const userId = sessionData.session?.user?.id ?? null;
+    setCurrentUserId(userId);
+
+    if (directoryResult.error) {
+      setError(directoryResult.error.message);
       setRows([]);
-      setLoading(false);
+      setHistoryByRelationship({});
+      if (showSpinner) setLoading(false);
       return;
     }
-    const base = (data ?? []) as DirectoryRow[];
-    const enriched = await Promise.all(base.map(async (row) => ({ ...row, photoUrl: await getSignedProfilePhotoUrl(row.counterpart_photo_path) })));
+
+    const base = (directoryResult.data ?? []) as DirectoryRow[];
+    const relationshipIds = base.map((row) => row.service_relationship_id);
+
+    const [enriched, historyResult] = await Promise.all([
+      Promise.all(base.map(async (row) => ({
+        ...row,
+        photoUrl: await getSignedProfilePhotoUrl(row.counterpart_photo_path),
+      }))),
+      relationshipIds.length > 0
+        ? supabase
+            .from("service_relationship_status_history")
+            .select("id,service_relationship_id,from_status,to_status,changed_by,changed_by_role,reason,created_at")
+            .in("service_relationship_id", relationshipIds)
+            .order("created_at", { ascending: false })
+        : Promise.resolve({ data: [] as StatusHistoryRow[], error: null }),
+    ]);
+
+    if (historyResult.error) {
+      setError(historyResult.error.message);
+    }
+
+    const grouped: Record<string, StatusHistoryRow[]> = {};
+    for (const event of (historyResult.data ?? []) as StatusHistoryRow[]) {
+      const current = grouped[event.service_relationship_id] ?? [];
+      current.push(event);
+      grouped[event.service_relationship_id] = current;
+    }
+
     setRows(enriched);
-    setLoading(false);
+    setHistoryByRelationship(grouped);
+    if (showSpinner) setLoading(false);
   };
 
   useEffect(() => {
     let active = true;
     async function initialLoad() {
-      setLoading(true);
-      setError(null);
-      const { data, error: rpcError } = await supabase.rpc("get_my_relationship_message_directory");
-      if (!active) return;
-      if (rpcError) {
-        setError(rpcError.message);
-        setRows([]);
-        setLoading(false);
-        return;
-      }
-      const base = (data ?? []) as DirectoryRow[];
-      const enriched = await Promise.all(base.map(async (row) => ({ ...row, photoUrl: await getSignedProfilePhotoUrl(row.counterpart_photo_path) })));
-      if (active) {
-        setRows(enriched);
-        setLoading(false);
+      try {
+        await load(true);
+      } catch (err) {
+        if (active) {
+          setError(err instanceof Error ? err.message : "Could not load relationships.");
+          setLoading(false);
+        }
       }
     }
     void initialLoad();
@@ -85,15 +147,11 @@ export function RelationshipInboxScreen({ variant }: { variant: "customer" | "cs
     setBusyId(row.service_relationship_id);
     setError(null);
     try {
-      const status = await updateMyServiceRelationshipStatus(row.service_relationship_id, action);
-      setRows((current) => current.map((item) =>
-        item.service_relationship_id === row.service_relationship_id
-          ? { ...item, relationship_status: status, updated_at: new Date().toISOString() }
-          : item
-      ));
+      await updateMyServiceRelationshipStatus(row.service_relationship_id, action);
+      await load(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not update this relationship.");
-      await load().catch(() => {});
+      await load(false).catch(() => {});
     } finally {
       setBusyId(null);
     }
@@ -119,6 +177,7 @@ export function RelationshipInboxScreen({ variant }: { variant: "customer" | "cs
         <div className="space-y-3">
           {rows.map((row) => {
             const busy = busyId === row.service_relationship_id;
+            const history = historyByRelationship[row.service_relationship_id] ?? [];
             return (
               <div
                 key={row.service_relationship_id}
@@ -180,6 +239,36 @@ export function RelationshipInboxScreen({ variant }: { variant: "customer" | "cs
                     </p>
                   )}
                 </div>
+
+                {history.length > 0 ? (
+                  <details className={`mt-3 border-t pt-3 ${isCsp ? "border-white/10" : "border-[#E5E7EB]"}`}>
+                    <summary className={`flex cursor-pointer list-none items-center gap-2 text-xs font-semibold [&::-webkit-details-marker]:hidden ${isCsp ? "text-white/60" : "text-[#667085]"}`}>
+                      <History className="h-3.5 w-3.5" /> Relationship history
+                    </summary>
+                    <div className="mt-3 space-y-3">
+                      {history.map((event) => {
+                        const actor = event.changed_by && event.changed_by === currentUserId
+                          ? "You"
+                          : event.changed_by_role === "admin"
+                            ? "Cleanr"
+                            : event.changed_by_role === "system"
+                              ? "Cleanr system"
+                              : row.counterpart_name;
+                        return (
+                          <div key={event.id} className={`rounded-xl px-3 py-2.5 text-xs ${isCsp ? "bg-white/5 text-white/65" : "bg-[#F8FAFC] text-[#475467]"}`}>
+                            <p className="font-medium">
+                              {actor} {transitionVerb(event.to_status)} this relationship.
+                            </p>
+                            <p className={`mt-1 text-[11px] ${isCsp ? "text-white/40" : "text-[#98A2B3]"}`}>
+                              {event.from_status} → {event.to_status} · {formatHistoryDate(event.created_at)}
+                            </p>
+                            {event.reason ? <p className="mt-1.5 leading-5">{event.reason}</p> : null}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </details>
+                ) : null}
               </div>
             );
           })}
