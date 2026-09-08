@@ -1,7 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
+import { RefreshCw } from "lucide-react";
 import { supabase } from "../../lib/supabase";
 import { useIsAdmin } from "../../lib/useIsAdmin";
-import { adminTheme } from "../../theme/adminTheme";
+import {
+  AdminDangerButton,
+  AdminEmptyState,
+  AdminNotice,
+  AdminPage,
+  AdminPageHeader,
+  AdminPrimaryButton,
+  AdminSecondaryButton,
+  AdminStatus,
+  AdminTableShell,
+} from "./AdminUi";
 
 type CandidateRow = {
   user_id: string;
@@ -56,16 +67,13 @@ export function AdminAccess() {
       return;
     }
 
+    setCandidates((candidateResult.data ?? []) as CandidateRow[]);
     if (eventResult.error) {
       setMessage(eventResult.error.message);
-      setCandidates((candidateResult.data ?? []) as CandidateRow[]);
       setEvents([]);
-      setLoading(false);
-      return;
+    } else {
+      setEvents((eventResult.data ?? []) as AdminEventRow[]);
     }
-
-    setCandidates((candidateResult.data ?? []) as CandidateRow[]);
-    setEvents((eventResult.data ?? []) as AdminEventRow[]);
     setLoading(false);
   }
 
@@ -74,197 +82,124 @@ export function AdminAccess() {
     void load();
   }, [isAdmin]);
 
-  const candidateMap = useMemo(
-    () => new Map(candidates.map((candidate) => [candidate.user_id, candidate])),
-    [candidates]
-  );
+  const candidateMap = useMemo(() => new Map(candidates.map((candidate) => [candidate.user_id, candidate])), [candidates]);
+  const adminCount = candidates.filter((candidate) => candidate.has_admin_authority).length;
 
   async function grant(candidate: CandidateRow) {
-    const note = window.prompt(
-      `Why should ${displayName(candidate)} receive platform admin access?`,
-      "Independent provider reviewer"
-    );
+    const note = window.prompt(`Why should ${displayName(candidate)} receive platform admin access?`, "Independent provider reviewer");
     if (note === null) return;
 
     setWorkingUserId(candidate.user_id);
     setMessage(null);
-    const { error } = await supabase.rpc("admin_grant_platform_admin", {
-      p_user_id: candidate.user_id,
-      p_note: note,
-    });
+    const { error } = await supabase.rpc("admin_grant_platform_admin", { p_user_id: candidate.user_id, p_note: note });
     setWorkingUserId(null);
-
-    if (error) {
-      setMessage(error.message);
-      return;
-    }
-
+    if (error) return setMessage(error.message);
     setMessage(`Platform admin access granted to ${displayName(candidate)}.`);
     await load();
   }
 
   async function revoke(candidate: CandidateRow) {
-    const note = window.prompt(
-      `Why are you revoking platform admin access from ${displayName(candidate)}?`,
-      "Access no longer required"
-    );
+    const note = window.prompt(`Why are you revoking platform admin access from ${displayName(candidate)}?`, "Access no longer required");
     if (note === null) return;
 
     setWorkingUserId(candidate.user_id);
     setMessage(null);
-    const { error } = await supabase.rpc("admin_revoke_platform_admin", {
-      p_user_id: candidate.user_id,
-      p_note: note,
-    });
+    const { error } = await supabase.rpc("admin_revoke_platform_admin", { p_user_id: candidate.user_id, p_note: note });
     setWorkingUserId(null);
-
-    if (error) {
-      setMessage(error.message);
-      return;
-    }
-
+    if (error) return setMessage(error.message);
     setMessage(`Platform admin access revoked from ${displayName(candidate)}.`);
     await load();
   }
 
-  if (adminLoading) {
-    return <p className="text-sm" style={{ color: adminTheme.textSecondary }}>Loading admin session…</p>;
-  }
-
-  if (!isAdmin) {
-    return <p className="text-sm" style={{ color: adminTheme.textSecondary }}>Admin access required.</p>;
-  }
+  if (adminLoading) return <p className="text-sm text-slate-500">Loading admin session…</p>;
+  if (!isAdmin) return <p className="text-sm text-slate-500">Admin access required.</p>;
 
   return (
-    <main className="mx-auto max-w-6xl space-y-6">
-      <header>
-        <h1 className="text-2xl font-semibold" style={{ color: adminTheme.textPrimary }}>Admin Access</h1>
-        <p className="mt-1 text-sm" style={{ color: adminTheme.textSecondary }}>
-          Platform authority is separate from a person&apos;s primary customer or CSP role. Grant only the access needed for trusted operational work.
-        </p>
-      </header>
+    <AdminPage>
+      <AdminPageHeader
+        eyebrow="Governance"
+        title="Admin access"
+        description="Manage platform authority separately from each person’s customer or CSP role."
+        meta={<span className="text-xs text-slate-500">{adminCount} platform admin{adminCount === 1 ? "" : "s"} · {candidates.length} Cleanr account{candidates.length === 1 ? "" : "s"}</span>}
+        actions={<AdminSecondaryButton onClick={() => void load()}><RefreshCw className="h-4 w-4" /> Refresh</AdminSecondaryButton>}
+      />
 
-      {message ? (
-        <div
-          className="rounded-lg border px-3 py-2 text-sm"
-          style={{ borderColor: adminTheme.border, backgroundColor: adminTheme.surface, color: adminTheme.textPrimary }}
-        >
-          {message}
-        </div>
-      ) : null}
+      {message ? <AdminNotice>{message}</AdminNotice> : null}
 
-      <section className="rounded-xl border p-4" style={{ borderColor: adminTheme.border, backgroundColor: adminTheme.card }}>
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h2 className="text-sm font-semibold">People with Cleanr accounts</h2>
-            <p className="mt-1 text-xs" style={{ color: adminTheme.textSecondary }}>
-              A second independent admin is required to review a CSP who also holds admin authority. The database prevents self-review and prevents removing the last remaining admin authority.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => void load()}
-            className="rounded-lg border px-3 py-2 text-xs font-semibold"
-            style={{ borderColor: adminTheme.border, backgroundColor: adminTheme.surface }}
-          >
-            Refresh
-          </button>
+      <section>
+        <div className="mb-3">
+          <h2 className="text-sm font-semibold text-slate-950">Access roster</h2>
+          <p className="mt-1 text-xs text-slate-500">Database rules still prevent self-review and removal of the last remaining admin authority.</p>
         </div>
 
-        <div className="mt-4 space-y-3">
-          {loading ? (
-            <p className="text-sm" style={{ color: adminTheme.textSecondary }}>Loading accounts…</p>
-          ) : candidates.length === 0 ? (
-            <p className="text-sm" style={{ color: adminTheme.textSecondary }}>No Cleanr accounts found.</p>
-          ) : (
-            candidates.map((candidate) => {
+        {loading ? (
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 text-sm text-slate-500">Loading accounts…</div>
+        ) : candidates.length === 0 ? (
+          <AdminEmptyState title="No Cleanr accounts found" />
+        ) : (
+          <AdminTableShell>
+            <div className="grid grid-cols-[minmax(240px,1.3fr)_180px_220px_180px] gap-4 border-b border-slate-200 bg-slate-50 px-5 py-3 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+              <span>Person</span><span>Primary role</span><span>Authority</span><span className="text-right">Action</span>
+            </div>
+            {candidates.map((candidate) => {
               const isCurrentUser = candidate.user_id === userId;
               const isWorking = workingUserId === candidate.user_id;
               return (
-                <div key={candidate.user_id} className="rounded-lg border p-3" style={{ borderColor: adminTheme.border }}>
-                  <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="text-sm font-semibold">{displayName(candidate)}</p>
-                        {isCurrentUser ? <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-600">You</span> : null}
-                        <span
-                          className={`rounded-full px-2 py-1 text-[11px] font-semibold ${candidate.has_admin_authority ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"}`}
-                        >
-                          {candidate.has_admin_authority ? "Platform admin" : "Standard access"}
-                        </span>
-                      </div>
-                      <p className="mt-1 text-xs" style={{ color: adminTheme.textSecondary }}>
-                        Primary role: {candidate.primary_role ?? "—"}{candidate.email ? ` · ${candidate.email}` : ""}
-                      </p>
-                      {candidate.membership_granted_at ? (
-                        <p className="mt-1 text-xs" style={{ color: adminTheme.textSecondary }}>
-                          Membership granted {new Date(candidate.membership_granted_at).toLocaleString()}
-                          {candidate.membership_note ? ` · ${candidate.membership_note}` : ""}
-                        </p>
-                      ) : null}
+                <div key={candidate.user_id} className="grid grid-cols-[minmax(240px,1.3fr)_180px_220px_180px] items-center gap-4 border-b border-slate-200 px-5 py-4 last:border-b-0">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="truncate text-sm font-semibold text-slate-950">{displayName(candidate)}</p>
+                      {isCurrentUser ? <AdminStatus>You</AdminStatus> : null}
                     </div>
-
-                    <div className="flex flex-wrap gap-2">
-                      {candidate.has_admin_authority ? (
-                        <button
-                          type="button"
-                          disabled={isWorking || candidate.primary_role === "admin"}
-                          onClick={() => void revoke(candidate)}
-                          className="rounded-lg px-3 py-2 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40"
-                          style={{ backgroundColor: adminTheme.danger }}
-                          title={candidate.primary_role === "admin" ? "Legacy admin-role authority cannot be removed from this membership screen." : "Revoke platform admin membership"}
-                        >
-                          {isWorking ? "Working…" : "Revoke access"}
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          disabled={isWorking}
-                          onClick={() => void grant(candidate)}
-                          className="rounded-lg px-3 py-2 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40"
-                          style={{ backgroundColor: adminTheme.primary }}
-                        >
-                          {isWorking ? "Working…" : "Grant admin access"}
-                        </button>
-                      )}
-                    </div>
+                    {candidate.email ? <p className="mt-1 truncate text-xs text-slate-500">{candidate.email}</p> : null}
+                  </div>
+                  <p className="text-sm capitalize text-slate-600">{candidate.primary_role ?? "—"}</p>
+                  <div>
+                    <AdminStatus tone={candidate.has_admin_authority ? "success" : "neutral"}>
+                      {candidate.has_admin_authority ? "Platform admin" : "Standard access"}
+                    </AdminStatus>
+                    {candidate.membership_granted_at ? <p className="mt-1 text-[11px] text-slate-500">Granted {new Date(candidate.membership_granted_at).toLocaleDateString()}</p> : null}
+                  </div>
+                  <div className="text-right">
+                    {candidate.has_admin_authority ? (
+                      <AdminDangerButton disabled={isWorking || candidate.primary_role === "admin"} onClick={() => void revoke(candidate)}>
+                        {isWorking ? "Working…" : "Revoke"}
+                      </AdminDangerButton>
+                    ) : (
+                      <AdminPrimaryButton disabled={isWorking} onClick={() => void grant(candidate)}>
+                        {isWorking ? "Working…" : "Grant access"}
+                      </AdminPrimaryButton>
+                    )}
                   </div>
                 </div>
               );
-            })
-          )}
-        </div>
+            })}
+          </AdminTableShell>
+        )}
       </section>
 
-      <section className="rounded-xl border p-4" style={{ borderColor: adminTheme.border, backgroundColor: adminTheme.card }}>
-        <h2 className="text-sm font-semibold">Access history</h2>
-        <p className="mt-1 text-xs" style={{ color: adminTheme.textSecondary }}>
-          Grants and revocations remain in the audit trail even after membership changes.
-        </p>
-
-        <div className="mt-3 space-y-2">
+      <details className="rounded-2xl border border-slate-200 bg-white">
+        <summary className="cursor-pointer list-none px-5 py-4 text-sm font-semibold text-slate-950">Access history · {events.length}</summary>
+        <div className="border-t border-slate-200">
           {events.length === 0 ? (
-            <p className="text-sm" style={{ color: adminTheme.textSecondary }}>No access events yet.</p>
-          ) : (
-            events.map((event) => {
-              const subject = candidateMap.get(event.user_id);
-              const actor = event.actor_id ? candidateMap.get(event.actor_id) : null;
-              return (
-                <div key={event.id} className="rounded-lg border px-3 py-2" style={{ borderColor: adminTheme.border }}>
-                  <p className="text-xs font-semibold">
-                    {displayName(subject ?? { user_id: event.user_id, email: null, full_name: null, primary_role: null, has_admin_authority: false, membership_granted_at: null, membership_granted_by: null, membership_note: null })} · {event.action}
-                  </p>
-                  <p className="mt-1 text-xs" style={{ color: adminTheme.textSecondary }}>
-                    {new Date(event.occurred_at).toLocaleString()}
-                    {actor ? ` · by ${displayName(actor)}` : " · system bootstrap"}
-                    {event.note ? ` · ${event.note}` : ""}
-                  </p>
+            <p className="px-5 py-5 text-sm text-slate-500">No access events yet.</p>
+          ) : events.map((event) => {
+            const subject = candidateMap.get(event.user_id);
+            const actor = event.actor_id ? candidateMap.get(event.actor_id) : null;
+            const fallback: CandidateRow = { user_id: event.user_id, email: null, full_name: null, primary_role: null, has_admin_authority: false, membership_granted_at: null, membership_granted_by: null, membership_note: null };
+            return (
+              <div key={event.id} className="grid grid-cols-[minmax(220px,1fr)_140px_minmax(240px,1.2fr)] gap-4 border-b border-slate-200 px-5 py-3 text-xs last:border-b-0">
+                <div>
+                  <p className="font-semibold text-slate-900">{displayName(subject ?? fallback)}</p>
+                  <p className="mt-1 text-slate-500">{new Date(event.occurred_at).toLocaleString()}</p>
                 </div>
-              );
-            })
-          )}
+                <AdminStatus tone={event.action === "granted" ? "success" : "danger"}>{event.action}</AdminStatus>
+                <p className="text-slate-600">{actor ? `By ${displayName(actor)}` : "System bootstrap"}{event.note ? ` · ${event.note}` : ""}</p>
+              </div>
+            );
+          })}
         </div>
-      </section>
-    </main>
+      </details>
+    </AdminPage>
   );
 }
