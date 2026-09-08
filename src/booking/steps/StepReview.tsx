@@ -79,8 +79,14 @@ export function StepReview({ onBack }: StepReviewProps) {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user?.id) {
-        void recordBookingProgressEvent({ eventType: "auth_required_checkout_blocked", currentStep: "review", zip: state.zipcode ?? null, serviceOptionKey: serviceOptionKeyFromBookingService(state.serviceType) });
-        throw new Error("Please sign in before payment so we can confirm your booking identity.");
+        void recordBookingProgressEvent({
+          eventType: "auth_required_checkout_blocked",
+          currentStep: "review",
+          zip: state.zipcode ?? null,
+          serviceOptionKey: serviceOptionKeyFromBookingService(state.serviceType),
+        });
+        navigate("/signin?continue=booking");
+        return;
       }
 
       const bookingId = await createVerifiedBooking(state);
@@ -260,9 +266,8 @@ export function StepReview({ onBack }: StepReviewProps) {
       </div>
 
       {submitError ? <p className="text-[12px] font-medium text-red-500">{submitError}</p> : null}
-      {submitError?.toLowerCase().includes("sign in") ? <Button type="button" variant="secondary" size="md" fullWidth onClick={() => navigate("/signin")}>Sign in to continue</Button> : null}
 
-      <p className="text-[12px] text-center text-[#667085]">You'll see the final total, including any Cleanr credit, before you're charged.</p>
+      <p className="text-[12px] text-center text-[#667085]">You'll see the final total, including any Cleanr credit, before you're charged. If you're not signed in yet, Cleanr will ask you to sign in or create an account only when you continue to secure payment.</p>
       <Button type="button" onClick={handleConfirm} disabled={isSubmitting || !state.serviceAddress.verified} loading={isSubmitting} variant="primaryBlue" size="lg" fullWidth>
         {isSubmitting ? "Starting payment…" : "Continue to Secure Payment →"}
       </Button>
