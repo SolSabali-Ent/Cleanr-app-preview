@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
+import { CustomerCancellationCard } from "../../components/booking/CustomerCancellationCard";
 import { CustomerHouseholdMemorySuggestionsCard } from "../../components/relationship/CustomerHouseholdMemorySuggestionsCard";
 import { MutualRescheduleCard } from "../../components/relationship/MutualRescheduleCard";
 import { RelationshipAssignmentPendingCard } from "../../components/relationship/RelationshipAssignmentPendingCard";
@@ -71,6 +72,7 @@ export function BookingDetails() {
       {reschedulableForCurrentCustomer && bookingId ? (
         <MutualRescheduleCard bookingId={bookingId} audience="customer" />
       ) : null}
+      {bookingId ? <CustomerCancellationCard bookingId={bookingId} /> : null}
       {bookingId ? <RelationshipAssignmentPendingCard bookingId={bookingId} /> : null}
       {confirmedForCurrentCustomer && bookingId ? (
         <CustomerHouseholdMemorySuggestionsCard bookingId={bookingId} />
