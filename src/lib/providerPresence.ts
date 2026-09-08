@@ -34,6 +34,40 @@ type ProviderPresenceOptions = {
   sampleLimit?: number;
 };
 
+function rowToMarketplaceProvider(row: Record<string, unknown>): MarketplaceProviderChoice {
+  return {
+    id: String(row.id ?? ""),
+    full_name: (row.full_name as string | null) ?? null,
+    preferred_name: (row.preferred_name as string | null) ?? null,
+    profile_photo_path: (row.profile_photo_path as string | null) ?? null,
+    provider_bio: (row.provider_bio as string | null) ?? null,
+    years_experience: row.years_experience == null ? null : Number(row.years_experience),
+    specialties: Array.isArray(row.specialties) ? row.specialties.map(String) : [],
+    service_area_labels: Array.isArray(row.service_area_labels) ? row.service_area_labels.map(String) : [],
+    avg_rating: row.avg_rating == null ? null : Number(row.avg_rating),
+    review_count: Number(row.review_count ?? 0),
+    repeat_household_count: Number(row.repeat_household_count ?? 0),
+    background_checked: Boolean(row.background_checked),
+    insured: Boolean(row.insured),
+    platform_verified: Boolean(row.platform_verified),
+  };
+}
+
+/** Public marketplace listing for transparent pre-booking discovery. */
+export async function listMarketplaceProvidersPublic(limit = 12): Promise<MarketplaceProviderChoice[]> {
+  const { data, error } = await supabase
+    .from("provider_public_profiles")
+    .select("id,full_name,preferred_name,profile_photo_path,provider_bio,years_experience,specialties,service_area_labels,avg_rating,review_count,repeat_household_count,background_checked,insured,platform_verified")
+    .eq("marketplace_access", true)
+    .order("review_count", { ascending: false })
+    .order("avg_rating", { ascending: false })
+    .order("full_name", { ascending: true })
+    .limit(Math.max(1, Math.min(limit, 50)));
+
+  if (error) throw error;
+  return ((data ?? []) as Record<string, unknown>[]).map(rowToMarketplaceProvider);
+}
+
 /**
  * Returns public-safe CSP cards whose configured service radius plausibly reaches
  * the ZIP centroid. Exact street-address and schedule eligibility are validated
@@ -52,22 +86,7 @@ export async function listMarketplaceProvidersForZip(
   });
   if (error) throw error;
 
-  return ((data ?? []) as Record<string, unknown>[]).map((row) => ({
-    id: String(row.id ?? ""),
-    full_name: (row.full_name as string | null) ?? null,
-    preferred_name: (row.preferred_name as string | null) ?? null,
-    profile_photo_path: (row.profile_photo_path as string | null) ?? null,
-    provider_bio: (row.provider_bio as string | null) ?? null,
-    years_experience: row.years_experience == null ? null : Number(row.years_experience),
-    specialties: Array.isArray(row.specialties) ? row.specialties.map(String) : [],
-    service_area_labels: Array.isArray(row.service_area_labels) ? row.service_area_labels.map(String) : [],
-    avg_rating: row.avg_rating == null ? null : Number(row.avg_rating),
-    review_count: Number(row.review_count ?? 0),
-    repeat_household_count: Number(row.repeat_household_count ?? 0),
-    background_checked: Boolean(row.background_checked),
-    insured: Boolean(row.insured),
-    platform_verified: Boolean(row.platform_verified),
-  }));
+  return ((data ?? []) as Record<string, unknown>[]).map(rowToMarketplaceProvider);
 }
 
 /**
