@@ -98,7 +98,10 @@ function formatServiceAddress(address: string): string {
 }
 
 function relationshipHeading(relationship: ProviderHouseholdRelationshipSummary): string {
-  if (relationship.relationship?.customerPreferred) return "A household that prefers working with you";
+  if (relationship.relationship?.status === "paused") return "A household relationship that is currently paused";
+  if (relationship.relationship?.status === "active" && relationship.relationship.customerPreferred) {
+    return "A household that prefers working with you";
+  }
   if (relationship.completedServicesCount >= 2) return "A household you know";
   if (relationship.completedServicesCount === 1) return "A returning household";
   return "Your first visit with this household";
