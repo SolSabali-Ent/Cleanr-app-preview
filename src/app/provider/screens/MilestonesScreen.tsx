@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, CheckCircle2, Circle, Link2, Plus, Sparkles } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Circle, Link2, Plus } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import type { NorthStar, NorthStarMilestone } from "@/domain/growth";
 import type { EligibleNorthStarOutcome, NorthStarOutcomeEvidence } from "@/domain/northStarOutcomeEvidence";
@@ -19,10 +19,7 @@ import {
 } from "@/lib/northStarOutcomeEvidenceApi";
 import { listMyNorthStarOpportunityRelevance } from "@/lib/northStarOpportunityRelevanceApi";
 import {
-  CSP_CARD_PADDING,
   CSP_PRIMARY_BUTTON,
-  CSP_SURFACE,
-  CSP_SECTION_GAP,
   CSP_TEXT_PRIMARY,
   CSP_TEXT_SECONDARY,
 } from "@/theme/cspTheme";
@@ -125,7 +122,7 @@ export default function MilestonesScreen() {
       await completeMyMilestoneFromOutcome(milestoneId, outcomeId);
       await refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to connect this verified outcome to your milestone");
+      setError(err instanceof Error ? err.message : "Unable to connect this outcome");
     } finally {
       setBusyId(null);
     }
@@ -137,112 +134,107 @@ export default function MilestonesScreen() {
         <ArrowLeft size={16} /> Growth
       </button>
 
-      <header style={{ marginBottom: CSP_SECTION_GAP }}>
-        <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs">
-          <Sparkles size={14} style={{ color: CSP_PRIMARY_BUTTON }} />
-          <span style={{ color: CSP_TEXT_SECONDARY }}>Progress you can see</span>
-        </div>
+      <header className="mb-6">
         <h1 className="text-2xl font-semibold">Milestones</h1>
-        <p className="mt-2 text-sm leading-6" style={{ color: CSP_TEXT_SECONDARY }}>
-          Break your North Star into meaningful steps. These are personal progress markers, not Cleanr performance requirements.
-        </p>
+        <p className="mt-1 text-sm" style={{ color: CSP_TEXT_SECONDARY }}>Turn your North Star into next steps.</p>
       </header>
 
       {error ? <p className="mb-4 text-sm text-red-300">{error}</p> : null}
 
       {!northStar ? (
-        <div className="rounded-2xl border" style={{ backgroundColor: CSP_SURFACE, borderColor: "rgba(248,250,252,.08)", padding: CSP_CARD_PADDING }}>
-          <p className="text-sm font-medium">Start with your North Star.</p>
-          <p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>Once you define what you&apos;re building toward, you can create milestones that make progress visible.</p>
+        <div className="border-y border-white/10 py-5">
+          <p className="text-sm font-medium">Set your North Star first.</p>
+          <button type="button" onClick={() => navigate(CSP_GROWTH_ROUTES.home)} className="mt-3 text-sm font-semibold" style={{ color: CSP_PRIMARY_BUTTON }}>
+            Go to Growth
+          </button>
         </div>
       ) : (
         <>
-          <section style={{ marginBottom: CSP_SECTION_GAP }}>
-            <div className="rounded-2xl border" style={{ backgroundColor: CSP_SURFACE, borderColor: "rgba(248,250,252,.08)", padding: CSP_CARD_PADDING }}>
-              <p className="text-xs" style={{ color: CSP_TEXT_SECONDARY }}>Current North Star</p>
-              <p className="mt-1 text-sm font-semibold">{northStar.goal}</p>
-              <div className="mt-4 flex gap-2">
-                <input value={description} onChange={(event) => setDescription(event.target.value)} disabled={isOfflinePreviewMode} maxLength={300} placeholder={isOfflinePreviewMode ? "Available when backend returns" : "Add a next meaningful step"} className="min-w-0 flex-1 rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-sm outline-none disabled:opacity-60" />
-                <button type="button" disabled={isOfflinePreviewMode || description.trim().length < 2 || saving} onClick={() => void addMilestone()} className="flex items-center justify-center rounded-xl px-4 text-white disabled:opacity-50" style={{ backgroundColor: CSP_PRIMARY_BUTTON }}><Plus size={18} /></button>
-              </div>
+          <section className="mb-7">
+            <p className="text-xs" style={{ color: CSP_TEXT_SECONDARY }}>North Star</p>
+            <p className="mt-1 text-sm font-semibold">{northStar.goal}</p>
+            <div className="mt-4 flex gap-2">
+              <input
+                value={description}
+                onChange={(event) => setDescription(event.target.value)}
+                disabled={isOfflinePreviewMode}
+                maxLength={300}
+                placeholder={isOfflinePreviewMode ? "Available when backend returns" : "Add a next step"}
+                className="min-w-0 flex-1 rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-sm outline-none disabled:opacity-60"
+              />
+              <button
+                type="button"
+                aria-label="Add milestone"
+                disabled={isOfflinePreviewMode || description.trim().length < 2 || saving}
+                onClick={() => void addMilestone()}
+                className="flex min-h-12 min-w-12 items-center justify-center rounded-xl text-white disabled:opacity-50"
+                style={{ backgroundColor: CSP_PRIMARY_BUTTON }}
+              >
+                <Plus size={18} />
+              </button>
             </div>
           </section>
 
-          {eligibleOutcomes.length > 0 ? (
-            <section style={{ marginBottom: CSP_SECTION_GAP }}>
-              <div className="rounded-2xl border" style={{ backgroundColor: "rgba(141,204,100,.08)", borderColor: "rgba(141,204,100,.22)", padding: CSP_CARD_PADDING }}>
-                <div className="flex items-start gap-3">
-                  <Link2 size={18} style={{ color: CSP_PRIMARY_BUTTON, marginTop: 2 }} />
-                  <div>
-                    <p className="text-sm font-medium">Verified outcomes can support your progress.</p>
-                    <p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>Cleanr has verified {eligibleOutcomes.length} completed Growth outcome{eligibleOutcomes.length === 1 ? "" : "s"}. Only you decide whether one actually advanced a milestone. Nothing is marked complete automatically.</p>
-                  </div>
-                </div>
-              </div>
-            </section>
-          ) : null}
-
           <section>
-            <h2 className="mb-3 text-sm font-medium" style={{ color: CSP_TEXT_SECONDARY }}>Your milestones</h2>
+            <h2 className="mb-2 text-sm font-medium" style={{ color: CSP_TEXT_SECONDARY }}>Your milestones</h2>
             {milestones.length === 0 ? (
-              <div className="rounded-2xl border" style={{ backgroundColor: CSP_SURFACE, borderColor: "rgba(248,250,252,.08)", padding: CSP_CARD_PADDING }}>
+              <div className="border-y border-white/10 py-5">
                 <p className="text-sm font-medium">No milestones yet.</p>
-                <p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>Choose the next step that would make your North Star feel more possible.</p>
+                <p className="mt-1 text-xs" style={{ color: CSP_TEXT_SECONDARY }}>Add the next step that matters most.</p>
               </div>
             ) : (
-              <div className="space-y-3">
-                {milestones.map((milestone) => {
+              <div className="border-y border-white/10">
+                {milestones.map((milestone, index) => {
                   const complete = milestone.status === "completed";
                   const milestoneEvidence = evidenceByMilestone.get(milestone.id);
                   const prospectiveRelevance = relevanceByMilestone.get(milestone.id);
                   return (
-                    <div key={milestone.id} className="w-full rounded-2xl border text-left" style={{ backgroundColor: CSP_SURFACE, borderColor: "rgba(248,250,252,.08)", padding: CSP_CARD_PADDING }}>
-                      <button type="button" disabled={isOfflinePreviewMode || busyId === milestone.id} onClick={() => void toggleMilestone(milestone)} className="w-full text-left disabled:opacity-70">
-                        <div className="flex items-start gap-3">
-                          {complete ? <CheckCircle2 size={20} style={{ color: CSP_PRIMARY_BUTTON, marginTop: 1 }} /> : <Circle size={20} style={{ color: CSP_TEXT_SECONDARY, marginTop: 1 }} />}
-                          <div>
-                            <p className={`text-sm font-medium ${complete ? "line-through opacity-70" : ""}`}>{milestone.description}</p>
-                            <p className="mt-1 text-xs" style={{ color: CSP_TEXT_SECONDARY }}>{complete ? "Completed" : milestone.status.replaceAll("_", " ")}</p>
-                          </div>
+                    <div key={milestone.id} className={`py-4 ${index > 0 ? "border-t border-white/10" : ""}`}>
+                      <button type="button" disabled={isOfflinePreviewMode || busyId === milestone.id} onClick={() => void toggleMilestone(milestone)} className="flex w-full items-start gap-3 text-left disabled:opacity-70">
+                        {complete ? <CheckCircle2 size={20} className="mt-0.5 shrink-0" style={{ color: CSP_PRIMARY_BUTTON }} /> : <Circle size={20} className="mt-0.5 shrink-0" style={{ color: CSP_TEXT_SECONDARY }} />}
+                        <div className="min-w-0 flex-1">
+                          <p className={`text-sm font-medium ${complete ? "line-through opacity-70" : ""}`}>{milestone.description}</p>
+                          <p className="mt-1 text-xs capitalize" style={{ color: CSP_TEXT_SECONDARY }}>{complete ? "Completed" : milestone.status.replaceAll("_", " ")}</p>
                         </div>
                       </button>
 
                       {prospectiveRelevance ? (
-                        <div className="mt-4 rounded-xl border border-white/10 bg-white/5 p-3">
-                          <div className="flex items-start gap-2">
-                            <Link2 size={14} style={{ color: CSP_PRIMARY_BUTTON, marginTop: 2 }} />
-                            <div>
-                              <p className="text-xs font-medium">Opportunity you said may help</p>
-                              <p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>{opportunityTypeLabel(prospectiveRelevance.opportunityType)} · {prospectiveRelevance.opportunityTitle}</p>
-                              <p className="mt-1 text-[11px] leading-4" style={{ color: CSP_TEXT_SECONDARY }}>Prospective relevance only. This does not mean the milestone moved or that Cleanr selected your path.</p>
-                            </div>
-                          </div>
-                        </div>
+                        <p className="ml-8 mt-2 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>
+                          <Link2 size={12} className="mr-1 inline" style={{ color: CSP_PRIMARY_BUTTON }} />
+                          May be helped by {opportunityTypeLabel(prospectiveRelevance.opportunityType)} · {prospectiveRelevance.opportunityTitle}
+                        </p>
                       ) : null}
 
                       {milestoneEvidence ? (
-                        <div className="mt-4 rounded-xl border border-white/10 bg-white/5 p-3">
-                          <div className="flex items-start gap-2">
-                            <CheckCircle2 size={14} style={{ color: CSP_PRIMARY_BUTTON, marginTop: 2 }} />
-                            <div>
-                              <p className="text-xs font-medium">Backed by a verified outcome</p>
-                              <p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>{opportunityTypeLabel(milestoneEvidence.opportunityType)} · {milestoneEvidence.opportunityTitle}</p>
-                              {milestoneEvidence.outcomeSummary ? <p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>{milestoneEvidence.outcomeSummary}</p> : null}
-                            </div>
-                          </div>
-                        </div>
+                        <p className="ml-8 mt-2 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>
+                          <CheckCircle2 size={12} className="mr-1 inline" style={{ color: CSP_PRIMARY_BUTTON }} />
+                          Verified by {milestoneEvidence.opportunityTitle}
+                        </p>
                       ) : !complete && eligibleOutcomes.length > 0 && !isOfflinePreviewMode ? (
-                        <div className="mt-4 border-t border-white/10 pt-4">
-                          <p className="text-xs font-medium">Did a verified outcome move this forward?</p>
-                          <p className="mt-1 text-[11px] leading-4" style={{ color: CSP_TEXT_SECONDARY }}>Choose only if this outcome genuinely completed the milestone. This does not turn the outcome into a Contribution or award a capability.</p>
-                          <div className="mt-3 flex gap-2">
-                            <select value={selectedOutcomeByMilestone[milestone.id] ?? ""} onChange={(event) => setSelectedOutcomeByMilestone((current) => ({ ...current, [milestone.id]: event.target.value }))} className="min-w-0 flex-1 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs">
-                              <option value="" className="text-black">Choose verified outcome</option>
+                        <details className="ml-8 mt-2">
+                          <summary className="cursor-pointer list-none text-xs font-medium" style={{ color: CSP_PRIMARY_BUTTON }}>
+                            Connect a verified outcome
+                          </summary>
+                          <div className="mt-2 flex gap-2">
+                            <select
+                              value={selectedOutcomeByMilestone[milestone.id] ?? ""}
+                              onChange={(event) => setSelectedOutcomeByMilestone((current) => ({ ...current, [milestone.id]: event.target.value }))}
+                              className="min-w-0 flex-1 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs"
+                            >
+                              <option value="" className="text-black">Choose outcome</option>
                               {eligibleOutcomes.map((outcome) => <option key={outcome.outcomeId} value={outcome.outcomeId} className="text-black">{outcome.opportunityTitle}</option>)}
                             </select>
-                            <button type="button" disabled={!selectedOutcomeByMilestone[milestone.id] || busyId === milestone.id} onClick={() => void completeFromOutcome(milestone.id)} className="rounded-xl px-3 py-2 text-xs font-semibold text-white disabled:opacity-50" style={{ backgroundColor: CSP_PRIMARY_BUTTON }}>Connect</button>
+                            <button
+                              type="button"
+                              disabled={!selectedOutcomeByMilestone[milestone.id] || busyId === milestone.id}
+                              onClick={() => void completeFromOutcome(milestone.id)}
+                              className="rounded-xl px-3 py-2 text-xs font-semibold text-white disabled:opacity-50"
+                              style={{ backgroundColor: CSP_PRIMARY_BUTTON }}
+                            >
+                              Connect
+                            </button>
                           </div>
-                        </div>
+                        </details>
                       ) : null}
                     </div>
                   );
