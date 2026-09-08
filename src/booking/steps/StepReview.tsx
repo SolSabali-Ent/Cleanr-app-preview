@@ -33,6 +33,12 @@ async function checkoutErrorMessage(err: unknown): Promise<string> {
   return fallback;
 }
 
+function relationshipCheckoutBlocked(message: string): boolean {
+  return message.includes("RELATIONSHIP_NOT_ACTIVE_FOR_NEW_BOOKING")
+    || message.includes("active_service_relationship_required_for_booking_context")
+    || message.includes("invalid_service_relationship_context");
+}
+
 export function StepReview({ onBack }: StepReviewProps) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -93,15 +99,22 @@ export function StepReview({ onBack }: StepReviewProps) {
       window.location.assign(url);
     } catch (err) {
       const message = await checkoutErrorMessage(err);
-      if (message.includes("PROVIDER_SUPPLY_BUILDING") || message.includes("MARKET_NOT_ACTIVE") || message.includes("UNSUPPORTED_SERVICE_AREA")) {
-        const activationReason = message.includes("PROVIDER_SUPPLY_BUILDING") ? "provider_supply_building" : message.includes("UNSUPPORTED_SERVICE_AREA") ? "unsupported_service_area" : "market_not_active";
+      const relationshipBlocked = relationshipCheckoutBlocked(message);
+      if (message.includes("PROVIDER_SUPPLY_BUILDING") || message.includes("MARKET_NOT_ACTIVE") || message.includes("UNSUPPORTED_SERVICE_AREA") || relationshipBlocked) {
+        const activationReason = relationshipBlocked
+          ? "relationship_not_active"
+          : message.includes("PROVIDER_SUPPLY_BUILDING")
+            ? "provider_supply_building"
+            : message.includes("UNSUPPORTED_SERVICE_AREA")
+              ? "unsupported_service_area"
+              : "market_not_active";
         void recordBookingProgressEvent({ eventType: "booking_created_payment_not_started", currentStep: "review", zip: state.zipcode ?? null, serviceOptionKey: serviceOptionKeyFromBookingService(state.serviceType), metadata: { checkout_block_reason: activationReason } });
         void supabase.auth.getUser().then(({ data: { user } }) => { if (user?.id) emitBookingAbandoned(user.id, "review_checkout_blocked", 0); });
       }
-      if (message.includes("PROVIDER_SUPPLY_BUILDING")) setSubmitError("No Cleanr provider is available for this time. Choose another arrival window.");
+      if (relationshipBlocked) setSubmitError("This relationship is paused or no longer active, so it can't start a new cleaning together. Manage the relationship or choose another CSP.");
+      else if (message.includes("PROVIDER_SUPPLY_BUILDING")) setSubmitError("No Cleanr provider is available for this time. Choose another arrival window.");
       else if (message.includes("MARKET_NOT_ACTIVE")) setSubmitError("Booking is not open in this area yet. Check back soon.");
       else if (message.includes("UNSUPPORTED_SERVICE_AREA")) setSubmitError("Cleanr is not serving this ZIP yet.");
-      else if (message.includes("invalid_service_relationship_context")) setSubmitError("Your preferred cleaner is no longer available for this booking. Choose another option and try again.");
       else setSubmitError(message);
     } finally {
       setIsSubmitting(false);
@@ -151,8 +164,8 @@ export function StepReview({ onBack }: StepReviewProps) {
 
       {serviceRelationshipId ? (
         <div className="rounded-[14px] border border-[#BBF7D0] bg-[#F0FDF4] p-4">
-          <p className="text-[13px] font-semibold text-[#166534]">Booking with your preferred cleaner</p>
-          <p className="mt-1 text-[12px] leading-5 text-[#3F6212]">We'll keep this relationship connected to the visit while still checking availability.</p>
+          <p className="text-[13px] font-semibold text-[#166534]">Booking through your existing CSP relationship</p>
+          <p className="mt-1 text-[12px] leading-5 text-[#3F6212]">We'll confirm the relationship is active and that this CSP is available before payment begins.</p>
         </div>
       ) : null}
 
