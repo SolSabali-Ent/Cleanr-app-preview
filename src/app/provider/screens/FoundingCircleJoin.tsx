@@ -33,9 +33,8 @@ export default function FoundingCircleJoin() {
     <main className="min-h-screen bg-white text-[#0B1220]">
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-5 px-5 py-5 sm:px-8">
-          <button type="button" onClick={() => navigate("/")} className="flex items-center gap-3 text-left" aria-label="Cleanr home">
-            <img src="/cleanr-app@2x.png" alt="" className="h-11 w-11 rounded-xl object-contain" />
-            <span className="text-xl font-semibold tracking-tight">Cleanr</span>
+          <button type="button" onClick={() => navigate("/")} className="flex items-center text-left" aria-label="Cleanr home">
+            <img src="/cleanr-app@2x.png" alt="Cleanr" className="h-[73px] w-[73px] rounded-2xl object-contain" />
           </button>
           <button
             type="button"
