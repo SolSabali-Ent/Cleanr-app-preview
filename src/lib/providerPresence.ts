@@ -3,6 +3,7 @@ import { supabase } from "./supabase";
 export type PublicProviderPresenceCard = {
   id: string;
   full_name: string | null;
+  profile_photo_path: string | null;
   avg_rating: number | null;
   review_count: number;
   background_checked: boolean;
@@ -55,6 +56,7 @@ export async function listMarketplaceProvidersForZip(
     id: String(row.id ?? ""),
     full_name: (row.full_name as string | null) ?? null,
     preferred_name: (row.preferred_name as string | null) ?? null,
+    profile_photo_path: (row.profile_photo_path as string | null) ?? null,
     provider_bio: (row.provider_bio as string | null) ?? null,
     years_experience: row.years_experience == null ? null : Number(row.years_experience),
     specialties: Array.isArray(row.specialties) ? row.specialties.map(String) : [],
@@ -98,9 +100,10 @@ export async function getProviderPresenceSummary(
     if (zip) {
       try {
         const zipProviders = await listMarketplaceProvidersForZip(zip, sampleLimit);
-        sampleProviders = zipProviders.map(({ id, full_name, avg_rating, review_count, background_checked, insured, platform_verified }) => ({
+        sampleProviders = zipProviders.map(({ id, full_name, profile_photo_path, avg_rating, review_count, background_checked, insured, platform_verified }) => ({
           id,
           full_name,
+          profile_photo_path,
           avg_rating,
           review_count,
           background_checked,
@@ -114,7 +117,7 @@ export async function getProviderPresenceSummary(
       const { data: sampleRows, error: sampleError } = await supabase
         .from("provider_public_profiles")
         .select(
-          "id, full_name, avg_rating, review_count, background_checked, insured, platform_verified"
+          "id, full_name, profile_photo_path, avg_rating, review_count, background_checked, insured, platform_verified"
         )
         .eq("marketplace_access", true)
         .order("review_count", { ascending: false })
@@ -125,6 +128,7 @@ export async function getProviderPresenceSummary(
         sampleProviders = sampleRows.map((row) => ({
           id: String(row.id),
           full_name: row.full_name ?? null,
+          profile_photo_path: row.profile_photo_path ?? null,
           avg_rating: typeof row.avg_rating === "number" ? row.avg_rating : null,
           review_count: Number(row.review_count ?? 0),
           background_checked: Boolean(row.background_checked),
