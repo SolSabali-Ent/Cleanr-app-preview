@@ -2,7 +2,6 @@ import { useEffect, type ReactNode } from "react";
 import {
   ArrowRight,
   BadgeCheck,
-  Bell,
   CalendarDays,
   ChevronDown,
   ClipboardList,
@@ -10,13 +9,11 @@ import {
   FileCheck,
   Home,
   MapPin,
-  RefreshCw,
   Repeat,
   Shield,
   Sparkles,
   Star,
   UserCircle,
-  Users,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { captureReferralCodeFromUrl } from "../../lib/referralRef";
@@ -418,21 +415,66 @@ export default function Landing() {
       </section>
 
       <section className="bg-white px-6 py-16 sm:py-20">
-        <div className="mx-auto max-w-7xl">
-          <SectionHeading
-            eyebrow="Why Cleanr"
-            title="Residential-first, with room to grow"
-            description="Cleanr keeps the experience focused on home cleaning—clear flows for customers and providers, without turning into a catch-all marketplace."
-          />
-          <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            <FeatureCard icon={<ArrowRight className="h-6 w-6" />} title="Clear booking flow" description="Customers move through booking steps with predictable status and confirmation." />
-            <FeatureCard icon={<Home className="h-6 w-6" />} title="Residential-first focus" description="Service types and copy stay oriented to home cleaning—not offices or facilities." />
-            <FeatureCard icon={<Users className="h-6 w-6" />} title="Provider profiles" description="See who is completing work in your home with profile and application context." />
-            <FeatureCard icon={<Bell className="h-6 w-6" />} title="Service reminders" description="Stay informed before and around your visit with in-app booking updates." />
-            <FeatureCard icon={<Star className="h-6 w-6" />} title="Reviews and feedback" description="Capture post-visit ratings to inform future residential bookings." />
-            <FeatureCard icon={<Repeat className="h-6 w-6" />} title="Repeat booking support" description="Return customers can book again with saved context where the product supports it." />
-            <FeatureCard icon={<RefreshCw className="h-6 w-6" />} title="Referral-ready experience" description="Share Cleanr with others when referral flows are enabled in your market." />
-            <FeatureCard icon={<Shield className="h-6 w-6" />} title="Behind-the-scenes coordination" description="Cleanr keeps booking, reminders, service updates, and support connected behind the scenes so households and providers can focus on the relationship." />
+        <div className="mx-auto max-w-6xl overflow-hidden rounded-[28px] border border-slate-200 bg-[#F7F9FC] shadow-sm">
+          <div className="grid gap-10 px-6 py-10 sm:px-10 lg:grid-cols-[1.15fr_0.85fr] lg:items-center lg:px-12 lg:py-12">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-wide text-[#166534]">Built for repeat trust</p>
+              <h2 className="mt-3 max-w-3xl text-3xl font-bold tracking-tight text-[#0B1220] sm:text-4xl">
+                Choose who cleans your home. Keep the connection when it works.
+              </h2>
+              <p className="mt-4 max-w-2xl text-lg leading-relaxed text-[#667085]">
+                Browse real CSPs or let Cleanr match you. Cleanr handles scheduling, payments, service updates, and support so a good household-CSP fit can continue without starting over each visit.
+              </p>
+              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+                <BluePrimaryLink to={CUSTOMER_ENTRY_PATH}>
+                  Book now
+                  <ArrowRight className="h-5 w-5 shrink-0" />
+                </BluePrimaryLink>
+                <a
+                  href="#meet-cleanr-csps"
+                  className="inline-flex min-h-[3rem] items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-8 py-4 text-center font-medium text-[#0B1220]"
+                >
+                  Meet CSPs
+                  <ArrowRight className="h-5 w-5 shrink-0" />
+                </a>
+              </div>
+            </div>
+
+            <div className="grid gap-3">
+              <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#ECF8E8] text-[#166534]">
+                    <UserCircle className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-[#0B1220]">Know who you're booking</p>
+                    <p className="mt-1 text-sm leading-6 text-[#667085]">See real CSP profiles before deciding who may come into your home.</p>
+                  </div>
+                </div>
+              </div>
+              <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#ECF8E8] text-[#166534]">
+                    <Repeat className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-[#0B1220]">Keep continuity</p>
+                    <p className="mt-1 text-sm leading-6 text-[#667085]">When the fit is good, your shared Cleanr history stays connected instead of resetting every visit.</p>
+                  </div>
+                </div>
+              </div>
+              <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#ECF8E8] text-[#166534]">
+                    <Shield className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-[#0B1220]">Cleanr handles the admin</p>
+                    <p className="mt-1 text-sm leading-6 text-[#667085]">Scheduling, payments, service updates, and support stay in one place around the relationship.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
