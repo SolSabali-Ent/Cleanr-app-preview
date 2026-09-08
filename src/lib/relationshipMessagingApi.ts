@@ -1,12 +1,15 @@
 import { supabase } from "./supabase";
 import { MAX_MESSAGE_LENGTH } from "./messagingApi";
 
+export type RelationshipStatus = "active" | "paused" | "ended";
+export type RelationshipAction = "pause" | "resume" | "end";
+
 export type RelationshipMessageThread = {
   id: string;
   service_relationship_id: string;
   customer_id: string;
   provider_id: string;
-  relationship_status: "active" | "paused" | "ended";
+  relationship_status: RelationshipStatus;
   can_send: boolean;
   created_at: string;
   updated_at: string;
@@ -54,4 +57,21 @@ export async function sendRelationshipMessage(threadId: string, body: string): P
 export async function markRelationshipMessageNotificationsRead(threadId: string): Promise<void> {
   const { error } = await supabase.rpc("mark_relationship_message_notifications_read", { p_thread_id: threadId });
   if (error) throw error;
+}
+
+export async function updateMyServiceRelationshipStatus(
+  relationshipId: string,
+  action: RelationshipAction,
+  reason?: string
+): Promise<RelationshipStatus> {
+  const { data, error } = await supabase.rpc("update_my_service_relationship_status", {
+    p_relationship_id: relationshipId,
+    p_action: action,
+    p_reason: reason?.trim() || null,
+  });
+  if (error) throw error;
+
+  const row = data as { status?: RelationshipStatus } | null;
+  if (!row?.status) throw new Error("Invalid relationship status response");
+  return row.status;
 }
