@@ -69,6 +69,8 @@ export function ProviderOverview() {
   ).length;
   const completedTogether = durableRelationship?.completedServicesCount ?? bookingHistoryCompletedTogether;
   const hasEstablishedHistory = Boolean(durableRelationship) || relationshipBookings.length > 0;
+  const relationshipActive = durableRelationship?.status === "active";
+  const relationshipPaused = durableRelationship?.status === "paused";
 
   useEffect(() => {
     if (!selectedProvider?.id || isOfflinePreviewMode) {
@@ -106,6 +108,7 @@ export function ProviderOverview() {
 
   const handlePreferredProvider = async () => {
     if (!selectedProvider?.id || !durableRelationship || preferenceBusy) return;
+    if (durableRelationship.status !== "active" && !durableRelationship.customerPreferred) return;
     setPreferenceBusy(true);
     setPreferenceError(null);
     try {
@@ -141,15 +144,17 @@ export function ProviderOverview() {
     );
   }
 
-  const relationshipLabel = durableRelationship?.customerPreferred
-    ? "Your preferred CSP"
-    : relationshipSource === "durable_relationship"
-      ? "Your established CSP"
-      : relationshipSource === "customer_selection"
-        ? "CSP you're viewing"
-        : relationshipSource === "booking_history"
-          ? "Your recent CSP"
-          : "CSP you're viewing";
+  const relationshipLabel = relationshipPaused
+    ? "Paused relationship"
+    : durableRelationship?.customerPreferred
+      ? "Your preferred CSP"
+      : relationshipSource === "durable_relationship"
+        ? "Your established CSP"
+        : relationshipSource === "customer_selection"
+          ? "CSP you're viewing"
+          : relationshipSource === "booking_history"
+            ? "Your recent CSP"
+            : "CSP you're viewing";
 
   return (
     <div className="text-[#0B1220] pb-4">
@@ -199,11 +204,13 @@ export function ProviderOverview() {
                 : "Your relationship is established"}
             </p>
             <p className="text-xs text-[#667085]">
-              {completedTogether > 0
-                ? durableRelationship
-                  ? "Cleanr preserves this relationship as durable continuity, so the connection does not restart from zero with every booking."
-                  : "Cleanr keeps your shared booking history connected while durable relationship continuity catches up."
-                : "Cleanr keeps this connection available without treating either of you as locked in."}
+              {relationshipPaused
+                ? "Your shared history is preserved while this relationship is paused. New relationship-centered continuity stays suspended until the pause is resumed."
+                : completedTogether > 0
+                  ? durableRelationship
+                    ? "Cleanr preserves this relationship as durable continuity, so the connection does not restart from zero with every booking."
+                    : "Cleanr keeps your shared booking history connected while durable relationship continuity catches up."
+                  : "Cleanr keeps this connection available without treating either of you as locked in."}
             </p>
           </div>
         ) : (
@@ -218,23 +225,43 @@ export function ProviderOverview() {
           <div className="flex items-start gap-3">
             <Heart className="w-4 h-4 mt-0.5 text-[#8DCC64]" fill={durableRelationship.customerPreferred ? "#8DCC64" : "none"} />
             <div className="flex-1">
-              <p className="text-sm font-semibold">{durableRelationship.customerPreferred ? "Preferred CSP" : "Make this my preferred CSP"}</p>
+              <p className="text-sm font-semibold">
+                {durableRelationship.customerPreferred
+                  ? relationshipPaused ? "Preferred CSP · relationship paused" : "Preferred CSP"
+                  : relationshipPaused ? "Relationship paused" : "Make this my preferred CSP"}
+              </p>
               <p className="text-xs text-[#667085] mt-1">
-                Preference helps Cleanr preserve continuity when possible. It does not lock you in—you can choose someone else or change this anytime.
+                {relationshipPaused
+                  ? durableRelationship.customerPreferred
+                    ? "Your existing preference is preserved, but paused continuity is not used for new relationship-centered bookings. You can remove the preference now or manage the relationship to resume later."
+                    : "A paused relationship cannot be newly marked preferred. Resume the relationship first if you want this CSP to become your active continuity preference."
+                  : "Preference helps Cleanr preserve continuity when possible. It does not lock you in—you can choose someone else or change this anytime."}
               </p>
             </div>
           </div>
-          <Button
-            variant="secondary"
-            size="md"
-            fullWidth
-            className="mt-3"
-            loading={preferenceBusy}
-            disabled={preferenceBusy}
-            onClick={() => void handlePreferredProvider()}
-          >
-            {durableRelationship.customerPreferred ? "Remove preference" : "Prefer this CSP"}
-          </Button>
+          {relationshipActive || durableRelationship.customerPreferred ? (
+            <Button
+              variant="secondary"
+              size="md"
+              fullWidth
+              className="mt-3"
+              loading={preferenceBusy}
+              disabled={preferenceBusy}
+              onClick={() => void handlePreferredProvider()}
+            >
+              {durableRelationship.customerPreferred ? "Remove preference" : "Prefer this CSP"}
+            </Button>
+          ) : (
+            <Button
+              variant="secondary"
+              size="md"
+              fullWidth
+              className="mt-3"
+              onClick={() => navigate(route("/app/relationships"))}
+            >
+              Manage paused relationship
+            </Button>
+          )}
           {preferenceError ? <p className="text-xs text-red-600 mt-2">{preferenceError}</p> : null}
         </section>
       ) : null}
@@ -257,7 +284,7 @@ export function ProviderOverview() {
       ) : null}
 
       <section className="mt-3 button-stack section">
-        {durableRelationship ? (
+        {relationshipActive && durableRelationship ? (
           <Button
             variant="primaryGreen"
             size="lg"
@@ -265,6 +292,15 @@ export function ProviderOverview() {
             onClick={() => navigate(`/book?relationship=${encodeURIComponent(durableRelationship.id)}`)}
           >
             Book another cleaning together
+          </Button>
+        ) : relationshipPaused ? (
+          <Button
+            variant="secondary"
+            size="lg"
+            fullWidth
+            onClick={() => navigate(route("/app/relationships"))}
+          >
+            Relationship paused · manage relationship
           </Button>
         ) : null}
         <Button
