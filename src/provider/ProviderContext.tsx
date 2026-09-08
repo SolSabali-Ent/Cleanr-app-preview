@@ -3,10 +3,16 @@ import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { supabase } from "../lib/supabase";
 import { listBookingsForCustomer } from "../lib/bookingApi";
-import { listMyServiceRelationships } from "../lib/serviceRelationshipApi";
 import type { PublicProvider } from "./types";
 
 export type ProviderRelationshipSource = "durable_relationship" | "booking_history" | "customer_selection" | null;
+
+type RelationshipDefaultRow = {
+  provider_id: string;
+  status: "active" | "paused" | "ended";
+  customer_preferred: boolean;
+  updated_at: string;
+};
 
 interface ProviderContextValue {
   providers: PublicProvider[];
@@ -31,9 +37,8 @@ export function ProviderContextProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let active = true;
     async function loadProviders() {
-      // provider_public_profiles already owns visibility scope: marketplace-active CSPs are
-      // discoverable, while an authenticated customer also retains visibility of CSPs assigned to
-      // their bookings after later suspension. Do not re-filter that relationship continuity here.
+      // provider_public_profiles owns provider discoverability. Relationship lifecycle only
+      // controls automatic continuity below; it does not erase a CSP from marketplace/history.
       const { data } = await supabase
         .from("provider_public_profiles")
         .select("*")
@@ -49,31 +54,40 @@ export function ProviderContextProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let active = true;
-    async function loadDurableRelationship() {
-      try {
-        const relationships = await listMyServiceRelationships();
-        if (!active) return;
-        const preferred = relationships.find((relationship) => relationship.customerPreferred);
-        const selected = preferred ?? relationships[0] ?? null;
-        setDurableProviderId(selected?.providerId ?? null);
-      } catch {
-        if (active) setDurableProviderId(null);
-      }
-    }
-    void loadDurableRelationship();
-    return () => {
-      active = false;
-    };
-  }, []);
 
-  useEffect(() => {
-    let active = true;
-    async function loadRelationshipFromBookings() {
+    async function loadAutomaticContinuityDefaults() {
       try {
-        const bookings = await listBookingsForCustomer();
+        const [relationshipResult, bookings] = await Promise.all([
+          supabase
+            .from("service_relationships")
+            .select("provider_id,status,customer_preferred,updated_at")
+            .order("updated_at", { ascending: false }),
+          listBookingsForCustomer(),
+        ]);
         if (!active) return;
+        if (relationshipResult.error) throw relationshipResult.error;
+
+        const latestByProvider = new Map<string, RelationshipDefaultRow>();
+        for (const row of (relationshipResult.data ?? []) as RelationshipDefaultRow[]) {
+          if (!latestByProvider.has(row.provider_id)) latestByProvider.set(row.provider_id, row);
+        }
+
+        const activeRelationships = Array.from(latestByProvider.values()).filter(
+          (relationship) => relationship.status === "active"
+        );
+        const preferred = activeRelationships.find((relationship) => relationship.customer_preferred);
+        const durable = preferred ?? activeRelationships[0] ?? null;
+        setDurableProviderId(durable?.provider_id ?? null);
+
+        const relationshipPausedOrEnded = new Set(
+          Array.from(latestByProvider.values())
+            .filter((relationship) => relationship.status !== "active")
+            .map((relationship) => relationship.provider_id)
+        );
+
         const withProvider = bookings
           .filter((booking) => Boolean(booking.provider_id))
+          .filter((booking) => !relationshipPausedOrEnded.has(booking.provider_id as string))
           .sort((a, b) => {
             const aTime = new Date(a.scheduled_start || a.created_at).getTime();
             const bTime = new Date(b.scheduled_start || b.created_at).getTime();
@@ -81,10 +95,14 @@ export function ProviderContextProvider({ children }: { children: ReactNode }) {
           })[0];
         setBookingProviderId(withProvider?.provider_id ?? null);
       } catch {
-        if (active) setBookingProviderId(null);
+        if (active) {
+          setDurableProviderId(null);
+          setBookingProviderId(null);
+        }
       }
     }
-    void loadRelationshipFromBookings();
+
+    void loadAutomaticContinuityDefaults();
     return () => {
       active = false;
     };
