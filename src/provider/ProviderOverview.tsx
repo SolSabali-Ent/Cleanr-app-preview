@@ -6,6 +6,7 @@ import { CalendarDays, Heart, MessageCircleMore } from "lucide-react";
 import { Button } from "../components/ui/Button";
 import { providerDisplayName } from "./types";
 import { listBookingsForCustomer } from "../lib/bookingApi";
+import { getSignedProfilePhotoUrl } from "../lib/profilePhotoApi";
 import type { Booking } from "../domain/booking";
 import type { ServiceRelationship } from "../domain/serviceRelationship";
 import { customerFacingServiceLabel } from "../lib/serviceCatalog";
@@ -34,6 +35,7 @@ export function ProviderOverview() {
   const [durableRelationship, setDurableRelationship] = useState<ServiceRelationship | null>(null);
   const [preferenceBusy, setPreferenceBusy] = useState(false);
   const [preferenceError, setPreferenceError] = useState<string | null>(null);
+  const [providerPhotoUrl, setProviderPhotoUrl] = useState<string | null>(null);
   const route = (canonicalPath: string) => customerRouteForContext(pathname, canonicalPath);
 
   useEffect(() => {
@@ -51,6 +53,29 @@ export function ProviderOverview() {
       active = false;
     };
   }, []);
+
+  useEffect(() => {
+    let active = true;
+    setProviderPhotoUrl(null);
+
+    if (!selectedProvider?.profile_photo_path) {
+      return () => {
+        active = false;
+      };
+    }
+
+    void getSignedProfilePhotoUrl(selectedProvider.profile_photo_path)
+      .then((url) => {
+        if (active) setProviderPhotoUrl(url);
+      })
+      .catch(() => {
+        if (active) setProviderPhotoUrl(null);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [selectedProvider?.id, selectedProvider?.profile_photo_path]);
 
   const relationshipBookings = useMemo(() => {
     if (!selectedProvider?.id) return [];
@@ -144,6 +169,7 @@ export function ProviderOverview() {
     );
   }
 
+  const displayName = providerDisplayName(selectedProvider);
   const relationshipLabel = relationshipPaused
     ? "Paused relationship"
     : durableRelationship?.customerPreferred
@@ -164,13 +190,22 @@ export function ProviderOverview() {
       </div>
 
       <div className="provider-card flex gap-3 mb-3">
-        <div className="w-14 h-14 rounded-full bg-[#F1F5F9] border border-[#E5E7EB] text-[#0B1220] flex-shrink-0 flex items-center justify-center text-base font-semibold">
-          {providerDisplayName(selectedProvider).charAt(0)}
+        <div className="w-14 h-14 overflow-hidden rounded-full bg-[#F1F5F9] border border-[#E5E7EB] text-[#0B1220] flex-shrink-0 flex items-center justify-center text-base font-semibold">
+          {providerPhotoUrl ? (
+            <img
+              src={providerPhotoUrl}
+              alt={`${displayName} profile`}
+              className="h-full w-full object-cover"
+              onError={() => setProviderPhotoUrl(null)}
+            />
+          ) : (
+            displayName.charAt(0)
+          )}
         </div>
         <div className="flex-1">
           <div className="flex items-start justify-between gap-2">
             <div>
-              <p className="text-sm font-semibold">{providerDisplayName(selectedProvider)}</p>
+              <p className="text-sm font-semibold">{displayName}</p>
               {typeof selectedProvider.avg_rating === "number" && (selectedProvider.review_count ?? 0) > 0 ? (
                 <p className="text-xs text-[#667085] mt-0.5">
                   ⭐ {selectedProvider.avg_rating.toFixed(1)} · {selectedProvider.review_count} reviews
