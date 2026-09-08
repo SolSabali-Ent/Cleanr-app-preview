@@ -20,7 +20,7 @@ const CLIENT_REF_KEY = "cleanr_booking_client_ref";
 const LEGACY_CLIENT_REF_KEY = "cleanr_client_ref";
 const BOOKING_SELECT_WITH_PROVIDER = `
   *,
-  provider:provider_public_profiles(*)
+  provider:provider_public_profiles!bookings_provider_id_fkey(*)
 `;
 
 function toNumberOrNull(input: string | null | undefined): number | null {
