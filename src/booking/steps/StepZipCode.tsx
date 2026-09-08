@@ -3,6 +3,7 @@ import type { FormEvent } from "react";
 import { useBooking } from "../bookingStore";
 import { Button } from "../../components/ui/Button";
 import { ProviderPresenceStrip } from "../../components/provider/ProviderPresenceStrip";
+import type { MarketplaceProviderChoice } from "@/lib/providerPresence";
 import {
   getCustomerActivationStatus,
   type CustomerActivationStatus,
@@ -19,7 +20,9 @@ export function StepZipCode({ onNext }: StepZipCodeProps) {
   const [zip, setZip] = useState(state.zipcode || "");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [activationHint, setActivationHint] = useState<string | null>(null);
+  const [activationHint, setActivationHint] = useState<string | null>(
+    state.zipcode ? "Cleanr is available in your area. Choose a CSP below, or let Cleanr match you." : null,
+  );
   const [activationStatus, setActivationStatus] = useState<CustomerActivationStatus | null>(null);
   const [leadEmail, setLeadEmail] = useState("");
   const [leadName, setLeadName] = useState("");
@@ -30,22 +33,66 @@ export function StepZipCode({ onNext }: StepZipCodeProps) {
 
   const isValidZip = (value: string) => /^\d{5}$/.test(value.trim());
   const isValidEmail = (value: string) => /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(value.trim());
+  const normalizedZip = zip.trim();
+  const zipConfirmed = isValidZip(normalizedZip) && state.zipcode === normalizedZip && (
+    activationStatus === null || activationStatus.bookingEnabled
+  );
 
-  // Early-access capture is for geographic expansion only. If Cleanr already serves the ZIP
-  // but local provider capacity or operator activation is not ready, show the status without
-  // asking the customer to join a geography waitlist.
   const shouldShowLeadCapture = Boolean(
     activationStatus &&
       !activationStatus.serviceable &&
       activationStatus.reason === "unsupported_zip"
   );
 
+  const handleZipChange = (value: string) => {
+    const next = value.replace(/\D/g, "").slice(0, 5);
+    setZip(next);
+    setError(null);
+    setLeadError(null);
+    setLeadSuccess(false);
+    if (next !== state.zipcode) {
+      setActivationStatus(null);
+      setActivationHint(null);
+      if (state.zipcode || state.requestedProviderId) {
+        update({
+          zipcode: null,
+          requestedProviderId: null,
+          requestedProviderName: null,
+          serviceAddress: {
+            ...state.serviceAddress,
+            zip: "",
+            formatted: "",
+            lat: null,
+            lng: null,
+            verified: false,
+          },
+        });
+      }
+    }
+  };
+
+  const handleProviderSelection = (provider: MarketplaceProviderChoice | null) => {
+    update({
+      requestedProviderId: provider?.id ?? null,
+      requestedProviderName: provider
+        ? (provider.preferred_name?.trim() || provider.full_name?.trim() || "Selected CSP")
+        : null,
+    });
+  };
+
   const handleZipSubmit = async (e?: FormEvent) => {
     e?.preventDefault();
     const zipTrimmed = zip.trim();
 
-    if (!zipTrimmed || zipTrimmed.length !== 5) {
+    if (!isValidZip(zipTrimmed)) {
       setError("Please enter a valid 5-digit ZIP code.");
+      return;
+    }
+
+    // Once this ZIP is confirmed, the primary action advances without re-running
+    // activation. The customer can choose a CSP first or continue with Cleanr matching.
+    if (zipConfirmed) {
+      onNext();
       return;
     }
 
@@ -91,9 +138,7 @@ export function StepZipCode({ onNext }: StepZipCodeProps) {
             active_provider_count: status.activeProviderCount,
           },
         });
-        setActivationHint(
-          "Cleanr serves this area, and we're adding trusted local provider capacity before opening booking."
-        );
+        setActivationHint("Cleanr serves this area, and we're adding trusted local provider capacity before opening booking.");
         return;
       }
 
@@ -113,22 +158,19 @@ export function StepZipCode({ onNext }: StepZipCodeProps) {
       return;
     }
 
-    setActivationHint("Cleanr is available in your area.");
-    update({ zipcode: zipTrimmed });
-    onNext();
+    update({
+      zipcode: zipTrimmed,
+      requestedProviderId: state.zipcode === zipTrimmed ? state.requestedProviderId : null,
+      requestedProviderName: state.zipcode === zipTrimmed ? state.requestedProviderName : null,
+    });
+    setActivationHint("Cleanr is available in your area. Choose a CSP below, or let Cleanr match you.");
   };
 
   const handleLeadSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setLeadError(null);
 
-    if (
-      !activationStatus ||
-      activationStatus.serviceable ||
-      activationStatus.reason !== "unsupported_zip"
-    ) {
-      return;
-    }
+    if (!activationStatus || activationStatus.serviceable || activationStatus.reason !== "unsupported_zip") return;
 
     if (!isValidEmail(leadEmail)) {
       setLeadError("Please enter a valid email address.");
@@ -160,15 +202,9 @@ export function StepZipCode({ onNext }: StepZipCodeProps) {
       <form onSubmit={handleZipSubmit} className="space-y-4">
         <div className="border border-[#E5E7EB] rounded-[14px] p-4 bg-white">
           <div className="flex flex-col items-center text-center gap-2">
-            <div className="w-9 h-9 rounded-full bg-[#EEF2FF] flex items-center justify-center text-[#0000FE] text-lg">
-              📍
-            </div>
-            <h2 className="text-[16px] font-bold text-[#0B1220]">
-              Let&apos;s get started
-            </h2>
-            <p className="text-[13px] font-medium text-[#667085]">
-              Enter your zip code to check availability.
-            </p>
+            <div className="w-9 h-9 rounded-full bg-[#EEF2FF] flex items-center justify-center text-[#0000FE] text-lg">📍</div>
+            <h2 className="text-[16px] font-bold text-[#0B1220]">Let&apos;s get started</h2>
+            <p className="text-[13px] font-medium text-[#667085]">Enter your zip code to check availability.</p>
           </div>
 
           <div className="mt-4 space-y-3">
@@ -177,19 +213,23 @@ export function StepZipCode({ onNext }: StepZipCodeProps) {
               inputMode="numeric"
               maxLength={5}
               value={zip}
-              onChange={(e) => setZip(e.target.value)}
+              onChange={(e) => handleZipChange(e.target.value)}
               placeholder="Enter zip code (e.g. 30024)"
-              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-base
-                placeholder-slate-400 text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0000FE]"
+              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-base placeholder-slate-400 text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0000FE]"
             />
             {error && <p className="text-[12px] font-medium text-red-500">{error}</p>}
-            {activationHint ? (
-              <p className="text-[12px] font-medium text-[#667085]">{activationHint}</p>
-            ) : null}
+            {activationHint ? <p className="text-[12px] font-medium text-[#667085]">{activationHint}</p> : null}
           </div>
         </div>
 
-        <ProviderPresenceStrip zip={isValidZip(zip) ? zip.trim() : null} compact />
+        <ProviderPresenceStrip
+          zip={isValidZip(zip) ? zip.trim() : null}
+          compact
+          interactive
+          confirmed={zipConfirmed}
+          selectedProviderId={state.requestedProviderId}
+          onSelectProvider={handleProviderSelection}
+        />
 
         <Button
           type="submit"
@@ -199,58 +239,25 @@ export function StepZipCode({ onNext }: StepZipCodeProps) {
           size="lg"
           fullWidth
         >
-          {loading ? "Checking..." : "Check Availability →"}
+          {loading ? "Checking..." : zipConfirmed ? "Continue →" : "Check Availability →"}
         </Button>
       </form>
 
       {shouldShowLeadCapture ? (
         <section className="rounded-2xl border border-[#E5E7EB] bg-white p-4 space-y-2" aria-live="polite">
-          <h3 className="text-[14px] font-semibold text-[#0B1220]">
-            Cleanr is not serving this ZIP yet.
-          </h3>
-          <p className="text-[12px] text-[#667085]">
-            Join the early access list and we&apos;ll notify you when Cleanr reaches your area.
-          </p>
-          <p className="text-[12px] text-[#667085]">
-            Your ZIP helps us decide where to expand next.
-          </p>
+          <h3 className="text-[14px] font-semibold text-[#0B1220]">Cleanr is not serving this ZIP yet.</h3>
+          <p className="text-[12px] text-[#667085]">Join the early access list and we&apos;ll notify you when Cleanr reaches your area.</p>
+          <p className="text-[12px] text-[#667085]">Your ZIP helps us decide where to expand next.</p>
 
           {leadSuccess ? (
-            <p className="text-[12px] font-medium text-[#166534]">
-              Thanks. We saved your early access request.
-            </p>
+            <p className="text-[12px] font-medium text-[#166534]">Thanks. We saved your early access request.</p>
           ) : (
             <form className="space-y-2" onSubmit={handleLeadSubmit}>
-              <input
-                type="email"
-                value={leadEmail}
-                onChange={(e) => setLeadEmail(e.target.value)}
-                placeholder="Email for early access updates"
-                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm placeholder-slate-400 text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0000FE]"
-              />
-              <input
-                type="text"
-                value={leadName}
-                onChange={(e) => setLeadName(e.target.value)}
-                placeholder="Name (optional)"
-                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm placeholder-slate-400 text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0000FE]"
-              />
-              <input
-                type="tel"
-                value={leadPhone}
-                onChange={(e) => setLeadPhone(e.target.value)}
-                placeholder="Phone (optional)"
-                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm placeholder-slate-400 text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0000FE]"
-              />
+              <input type="email" value={leadEmail} onChange={(e) => setLeadEmail(e.target.value)} placeholder="Email for early access updates" className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm placeholder-slate-400 text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0000FE]" />
+              <input type="text" value={leadName} onChange={(e) => setLeadName(e.target.value)} placeholder="Name (optional)" className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm placeholder-slate-400 text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0000FE]" />
+              <input type="tel" value={leadPhone} onChange={(e) => setLeadPhone(e.target.value)} placeholder="Phone (optional)" className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm placeholder-slate-400 text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0000FE]" />
               {leadError ? <p className="text-[12px] font-medium text-red-500">{leadError}</p> : null}
-              <Button
-                type="submit"
-                disabled={leadSubmitting || !isValidEmail(leadEmail)}
-                loading={leadSubmitting}
-                variant="secondary"
-                size="md"
-                fullWidth
-              >
+              <Button type="submit" disabled={leadSubmitting || !isValidEmail(leadEmail)} loading={leadSubmitting} variant="secondary" size="md" fullWidth>
                 {leadSubmitting ? "Saving..." : "Join Early Access"}
               </Button>
             </form>

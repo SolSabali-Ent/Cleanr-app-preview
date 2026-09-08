@@ -1,4 +1,4 @@
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import type { ReactNode } from "react";
 
 export interface HomeDetails {
@@ -35,6 +35,8 @@ export interface BookingState {
   date: string | null;
   time: string | null;
   priorityRequested: boolean;
+  requestedProviderId: string | null;
+  requestedProviderName: string | null;
   contact: ContactInfo;
 }
 
@@ -45,6 +47,9 @@ export interface BookingContextType {
   toggleExtra: (extra: string) => void;
   reset: () => void;
 }
+
+export const BOOKING_DRAFT_STORAGE_KEY = "cleanr:bookingDraft:v1";
+export const BOOKING_STEP_STORAGE_KEY = "cleanr:bookingStep:v1";
 
 const initialState: BookingState = {
   zipcode: null,
@@ -70,6 +75,8 @@ const initialState: BookingState = {
   date: null,
   time: null,
   priorityRequested: false,
+  requestedProviderId: null,
+  requestedProviderName: null,
   contact: {
     name: "",
     email: "",
@@ -77,10 +84,42 @@ const initialState: BookingState = {
   },
 };
 
+function restoreBookingDraft(): BookingState {
+  if (typeof sessionStorage === "undefined") return initialState;
+  try {
+    const raw = sessionStorage.getItem(BOOKING_DRAFT_STORAGE_KEY);
+    if (!raw) return initialState;
+    const stored = JSON.parse(raw) as Partial<BookingState>;
+    return {
+      ...initialState,
+      ...stored,
+      serviceAddress: { ...initialState.serviceAddress, ...(stored.serviceAddress ?? {}) },
+      homeDetails: { ...initialState.homeDetails, ...(stored.homeDetails ?? {}) },
+      contact: { ...initialState.contact, ...(stored.contact ?? {}) },
+      extras: Array.isArray(stored.extras) ? stored.extras.filter((item): item is string => typeof item === "string") : [],
+      requestedProviderId: typeof stored.requestedProviderId === "string" && stored.requestedProviderId.trim() ? stored.requestedProviderId : null,
+      requestedProviderName: typeof stored.requestedProviderName === "string" && stored.requestedProviderName.trim() ? stored.requestedProviderName : null,
+    };
+  } catch {
+    return initialState;
+  }
+}
+
+export function clearPersistedBookingDraft() {
+  if (typeof sessionStorage === "undefined") return;
+  sessionStorage.removeItem(BOOKING_DRAFT_STORAGE_KEY);
+  sessionStorage.removeItem(BOOKING_STEP_STORAGE_KEY);
+}
+
 export const BookingContext = createContext<BookingContextType | null>(null);
 
 export function BookingProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<BookingState>(initialState);
+  const [state, setState] = useState<BookingState>(() => restoreBookingDraft());
+
+  useEffect(() => {
+    if (typeof sessionStorage === "undefined") return;
+    sessionStorage.setItem(BOOKING_DRAFT_STORAGE_KEY, JSON.stringify(state));
+  }, [state]);
 
   const update = (patch: Partial<BookingState>) => {
     setState((prev) => ({ ...prev, ...patch }));
@@ -106,6 +145,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
   };
 
   const reset = () => {
+    clearPersistedBookingDraft();
     setState(initialState);
   };
 

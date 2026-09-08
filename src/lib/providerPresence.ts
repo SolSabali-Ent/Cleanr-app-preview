@@ -10,6 +10,15 @@ export type PublicProviderPresenceCard = {
   platform_verified: boolean;
 };
 
+export type MarketplaceProviderChoice = PublicProviderPresenceCard & {
+  preferred_name: string | null;
+  provider_bio: string | null;
+  years_experience: number | null;
+  specialties: string[];
+  service_area_labels: string[];
+  repeat_household_count: number;
+};
+
 export type ProviderPresenceSummary = {
   market: "metro_atl";
   searched_zip: string | null;
@@ -23,6 +32,41 @@ type ProviderPresenceOptions = {
   zip?: string | null;
   sampleLimit?: number;
 };
+
+/**
+ * Returns public-safe CSP cards whose configured service radius plausibly reaches
+ * the ZIP centroid. Exact street-address and schedule eligibility are validated
+ * later against the durable booking before payment.
+ */
+export async function listMarketplaceProvidersForZip(
+  zip: string,
+  limit = 6,
+): Promise<MarketplaceProviderChoice[]> {
+  const normalizedZip = zip.trim();
+  if (!/^\d{5}$/.test(normalizedZip)) return [];
+
+  const { data, error } = await supabase.rpc("list_marketplace_providers_for_zip", {
+    p_zip: normalizedZip,
+    p_limit: Math.max(1, Math.min(limit, 12)),
+  });
+  if (error) throw error;
+
+  return ((data ?? []) as Record<string, unknown>[]).map((row) => ({
+    id: String(row.id ?? ""),
+    full_name: (row.full_name as string | null) ?? null,
+    preferred_name: (row.preferred_name as string | null) ?? null,
+    provider_bio: (row.provider_bio as string | null) ?? null,
+    years_experience: row.years_experience == null ? null : Number(row.years_experience),
+    specialties: Array.isArray(row.specialties) ? row.specialties.map(String) : [],
+    service_area_labels: Array.isArray(row.service_area_labels) ? row.service_area_labels.map(String) : [],
+    avg_rating: row.avg_rating == null ? null : Number(row.avg_rating),
+    review_count: Number(row.review_count ?? 0),
+    repeat_household_count: Number(row.repeat_household_count ?? 0),
+    background_checked: Boolean(row.background_checked),
+    insured: Boolean(row.insured),
+    platform_verified: Boolean(row.platform_verified),
+  }));
+}
 
 /**
  * Public-safe provider presence summary for customer-facing coverage messaging.
@@ -51,31 +95,49 @@ export async function getProviderPresenceSummary(
 
   let sampleProviders: PublicProviderPresenceCard[] = [];
   if (sampleLimit > 0) {
-    const { data: sampleRows, error: sampleError } = await supabase
-      .from("provider_public_profiles")
-      .select(
-        "id, full_name, avg_rating, review_count, background_checked, insured, platform_verified"
-      )
-      .eq("marketplace_access", true)
-      .order("review_count", { ascending: false })
-      .order("full_name", { ascending: true })
-      .limit(sampleLimit);
+    if (zip) {
+      try {
+        const zipProviders = await listMarketplaceProvidersForZip(zip, sampleLimit);
+        sampleProviders = zipProviders.map(({ id, full_name, avg_rating, review_count, background_checked, insured, platform_verified }) => ({
+          id,
+          full_name,
+          avg_rating,
+          review_count,
+          background_checked,
+          insured,
+          platform_verified,
+        }));
+      } catch {
+        sampleProviders = [];
+      }
+    } else {
+      const { data: sampleRows, error: sampleError } = await supabase
+        .from("provider_public_profiles")
+        .select(
+          "id, full_name, avg_rating, review_count, background_checked, insured, platform_verified"
+        )
+        .eq("marketplace_access", true)
+        .order("review_count", { ascending: false })
+        .order("full_name", { ascending: true })
+        .limit(sampleLimit);
 
-    if (!sampleError && Array.isArray(sampleRows)) {
-      sampleProviders = sampleRows.map((row) => ({
-        id: String(row.id),
-        full_name: row.full_name ?? null,
-        avg_rating: typeof row.avg_rating === "number" ? row.avg_rating : null,
-        review_count: Number(row.review_count ?? 0),
-        background_checked: Boolean(row.background_checked),
-        insured: Boolean(row.insured),
-        platform_verified: Boolean(row.platform_verified),
-      }));
+      if (!sampleError && Array.isArray(sampleRows)) {
+        sampleProviders = sampleRows.map((row) => ({
+          id: String(row.id),
+          full_name: row.full_name ?? null,
+          avg_rating: typeof row.avg_rating === "number" ? row.avg_rating : null,
+          review_count: Number(row.review_count ?? 0),
+          background_checked: Boolean(row.background_checked),
+          insured: Boolean(row.insured),
+          platform_verified: Boolean(row.platform_verified),
+        }));
+      }
     }
   }
 
-  const hasProviderCoverage =
-    (zipSupported !== false) && activeProviderCount !== null && activeProviderCount > 0;
+  const hasProviderCoverage = zip
+    ? (zipSupported !== false && sampleProviders.length > 0)
+    : (activeProviderCount !== null && activeProviderCount > 0);
 
   return {
     market: "metro_atl",

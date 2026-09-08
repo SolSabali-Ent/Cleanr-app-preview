@@ -1,11 +1,11 @@
 import { useLayoutEffect, useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { track } from "../lib/analytics";
-import { startBookingAttemptRef } from "../lib/bookingAttemptRef";
+import { clearBookingAttemptRef, ensureBookingAttemptRef } from "../lib/bookingAttemptRef";
 import { emitBookingStarted, emitBookingAbandoned } from "../lib/kinex/events";
 import { recordBookingProgressEvent } from "../lib/bookingProgress";
 import { supabase } from "../lib/supabase";
-import { BookingProvider } from "./bookingStore";
+import { BookingProvider, BOOKING_STEP_STORAGE_KEY, clearPersistedBookingDraft } from "./bookingStore";
 import { WizardLayout } from "./components/WizardLayout";
 import { StepZipCode } from "./steps/StepZipCode";
 import { StepAddress } from "./steps/StepAddress";
@@ -29,56 +29,26 @@ export type WizardStepId =
   | "review";
 
 const STEPS: { id: WizardStepId; title: string; subtitle?: string }[] = [
-  {
-    id: "zip",
-    title: "Book Your Perfect Clean",
-    subtitle: "Enter your zip code to check availability.",
-  },
-  {
-    id: "address",
-    title: "Where are we cleaning?",
-    subtitle: "Enter the exact service address so Cleanr can match and verify the visit location.",
-  },
-  {
-    id: "service",
-    title: "What do you need cleaned?",
-    subtitle: "Choose the option that best matches your home. You can adjust details later.",
-  },
-  {
-    id: "home",
-    title: "Tell us about your home",
-    subtitle: "Bedrooms and bathrooms help us estimate time and match the right provider.",
-  },
-  {
-    id: "frequency",
-    title: "How often do you want cleaning?",
-    subtitle: "Choose the schedule that best fits your household and recurring cleaning needs.",
-  },
-  {
-    id: "extras",
-    title: "Any add-ons for this visit?",
-    subtitle: "Inside fridge, oven, windows and more. You can customize for each clean.",
-  },
-  {
-    id: "datetime",
-    title: "Pick a date and time",
-    subtitle: "Choose a day and arrival window that works best for you.",
-  },
-  {
-    id: "contact",
-    title: "Where should we send your confirmation?",
-    subtitle: "We'll send updates and reminders about your booking to this contact.",
-  },
-  {
-    id: "review",
-    title: "Review your booking",
-    subtitle: "Double-check everything before you continue to payment.",
-  },
+  { id: "zip", title: "Book Your Perfect Clean", subtitle: "Enter your zip code to check availability." },
+  { id: "address", title: "Where are we cleaning?", subtitle: "Enter the exact service address so Cleanr can match and verify the visit location." },
+  { id: "service", title: "What do you need cleaned?", subtitle: "Choose the option that best matches your home. You can adjust details later." },
+  { id: "home", title: "Tell us about your home", subtitle: "Bedrooms and bathrooms help us estimate time and match the right provider." },
+  { id: "frequency", title: "How often do you want cleaning?", subtitle: "Choose the schedule that best fits your household and recurring cleaning needs." },
+  { id: "extras", title: "Any add-ons for this visit?", subtitle: "Inside fridge, oven, windows and more. You can customize for each clean." },
+  { id: "datetime", title: "Pick a date and time", subtitle: "Choose a day and arrival window that works best for you." },
+  { id: "contact", title: "Where should we send your confirmation?", subtitle: "We'll send updates and reminders about your booking to this contact." },
+  { id: "review", title: "Review your booking", subtitle: "Double-check everything before you continue to payment." },
 ];
+
+function initialStepIndex(): number {
+  if (typeof sessionStorage === "undefined") return 0;
+  const parsed = Number(sessionStorage.getItem(BOOKING_STEP_STORAGE_KEY));
+  return Number.isInteger(parsed) && parsed >= 0 && parsed < STEPS.length ? parsed : 0;
+}
 
 function CleanrBookingFlowInner() {
   const navigate = useNavigate();
-  const [stepIndex, setStepIndex] = useState(0);
+  const [stepIndex, setStepIndex] = useState(() => initialStepIndex());
   const totalSteps = STEPS.length;
   const current = STEPS[stepIndex];
   const hasEmittedStarted = useRef(false);
@@ -90,13 +60,19 @@ function CleanrBookingFlowInner() {
   }, [stepIndex]);
 
   useEffect(() => {
+    if (typeof sessionStorage !== "undefined") {
+      sessionStorage.setItem(BOOKING_STEP_STORAGE_KEY, String(stepIndex));
+    }
+  }, [stepIndex]);
+
+  useEffect(() => {
     if (hasEmittedStarted.current) return;
     let cancelled = false;
     void supabase.auth.getUser().then(({ data: { user } }) => {
       if (cancelled || hasEmittedStarted.current) return;
       hasEmittedStarted.current = true;
-      if (user?.id) emitBookingStarted(user.id, 0);
-      void recordBookingProgressEvent({ eventType: "pre_booking_zip_started", currentStep: "zip" });
+      if (user?.id) emitBookingStarted(user.id, stepIndex);
+      void recordBookingProgressEvent({ eventType: "pre_booking_zip_started", currentStep: current.id });
     });
     return () => { cancelled = true; };
   }, []);
@@ -115,6 +91,8 @@ function CleanrBookingFlowInner() {
           currentStep: "zip",
           metadata: { exit_action: "back_from_first_step" },
         });
+        clearPersistedBookingDraft();
+        clearBookingAttemptRef();
         navigate("/");
       });
     } else {
@@ -153,10 +131,10 @@ function CleanrBookingFlowInner() {
 }
 
 export function CleanrBookingFlow() {
-  const hasStartedAttempt = useRef(false);
-  if (!hasStartedAttempt.current) {
-    startBookingAttemptRef();
-    hasStartedAttempt.current = true;
+  const hasEnsuredAttempt = useRef(false);
+  if (!hasEnsuredAttempt.current) {
+    ensureBookingAttemptRef();
+    hasEnsuredAttempt.current = true;
   }
 
   return (
