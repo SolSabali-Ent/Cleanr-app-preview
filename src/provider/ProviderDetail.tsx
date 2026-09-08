@@ -42,6 +42,8 @@ type ProviderReview = {
   created_at: string;
 };
 
+type RelationshipStatus = "active" | "paused" | null;
+
 export function ProviderDetail() {
   const { providerId } = useParams<{ providerId: string }>();
   const navigate = useNavigate();
@@ -50,6 +52,7 @@ export function ProviderDetail() {
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<PublicProviderProfile | null>(null);
   const [relationshipId, setRelationshipId] = useState<string | null>(null);
+  const [relationshipStatus, setRelationshipStatus] = useState<RelationshipStatus>(null);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [reviews, setReviews] = useState<ProviderReview[]>([]);
 
@@ -78,14 +81,21 @@ export function ProviderDetail() {
       ]);
 
       let durableRelationshipId: string | null = null;
+      let durableRelationshipStatus: RelationshipStatus = null;
       try {
-        durableRelationshipId = (await getMyServiceRelationshipWithProvider(providerId))?.id ?? null;
+        const relationship = await getMyServiceRelationshipWithProvider(providerId);
+        durableRelationshipStatus = relationship?.status === "active" || relationship?.status === "paused"
+          ? relationship.status
+          : null;
+        durableRelationshipId = durableRelationshipStatus === "active" ? relationship?.id ?? null : null;
       } catch {
         durableRelationshipId = null;
+        durableRelationshipStatus = null;
       }
 
       if (!active) return;
       setRelationshipId(durableRelationshipId);
+      setRelationshipStatus(durableRelationshipStatus);
       setReviews(reviewResult.error ? [] : ((reviewResult.data ?? []) as ProviderReview[]));
 
       if (providerError || !provider) {
@@ -197,7 +207,7 @@ export function ProviderDetail() {
           <p><span className="text-[#667085]">Service radius:</span> <span className="font-medium">{profile.service_radius_miles ?? "—"} miles</span></p>
           {repeatHouseholds > 0 ? <p className="flex items-center gap-2"><UsersRound className="h-4 w-4 text-[#8DCC64]" /><span><span className="font-medium">{repeatHouseholds}</span> household{repeatHouseholds === 1 ? " has" : "s have"} booked this CSP repeatedly.</span></p> : null}
           <p><span className="text-[#667085]">Open-market availability:</span> <span className="font-medium">{profile.marketplace_access ? "Active" : "Not active yet"}</span></p>
-          {relationshipId ? <p><span className="text-[#667085]">Your relationship:</span> <span className="font-medium">Established</span></p> : null}
+          {relationshipStatus ? <p><span className="text-[#667085]">Your relationship:</span> <span className="font-medium capitalize">{relationshipStatus}</span></p> : null}
           <p><span className="text-[#667085]">Cleanr member since:</span> <span className="font-medium">{memberSinceYear}</span></p>
         </div>
         {(profile.service_area_labels?.length ?? 0) > 0 ? <p className="mt-3 text-[11px] leading-4 text-[#98A2B3]">Area labels describe where this CSP works. Booking eligibility still uses Cleanr’s verified location and service-radius matching.</p> : null}
@@ -220,7 +230,8 @@ export function ProviderDetail() {
       <div className="fixed inset-x-0 bottom-24 z-10 flex justify-center px-4 pointer-events-none">
         <div className="pointer-events-auto w-full max-w-[720px]">
           {bookingId ? <Button variant="primaryBlue" size="lg" fullWidth onClick={() => navigate(`/app/bookings/${bookingId}`)}>View Booking</Button>
-          : relationshipId ? <Button variant="primaryGreen" size="lg" fullWidth onClick={() => navigate(`/book?relationship=${encodeURIComponent(relationshipId)}`)}>Book another cleaning together</Button>
+          : relationshipStatus === "active" && relationshipId ? <Button variant="primaryGreen" size="lg" fullWidth onClick={() => navigate(`/book?relationship=${encodeURIComponent(relationshipId)}`)}>Book another cleaning together</Button>
+          : relationshipStatus === "paused" ? <Button variant="secondary" size="lg" fullWidth onClick={() => navigate("/app/relationships")}>Relationship paused · manage relationship</Button>
           : <Button variant="secondary" size="lg" fullWidth disabled>Book This Provider</Button>}
         </div>
       </div>
