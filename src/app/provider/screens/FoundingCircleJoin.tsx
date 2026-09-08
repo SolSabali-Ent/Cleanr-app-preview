@@ -32,14 +32,23 @@ export default function FoundingCircleJoin() {
   return (
     <main className="min-h-screen bg-white text-[#0B1220]">
       <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-5 px-5 py-5 sm:px-8">
-          <button type="button" onClick={() => navigate("/")} className="flex items-center text-left" aria-label="Cleanr home">
-            <img src="/cleanr-app@2x.png" alt="Cleanr" className="h-[73px] w-[73px] rounded-2xl object-contain" />
+        <div className="mx-auto flex h-[113px] max-w-6xl items-center justify-between gap-5 px-5 sm:px-8">
+          <button
+            type="button"
+            onClick={() => navigate("/")}
+            className="flex h-[73px] w-[73px] shrink-0 items-center text-left"
+            aria-label="Cleanr home"
+          >
+            <img
+              src="/cleanr-app@2x.png"
+              alt="Cleanr"
+              className="h-[73px] w-[73px] origin-left scale-[2] rounded-2xl object-contain"
+            />
           </button>
           <button
             type="button"
             onClick={() => navigate("/csp/login")}
-            className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-slate-700 transition hover:text-[#0B1220]"
+            className="relative z-10 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-slate-700 transition hover:text-[#0B1220]"
           >
             Provider sign in
             <ArrowRight className="h-4 w-4" />
