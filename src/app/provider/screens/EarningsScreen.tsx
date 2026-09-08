@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSession } from "@/lib/useSession";
 import { buildServicePracticeSnapshot } from "@/domain/servicePractice";
 import {
+  isLateCancellationCompensation,
   isProviderPaidEarning,
   isProviderPendingEarning,
   listProviderEarningsBookings,
@@ -67,6 +68,9 @@ function earningsSubtitle(row: ProviderEarningsBookingRow): string {
 }
 
 function feePolicyCopy(row: ProviderEarningsBookingRow): string | null {
+  if (isLateCancellationCompensation(row)) {
+    return `Late-cancellation compensation · 50% of the reserved ${formatUsdFromCents(row.price_cents)} service price`;
+  }
   if (!row.platform_fee_policy || row.platform_fee_rate_applied == null) return null;
   const rate = `${(row.platform_fee_rate_applied * 100).toFixed(2).replace(/\.00$/, "")}%`;
   if (row.platform_fee_policy === "provider_brought_relationship") {
@@ -88,7 +92,23 @@ function payoutStatus(row: ProviderEarningsBookingRow, variant: "pending" | "pai
   if (variant === "paid") {
     return {
       chip: "Paid",
-      detail: row.payout_released_at ? "Stripe transfer recorded" : "Payout released",
+      detail: isLateCancellationCompensation(row)
+        ? "Cancellation compensation was sent through Stripe."
+        : row.payout_released_at
+          ? "Stripe transfer recorded"
+          : "Payout released",
+    };
+  }
+  if (isLateCancellationCompensation(row)) {
+    if (row.payout_approved_at) {
+      return {
+        chip: "Compensation approved",
+        detail: "Cleanr approved your late-cancellation compensation. Stripe transfer is the remaining step.",
+      };
+    }
+    return {
+      chip: "Cancellation compensation",
+      detail: "The customer cancelled inside 24 hours. This reserved-time compensation is waiting on payout approval.",
     };
   }
   if (row.status === "completed_by_provider") {
@@ -120,6 +140,7 @@ function EarningsRow({
   const payout = payoutStatus(row, variant);
   const feeCopy = feePolicyCopy(row);
   const priorityCents = row.priority_surcharge_cents ?? 0;
+  const lateCancellation = isLateCancellationCompensation(row);
 
   return (
     <div
@@ -133,9 +154,9 @@ function EarningsRow({
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
           <p className="font-medium" style={{ color: CSP_TEXT_PRIMARY }}>
-            {serviceLabel(row.service_type)}
+            {lateCancellation ? "Late cancellation compensation" : serviceLabel(row.service_type)}
           </p>
-          {row.service_priority === "urgent" ? (
+          {!lateCancellation && row.service_priority === "urgent" ? (
             <span className="rounded-full border border-amber-300/30 bg-amber-300/10 px-2 py-0.5 text-xs font-medium text-amber-200">
               Priority
             </span>
@@ -156,7 +177,7 @@ function EarningsRow({
         <p className="mt-2 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>
           {payout.detail}
         </p>
-        {priorityCents > 0 ? (
+        {!lateCancellation && priorityCents > 0 ? (
           <p className="mt-1 text-xs font-medium leading-5 text-amber-200">
             Priority compensation: {formatUsdFromCents(priorityCents)} · 100% yours
           </p>
@@ -169,7 +190,7 @@ function EarningsRow({
       </div>
       <div className="text-left sm:text-right shrink-0">
         <p className="text-xs" style={{ color: CSP_TEXT_SECONDARY }}>
-          {variant === "paid" ? "Paid" : "Expected payout"}
+          {variant === "paid" ? "Paid" : lateCancellation ? "Expected compensation" : "Expected payout"}
         </p>
         <p className="font-semibold text-lg" style={{ color: CSP_TEXT_PRIMARY }}>
           {formatUsdFromCents(cents)}
