@@ -257,10 +257,10 @@ export function AdminEmptyState({
   action?: ReactNode;
 }) {
   return (
-    <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-10 text-center">
+    <div className="border-y border-slate-200 bg-white px-5 py-7 text-center">
       <p className="text-sm font-semibold text-slate-900">{title}</p>
       {description ? <p className="mx-auto mt-1 max-w-xl text-xs leading-5 text-slate-500">{description}</p> : null}
-      {action ? <div className="mt-4 flex justify-center">{action}</div> : null}
+      {action ? <div className="mt-3 flex justify-center">{action}</div> : null}
     </div>
   );
 }
