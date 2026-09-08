@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { Check, ChevronRight, Search, ShieldCheck, Star, X } from "lucide-react";
+import { getSignedProfilePhotoUrl } from "@/lib/profilePhotoApi";
 import {
   getProviderPresenceSummary,
   listMarketplaceProvidersForZip,
   type MarketplaceProviderChoice,
   type ProviderPresenceSummary,
+  type PublicProviderPresenceCard,
 } from "@/lib/providerPresence";
 
 type ProviderPresenceStripProps = {
@@ -20,6 +22,41 @@ type ProviderPresenceStripProps = {
 
 function formatProviderName(name: string | null, preferredName?: string | null): string {
   return preferredName?.trim() || name?.trim() || "Cleanr Service Professional";
+}
+
+function ProviderAvatar({
+  provider,
+  name,
+  size = "md",
+}: {
+  provider: Pick<PublicProviderPresenceCard, "profile_photo_path">;
+  name: string;
+  size?: "sm" | "md" | "lg";
+}) {
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    setPhotoUrl(null);
+    void getSignedProfilePhotoUrl(provider.profile_photo_path).then((url) => {
+      if (active) setPhotoUrl(url);
+    });
+    return () => {
+      active = false;
+    };
+  }, [provider.profile_photo_path]);
+
+  const sizeClass = size === "lg" ? "h-20 w-20 text-xl" : size === "sm" ? "h-11 w-11 text-sm" : "h-14 w-14 text-base";
+
+  return (
+    <div className={`${sizeClass} shrink-0 overflow-hidden rounded-full border border-[#E5E7EB] bg-[#F1F5F9] font-semibold text-[#0B1220] flex items-center justify-center`}>
+      {photoUrl ? (
+        <img src={photoUrl} alt={`${name} profile`} className="h-full w-full object-cover" />
+      ) : (
+        <span aria-hidden="true">{name.trim().charAt(0).toUpperCase() || "C"}</span>
+      )}
+    </div>
+  );
 }
 
 function ProviderBadges({ provider }: { provider: MarketplaceProviderChoice }) {
@@ -182,13 +219,7 @@ export function ProviderPresenceStrip({
     const query = searchQuery.trim().toLowerCase();
     if (!query) return allProviders;
     return allProviders.filter((provider) => {
-      const haystack = [
-        provider.full_name,
-        provider.preferred_name,
-        provider.provider_bio,
-        ...provider.specialties,
-        ...provider.service_area_labels,
-      ]
+      const haystack = [provider.full_name, provider.preferred_name, provider.provider_bio, ...provider.specialties, ...provider.service_area_labels]
         .filter(Boolean)
         .join(" ")
         .toLowerCase();
@@ -207,12 +238,7 @@ export function ProviderPresenceStrip({
     : "rounded-2xl border border-[#E5E7EB] bg-white p-4";
 
   const chooser = chooserOpen && typeof document !== "undefined" ? createPortal(
-    <div
-      className="fixed inset-0 z-[99999] h-[100dvh] w-[100dvw] overflow-hidden overscroll-none bg-[#F7F9FC]"
-      role="dialog"
-      aria-modal="true"
-      aria-label={`Choose a Cleanr CSP in ${zip ?? "your area"}`}
-    >
+    <div className="fixed inset-0 z-[99999] h-[100dvh] w-[100dvw] overflow-hidden overscroll-none bg-[#F7F9FC]" role="dialog" aria-modal="true" aria-label={`Choose a Cleanr CSP in ${zip ?? "your area"}`}>
       <div className="mx-auto flex h-[100dvh] w-full max-w-[720px] flex-col overflow-hidden bg-white">
         <header className="relative z-20 shrink-0 border-b border-[#E5E7EB] bg-white px-4 pb-3 pt-[max(16px,env(safe-area-inset-top))]">
           <div className="flex items-start justify-between gap-3">
@@ -220,39 +246,19 @@ export function ProviderPresenceStrip({
               <p className="text-[11px] font-semibold uppercase tracking-wide text-[#166534]">CSPs in {zip}</p>
               <h2 className="mt-1 text-[20px] font-semibold leading-tight text-[#0B1220]">Choose someone who feels like a fit</h2>
             </div>
-            <button
-              type="button"
-              onClick={() => setChooserOpen(false)}
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[#E5E7EB] bg-white"
-              aria-label="Close CSP chooser"
-            >
+            <button type="button" onClick={() => setChooserOpen(false)} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[#E5E7EB] bg-white" aria-label="Close CSP chooser">
               <X className="h-5 w-5 text-[#0B1220]" />
             </button>
           </div>
           <p className="mt-2 text-[12px] leading-5 text-[#667085]">Browse now. Exact availability is confirmed after you choose your service, address, date, and time.</p>
           <div className="relative mt-3">
             <Search className="pointer-events-none absolute left-4 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-[#98A2B3]" aria-hidden="true" />
-            <input
-              type="search"
-              value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder="Search by name, specialty, or area"
-              aria-label="Search CSPs by name, specialty, or area"
-              className="w-full rounded-xl border border-[#DDE2EA] bg-[#F8FAFC] py-3 pr-3 text-base text-[#0B1220] outline-none focus:border-[#0000FE] focus:ring-2 focus:ring-[#0000FE]/10"
-              style={{ paddingLeft: "3rem" }}
-            />
+            <input type="search" value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Search by name, specialty, or area" aria-label="Search CSPs by name, specialty, or area" className="w-full rounded-xl border border-[#DDE2EA] bg-[#F8FAFC] py-3 pr-3 text-base text-[#0B1220] outline-none focus:border-[#0000FE] focus:ring-2 focus:ring-[#0000FE]/10" style={{ paddingLeft: "3rem" }} />
           </div>
         </header>
 
-        <div
-          className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4"
-          style={{ WebkitOverflowScrolling: "touch", touchAction: "pan-y" }}
-        >
-          <button
-            type="button"
-            onClick={() => selectProvider(null, true)}
-            className={`mb-3 w-full rounded-2xl border p-4 text-left ${!selectedProviderId ? "border-[#8DCC64] bg-[#F3FAF1]" : "border-[#E5E7EB] bg-white"}`}
-          >
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4" style={{ WebkitOverflowScrolling: "touch", touchAction: "pan-y" }}>
+          <button type="button" onClick={() => selectProvider(null, true)} className={`mb-3 w-full rounded-2xl border p-4 text-left ${!selectedProviderId ? "border-[#8DCC64] bg-[#F3FAF1]" : "border-[#E5E7EB] bg-white"}`}>
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-[15px] font-semibold text-[#0B1220]">Let Cleanr match me</p>
@@ -263,7 +269,6 @@ export function ProviderPresenceStrip({
           </button>
 
           {chooserLoading ? <p className="py-8 text-center text-sm text-[#667085]">Loading CSPs in your area...</p> : null}
-
           {!chooserLoading && filteredProviders.length === 0 ? (
             <div className="rounded-2xl border border-[#E5E7EB] bg-[#F8FAFC] p-5 text-center">
               <p className="text-sm font-semibold text-[#0B1220]">No CSPs match that search.</p>
@@ -278,15 +283,19 @@ export function ProviderPresenceStrip({
               const displayName = formatProviderName(provider.full_name, provider.preferred_name);
               return (
                 <article key={provider.id} className={`rounded-2xl border p-4 ${selected ? "border-[#8DCC64] bg-[#F7FBF5]" : "border-[#E5E7EB] bg-white"}`}>
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="text-[16px] font-semibold text-[#0B1220]">{displayName}</p>
-                      <p className="mt-1 text-[12px] text-[#667085]"><ProviderSignal provider={provider} /></p>
+                  <div className="flex items-start gap-3">
+                    <ProviderAvatar provider={provider} name={displayName} size="lg" />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-[16px] font-semibold text-[#0B1220]">{displayName}</p>
+                          <p className="mt-1 text-[12px] text-[#667085]"><ProviderSignal provider={provider} /></p>
+                        </div>
+                        {selected ? <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#E8F6E1] text-[#166534]"><Check className="h-5 w-5" /></span> : null}
+                      </div>
+                      <ProviderBadges provider={provider} />
                     </div>
-                    {selected ? <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#E8F6E1] text-[#166534]"><Check className="h-5 w-5" /></span> : null}
                   </div>
-
-                  <ProviderBadges provider={provider} />
 
                   {(provider.years_experience !== null || provider.repeat_household_count > 0 || provider.specialties.length > 0) ? (
                     <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-[#667085]">
@@ -306,12 +315,8 @@ export function ProviderPresenceStrip({
                   ) : null}
 
                   <div className="mt-4 flex items-center gap-2">
-                    <button type="button" onClick={() => setExpandedId(expanded ? null : provider.id)} className="min-h-11 flex-1 rounded-xl border border-[#DDE2EA] bg-white px-3 text-[12px] font-semibold text-[#0B1220]">
-                      {expanded ? "Hide profile" : "View profile"}
-                    </button>
-                    <button type="button" onClick={() => selectProvider(provider, true)} className="min-h-11 flex-1 rounded-xl bg-[#0000FE] px-3 text-[12px] font-semibold text-white">
-                      {selected ? "Keep this CSP" : "Choose this CSP"}
-                    </button>
+                    <button type="button" onClick={() => setExpandedId(expanded ? null : provider.id)} className="min-h-11 flex-1 rounded-xl border border-[#DDE2EA] bg-white px-3 text-[12px] font-semibold text-[#0B1220]">{expanded ? "Hide profile" : "View profile"}</button>
+                    <button type="button" onClick={() => selectProvider(provider, true)} className="min-h-11 flex-1 rounded-xl bg-[#0000FE] px-3 text-[12px] font-semibold text-white">{selected ? "Keep this CSP" : "Choose this CSP"}</button>
                   </div>
                 </article>
               );
@@ -331,9 +336,7 @@ export function ProviderPresenceStrip({
     <>
       <section className={containerClass} aria-live="polite">
         <p className="text-[11px] font-semibold uppercase tracking-wide text-[#166534]">Availability</p>
-        <h3 className="mt-1 text-[15px] font-semibold text-[#0B1220]">
-          {interactive && confirmed ? "Choose a CSP, or let Cleanr match you." : "Check booking availability in your area."}
-        </h3>
+        <h3 className="mt-1 text-[15px] font-semibold text-[#0B1220]">{interactive && confirmed ? "Choose a CSP, or let Cleanr match you." : "Check booking availability in your area."}</h3>
 
         {loading ? <p className="mt-2 text-[12px] text-[#667085]">Checking provider coverage...</p> : null}
 
@@ -342,9 +345,7 @@ export function ProviderPresenceStrip({
             {summary.zip_supported === false ? (
               <p className="mt-2 text-[12px] text-[#667085]">Cleanr is not open for booking in this ZIP yet.</p>
             ) : summary.has_provider_coverage ? (
-              <p className="mt-2 text-[12px] text-[#667085]">
-                Cleanr is available in your area{summary.searched_zip ? ` (${summary.searched_zip})` : ""}.
-              </p>
+              <p className="mt-2 text-[12px] text-[#667085]">Cleanr is available in your area{summary.searched_zip ? ` (${summary.searched_zip})` : ""}.</p>
             ) : (
               <p className="mt-2 text-[12px] text-[#667085]">Cleanr is preparing coverage in this area.</p>
             )}
@@ -352,50 +353,32 @@ export function ProviderPresenceStrip({
             {interactive && confirmed && summary.has_provider_coverage ? (
               selectedProviderId ? (
                 <div className="mt-3 rounded-xl border border-[#8DCC64] bg-[#F3FAF1] p-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="text-[11px] font-semibold uppercase tracking-wide text-[#166534]">Requested CSP</p>
-                      <p className="mt-1 text-[15px] font-semibold text-[#0B1220]">
-                        {selectedProvider
-                          ? formatProviderName(selectedProvider.full_name, selectedProvider.preferred_name)
-                          : "Your selected CSP"}
-                      </p>
-                      {selectedProvider ? (
-                        <p className="mt-0.5 text-[11px] text-[#667085]"><ProviderSignal provider={selectedProvider} /></p>
-                      ) : null}
+                  <div className="flex items-start gap-3">
+                    {selectedProvider ? <ProviderAvatar provider={selectedProvider} name={formatProviderName(selectedProvider.full_name, selectedProvider.preferred_name)} size="md" /> : null}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-[11px] font-semibold uppercase tracking-wide text-[#166534]">Requested CSP</p>
+                          <p className="mt-1 text-[15px] font-semibold text-[#0B1220]">{selectedProvider ? formatProviderName(selectedProvider.full_name, selectedProvider.preferred_name) : "Your selected CSP"}</p>
+                          {selectedProvider ? <p className="mt-0.5 text-[11px] text-[#667085]"><ProviderSignal provider={selectedProvider} /></p> : null}
+                        </div>
+                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-[#166534]"><Check className="h-5 w-5" /></span>
+                      </div>
+                      {selectedProvider ? <ProviderBadges provider={selectedProvider} /> : null}
                     </div>
-                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-[#166534]">
-                      <Check className="h-5 w-5" />
-                    </span>
                   </div>
-                  {selectedProvider ? <ProviderBadges provider={selectedProvider} /> : null}
                   <div className="mt-3 flex items-center gap-4">
-                    {selectedProvider ? (
-                      <button type="button" onClick={() => { setChooserOpen(true); setExpandedId(selectedProvider.id); }} className="text-[12px] font-semibold text-[#166534] underline underline-offset-2">
-                        View profile
-                      </button>
-                    ) : null}
-                    <button type="button" onClick={() => setChooserOpen(true)} className="text-[12px] font-semibold text-[#0000FE] underline underline-offset-2">
-                      Change CSP
-                    </button>
-                    <button type="button" onClick={() => selectProvider(null)} className="text-[12px] font-semibold text-[#667085] underline underline-offset-2">
-                      Let Cleanr match
-                    </button>
+                    {selectedProvider ? <button type="button" onClick={() => { setChooserOpen(true); setExpandedId(selectedProvider.id); }} className="text-[12px] font-semibold text-[#166534] underline underline-offset-2">View profile</button> : null}
+                    <button type="button" onClick={() => setChooserOpen(true)} className="text-[12px] font-semibold text-[#0000FE] underline underline-offset-2">Change CSP</button>
+                    <button type="button" onClick={() => selectProvider(null)} className="text-[12px] font-semibold text-[#667085] underline underline-offset-2">Let Cleanr match</button>
                   </div>
                   <p className="mt-3 text-[11px] leading-4 text-[#667085]">We’ll confirm this CSP works for your exact address and chosen date/time before payment.</p>
                 </div>
               ) : (
                 <div className="mt-3 space-y-2">
-                  <button
-                    type="button"
-                    onClick={() => selectProvider(null)}
-                    className="w-full rounded-xl border border-[#8DCC64] bg-[#F3FAF1] px-3 py-3 text-left"
-                  >
+                  <button type="button" onClick={() => selectProvider(null)} className="w-full rounded-xl border border-[#8DCC64] bg-[#F3FAF1] px-3 py-3 text-left">
                     <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <p className="text-[13px] font-semibold text-[#0B1220]">Let Cleanr match me</p>
-                        <p className="mt-0.5 text-[11px] leading-4 text-[#667085]">We’ll use your address, service needs, and chosen time to find an eligible CSP.</p>
-                      </div>
+                      <div><p className="text-[13px] font-semibold text-[#0B1220]">Let Cleanr match me</p><p className="mt-0.5 text-[11px] leading-4 text-[#667085]">We’ll use your address, service needs, and chosen time to find an eligible CSP.</p></div>
                       <Check className="h-5 w-5 shrink-0 text-[#166534]" />
                     </div>
                   </button>
@@ -403,33 +386,22 @@ export function ProviderPresenceStrip({
                   {previewProviders.map((provider) => {
                     const displayName = formatProviderName(provider.full_name, provider.preferred_name);
                     return (
-                      <button
-                        key={provider.id}
-                        type="button"
-                        onClick={() => selectProvider(provider)}
-                        className="w-full rounded-xl border border-[#E5E7EB] bg-[#F8FAFC] px-3 py-3 text-left transition-colors hover:border-[#CFE8C2] hover:bg-[#F7FBF5]"
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <p className="text-[13px] font-semibold text-[#0B1220]">{displayName}</p>
-                            <p className="mt-0.5 text-[11px] text-[#667085]"><ProviderSignal provider={provider} /></p>
+                      <button key={provider.id} type="button" onClick={() => selectProvider(provider)} className="w-full rounded-xl border border-[#E5E7EB] bg-[#F8FAFC] px-3 py-3 text-left transition-colors hover:border-[#CFE8C2] hover:bg-[#F7FBF5]">
+                        <div className="flex items-start gap-3">
+                          <ProviderAvatar provider={provider} name={displayName} size="sm" />
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0"><p className="text-[13px] font-semibold text-[#0B1220]">{displayName}</p><p className="mt-0.5 text-[11px] text-[#667085]"><ProviderSignal provider={provider} /></p></div>
+                              <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-[#98A2B3]" />
+                            </div>
+                            <ProviderBadges provider={provider} />
                           </div>
-                          <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-[#98A2B3]" />
                         </div>
-                        <ProviderBadges provider={provider} />
                       </button>
                     );
                   })}
 
-                  <button
-                    type="button"
-                    onClick={() => setChooserOpen(true)}
-                    className="flex min-h-11 w-full items-center justify-between rounded-xl border border-[#DDE7F5] bg-white px-3 py-2.5 text-left text-[12px] font-semibold text-[#0000FE]"
-                  >
-                    <span>View all CSPs in {zip}</span>
-                    <ChevronRight className="h-4 w-4" />
-                  </button>
-
+                  <button type="button" onClick={() => setChooserOpen(true)} className="flex min-h-11 w-full items-center justify-between rounded-xl border border-[#DDE7F5] bg-white px-3 py-2.5 text-left text-[12px] font-semibold text-[#0000FE]"><span>View all CSPs in {zip}</span><ChevronRight className="h-4 w-4" /></button>
                   <p className="pt-1 text-[11px] leading-4 text-[#667085]">You can change your CSP request anytime before payment.</p>
                 </div>
               )
@@ -437,21 +409,20 @@ export function ProviderPresenceStrip({
 
             {!interactive && summary.sample_providers.length > 0 ? (
               <div className="mt-3 grid gap-2">
-                {summary.sample_providers.map((provider) => (
-                  <div key={provider.id} className="rounded-xl border border-[#E5E7EB] bg-[#F8FAFC] px-3 py-2">
-                    <p className="text-[13px] font-medium text-[#0B1220]">{formatProviderName(provider.full_name)}</p>
-                    <p className="mt-0.5 text-[11px] text-[#667085]">
-                      {provider.avg_rating !== null && provider.review_count > 0
-                        ? `⭐ ${provider.avg_rating.toFixed(1)} · ${provider.review_count} reviews`
-                        : "New to marketplace"}
-                    </p>
-                    <div className="mt-1 flex flex-wrap gap-1">
-                      {provider.background_checked ? <span className="provider-badge">Background Checked</span> : null}
-                      {provider.insured ? <span className="provider-badge">Insured</span> : null}
-                      {provider.platform_verified ? <span className="provider-badge">Platform Verified</span> : null}
+                {summary.sample_providers.map((provider) => {
+                  const displayName = formatProviderName(provider.full_name);
+                  return (
+                    <div key={provider.id} className="rounded-xl border border-[#E5E7EB] bg-[#F8FAFC] px-3 py-2">
+                      <div className="flex items-center gap-2.5">
+                        <ProviderAvatar provider={provider} name={displayName} size="sm" />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-[13px] font-medium text-[#0B1220]">{displayName}</p>
+                          <p className="mt-0.5 text-[11px] text-[#667085]">{provider.avg_rating !== null && provider.review_count > 0 ? `⭐ ${provider.avg_rating.toFixed(1)} · ${provider.review_count} reviews` : "New to marketplace"}</p>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : null}
           </>
@@ -459,7 +430,6 @@ export function ProviderPresenceStrip({
 
         {!loading && !summary ? <p className="mt-2 text-[12px] text-[#667085]">Cleanr availability is being prepared for this area.</p> : null}
       </section>
-
       {chooser}
     </>
   );
