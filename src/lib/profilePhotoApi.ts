@@ -3,6 +3,7 @@ import { supabase } from "./supabase";
 const PROFILE_PHOTO_BUCKET = "profile-photos";
 const MAX_PROFILE_PHOTO_BYTES = 5 * 1024 * 1024;
 const ALLOWED_PROFILE_PHOTO_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 
 function extensionForType(type: string): string {
   if (type === "image/png") return "png";
@@ -10,12 +11,25 @@ function extensionForType(type: string): string {
   return "jpg";
 }
 
+function marketplacePhotoProxyUrl(path: string): string | null {
+  if (!SUPABASE_URL) return null;
+  const providerId = path.split("/", 1)[0]?.trim();
+  if (!providerId) return null;
+  return `${SUPABASE_URL}/functions/v1/marketplace-provider-photo?provider_id=${encodeURIComponent(providerId)}`;
+}
+
 export async function getSignedProfilePhotoUrl(path: string | null | undefined): Promise<string | null> {
   const normalized = path?.trim();
   if (!normalized) return null;
+
   const { data, error } = await supabase.storage.from(PROFILE_PHOTO_BUCKET).createSignedUrl(normalized, 60 * 60);
-  if (error) return null;
-  return data.signedUrl;
+  if (!error && data?.signedUrl) return data.signedUrl;
+
+  // Public marketplace discovery happens before sign-in. The shared profile-photo
+  // bucket remains private, so if an anonymous client cannot mint a signed URL we
+  // fall back to a Cleanr-owned edge boundary that verifies marketplace eligibility
+  // before streaming that provider's exact profile photo.
+  return marketplacePhotoProxyUrl(normalized);
 }
 
 export async function uploadMyProfilePhoto(file: File, userId: string): Promise<string> {
