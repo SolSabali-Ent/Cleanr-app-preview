@@ -124,9 +124,10 @@ export default function GrowthScreen() {
     setGoal(northStar.goal);
   }, [northStar?.id]);
 
+  const customGoal = goal.trim();
   const canSave = useMemo(
-    () => !isOfflinePreviewMode && goal.trim().length >= 3 && !saving,
-    [goal, saving]
+    () => !isOfflinePreviewMode && !saving && (category !== "other" || customGoal.length >= 3),
+    [category, customGoal, saving]
   );
 
   async function handleSaveNorthStar() {
@@ -134,7 +135,8 @@ export default function GrowthScreen() {
     try {
       setSaving(true);
       setError(null);
-      const saved = await setMyNorthStar(goal.trim(), category);
+      const resolvedGoal = customGoal || categoryLabel(category);
+      const saved = await setMyNorthStar(resolvedGoal, category);
       setNorthStar(saved);
       setEditing(false);
     } catch (err) {
@@ -144,38 +146,42 @@ export default function GrowthScreen() {
     }
   }
 
+  const showProgress =
+    !isOfflinePreviewMode &&
+    (servicePractice.repeatHouseholdsCount > 0 || milestoneCount > 0 || matchedOpportunityCount > 0);
+
   const navItems = [
     {
       label: "Milestones",
-      description: "Track your progress",
+      description: "Break your goal into steps",
       count: milestoneCount,
       icon: Sparkles,
       route: CSP_GROWTH_ROUTES.milestones,
     },
     {
       label: "Skills & strengths",
-      description: "Keep track of what you can do",
+      description: "Record what you can do",
       count: capabilityCount,
       icon: Lightbulb,
       route: CSP_GROWTH_ROUTES.capabilities,
     },
     {
       label: "Opportunities",
-      description: "See what could be next",
+      description: "See relevant paths",
       count: matchedOpportunityCount,
       icon: Compass,
       route: CSP_GROWTH_ROUTES.opportunities,
     },
     {
-      label: "Your Network",
-      description: "People and relationships around you",
+      label: "Network",
+      description: "Households, coverage, and connections",
       count: null,
       icon: Users,
       route: CSP_GROWTH_ROUTES.network,
     },
     {
-      label: "What you've helped build",
-      description: "See how you've helped others",
+      label: "Impact",
+      description: "See what your work has helped create",
       count: contributionCount,
       icon: Network,
       route: CSP_GROWTH_ROUTES.contributions,
@@ -187,7 +193,7 @@ export default function GrowthScreen() {
       <header style={{ marginBottom: CSP_SECTION_GAP }}>
         <h1 className="text-2xl font-semibold">Growth</h1>
         <p className="mt-1 text-sm" style={{ color: CSP_TEXT_SECONDARY }}>
-          Your goal, progress, and next steps.
+          Choose your direction. Keep moving it forward.
         </p>
       </header>
 
@@ -200,21 +206,18 @@ export default function GrowthScreen() {
       <section style={{ marginBottom: CSP_SECTION_GAP }}>
         <div className="rounded-2xl border" style={{ backgroundColor: CSP_SURFACE, borderColor: "rgba(248,250,252,.08)", padding: CSP_CARD_PADDING }}>
           <div className="flex items-start justify-between gap-3">
-            <div className="flex min-w-0 items-start gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl" style={{ backgroundColor: `${CSP_PRIMARY_BUTTON}20` }}>
-                <Compass size={20} style={{ color: CSP_PRIMARY_BUTTON }} />
-              </div>
-              <div className="min-w-0">
-                <p className="text-xs font-medium" style={{ color: CSP_TEXT_SECONDARY }}>North Star</p>
-                {northStar && !editing ? (
-                  <>
-                    <p className="mt-1 text-lg font-semibold leading-6">{northStar.goal}</p>
+            <div className="min-w-0">
+              <p className="text-xs font-medium" style={{ color: CSP_TEXT_SECONDARY }}>North Star</p>
+              {northStar && !editing ? (
+                <>
+                  <p className="mt-1 text-lg font-semibold leading-6">{northStar.goal}</p>
+                  {northStar.goal !== categoryLabel(northStar.category) ? (
                     <p className="mt-1 text-xs" style={{ color: CSP_TEXT_SECONDARY }}>{categoryLabel(northStar.category)}</p>
-                  </>
-                ) : !editing ? (
-                  <p className="mt-1 text-sm font-medium">What are you building toward?</p>
-                ) : null}
-              </div>
+                  ) : null}
+                </>
+              ) : !editing ? (
+                <p className="mt-1 text-sm font-medium">Choose what you&apos;re building toward.</p>
+              ) : null}
             </div>
             {northStar && !editing ? (
               <button type="button" onClick={() => setEditing(true)} className="shrink-0 text-xs font-semibold" style={{ color: CSP_PRIMARY_BUTTON }}>
@@ -224,7 +227,7 @@ export default function GrowthScreen() {
           </div>
 
           {loading ? (
-            <p className="mt-4 text-sm" style={{ color: CSP_TEXT_SECONDARY }}>Loading...</p>
+            <p className="mt-4 text-sm" style={{ color: CSP_TEXT_SECONDARY }}>Loading…</p>
           ) : editing || (!northStar && !isOfflinePreviewMode) ? (
             <div className="mt-4 space-y-3 border-t border-white/10 pt-4">
               <label className="block">
@@ -234,11 +237,20 @@ export default function GrowthScreen() {
                 </select>
               </label>
               <label className="block">
-                <span className="mb-1 block text-xs" style={{ color: CSP_TEXT_SECONDARY }}>In your words</span>
-                <textarea value={goal} onChange={(event) => setGoal(event.target.value)} rows={3} maxLength={500} placeholder="What are you trying to make possible?" className="w-full resize-none rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-sm outline-none" />
+                <span className="mb-1 block text-xs" style={{ color: CSP_TEXT_SECONDARY }}>
+                  {category === "other" ? "Describe it" : "Make it yours (optional)"}
+                </span>
+                <textarea
+                  value={goal}
+                  onChange={(event) => setGoal(event.target.value)}
+                  rows={2}
+                  maxLength={500}
+                  placeholder={category === "other" ? "What are you building toward?" : "Add your own wording if you want"}
+                  className="w-full resize-none rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-sm outline-none"
+                />
               </label>
               <button type="button" disabled={!canSave} onClick={() => void handleSaveNorthStar()} className="flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold text-white disabled:opacity-50" style={{ backgroundColor: CSP_PRIMARY_BUTTON }}>
-                {saving ? "Saving..." : northStar ? "Save changes" : "Set my North Star"}
+                {saving ? "Saving…" : northStar ? "Save changes" : "Set North Star"}
               </button>
               {northStar ? (
                 <button type="button" onClick={() => { setEditing(false); setCategory(northStar.category); setGoal(northStar.goal); }} className="w-full py-1 text-xs" style={{ color: CSP_TEXT_SECONDARY }}>
@@ -248,32 +260,36 @@ export default function GrowthScreen() {
             </div>
           ) : !northStar && isOfflinePreviewMode ? (
             <button type="button" disabled className="mt-4 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold opacity-70">
-              Set my North Star
+              Set North Star
             </button>
           ) : null}
         </div>
       </section>
 
-      <section style={{ marginBottom: CSP_SECTION_GAP }}>
-        <div className="grid grid-cols-3 gap-2">
-          <div className="rounded-xl border px-3 py-3 text-center" style={{ backgroundColor: CSP_SURFACE, borderColor: "rgba(248,250,252,.08)" }}>
-            <p className="text-lg font-semibold">{isOfflinePreviewMode ? "—" : servicePractice.repeatHouseholdsCount}</p>
-            <p className="mt-1 text-[10px] leading-4" style={{ color: CSP_TEXT_SECONDARY }}>Repeat homes</p>
+      {showProgress ? (
+        <section style={{ marginBottom: CSP_SECTION_GAP }}>
+          <div className="flex items-center justify-between gap-3 border-y border-white/10 py-3 text-center">
+            <div className="flex-1">
+              <p className="text-base font-semibold">{servicePractice.repeatHouseholdsCount}</p>
+              <p className="mt-0.5 text-[10px]" style={{ color: CSP_TEXT_SECONDARY }}>Repeat homes</p>
+            </div>
+            <div className="h-8 w-px bg-white/10" />
+            <div className="flex-1">
+              <p className="text-base font-semibold">{milestoneCount}</p>
+              <p className="mt-0.5 text-[10px]" style={{ color: CSP_TEXT_SECONDARY }}>Milestones</p>
+            </div>
+            <div className="h-8 w-px bg-white/10" />
+            <div className="flex-1">
+              <p className="text-base font-semibold">{matchedOpportunityCount}</p>
+              <p className="mt-0.5 text-[10px]" style={{ color: CSP_TEXT_SECONDARY }}>Matches</p>
+            </div>
           </div>
-          <div className="rounded-xl border px-3 py-3 text-center" style={{ backgroundColor: CSP_SURFACE, borderColor: "rgba(248,250,252,.08)" }}>
-            <p className="text-lg font-semibold">{isOfflinePreviewMode ? "—" : milestoneCount}</p>
-            <p className="mt-1 text-[10px] leading-4" style={{ color: CSP_TEXT_SECONDARY }}>Milestones</p>
-          </div>
-          <div className="rounded-xl border px-3 py-3 text-center" style={{ backgroundColor: CSP_SURFACE, borderColor: "rgba(248,250,252,.08)" }}>
-            <p className="text-lg font-semibold">{isOfflinePreviewMode ? "—" : matchedOpportunityCount}</p>
-            <p className="mt-1 text-[10px] leading-4" style={{ color: CSP_TEXT_SECONDARY }}>Matches</p>
-          </div>
-        </div>
-      </section>
+        </section>
+      ) : null}
 
       <section>
-        <h2 className="mb-3 text-sm font-medium" style={{ color: CSP_TEXT_SECONDARY }}>Explore</h2>
-        <div className="overflow-hidden rounded-2xl border" style={{ backgroundColor: CSP_SURFACE, borderColor: "rgba(248,250,252,.08)" }}>
+        <h2 className="mb-2 text-sm font-medium" style={{ color: CSP_TEXT_SECONDARY }}>Next</h2>
+        <div className="overflow-hidden border-y border-white/10">
           {navItems.map((item, index) => {
             const Icon = item.icon;
             return (
@@ -281,21 +297,19 @@ export default function GrowthScreen() {
                 key={item.label}
                 type="button"
                 onClick={() => navigate(item.route)}
-                className={`flex w-full items-center gap-3 px-4 py-4 text-left ${index > 0 ? "border-t border-white/10" : ""}`}
+                className={`flex w-full items-center gap-3 py-4 text-left ${index > 0 ? "border-t border-white/10" : ""}`}
               >
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl" style={{ backgroundColor: `${CSP_PRIMARY_BUTTON}18` }}>
-                  <Icon size={18} style={{ color: CSP_PRIMARY_BUTTON }} />
-                </div>
+                <Icon size={18} className="shrink-0" style={{ color: CSP_PRIMARY_BUTTON }} />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <p className="text-sm font-medium">{item.label}</p>
-                    {item.count !== null && !isOfflinePreviewMode ? (
-                      <span className="rounded-full border border-white/10 px-2 py-0.5 text-[10px]" style={{ color: CSP_TEXT_SECONDARY }}>{item.count}</span>
+                    {item.count !== null && item.count > 0 && !isOfflinePreviewMode ? (
+                      <span className="text-[10px]" style={{ color: CSP_TEXT_SECONDARY }}>{item.count}</span>
                     ) : null}
                   </div>
                   <p className="mt-0.5 text-xs" style={{ color: CSP_TEXT_SECONDARY }}>{item.description}</p>
                 </div>
-                <ArrowRight size={16} className="shrink-0" style={{ color: CSP_TEXT_SECONDARY }} />
+                <ArrowRight size={15} className="shrink-0" style={{ color: CSP_TEXT_SECONDARY }} />
               </button>
             );
           })}
