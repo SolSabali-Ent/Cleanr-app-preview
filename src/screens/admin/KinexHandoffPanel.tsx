@@ -1,9 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
-import { adminTheme } from "../../theme/adminTheme";
 import { KinexDrainAuditCard } from "./KinexDrainAuditCard";
 import { AdminDisputePanel } from "./AdminDisputePanel";
+import {
+  AdminNotice,
+  AdminPanel,
+  AdminPrimaryButton,
+  AdminSecondaryButton,
+  AdminSectionHeader,
+  AdminStatStrip,
+  AdminStatus,
+  AdminTableShell,
+} from "./AdminUi";
 
 type PendingBookingRow = {
   id: string;
@@ -98,7 +107,7 @@ export function KinexHandoffPanel() {
       const sent = Number(result?.sent ?? 0);
       const failed = Number(result?.failed ?? 0);
       const runId = data?.run_id ? String(data.run_id) : null;
-      setNotice(`Kinex drain completed: ${claimed} claimed · ${sent} sent · ${failed} failed.${runId ? ` Audit run ${runId}.` : ""} Relationship-pending booking confirmations remain protected by the delivery gate.`);
+      setNotice(`Drain complete: ${claimed} claimed · ${sent} sent · ${failed} failed${runId ? ` · audit ${runId}` : ""}.`);
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to drain the Kinex outbox.");
@@ -107,9 +116,7 @@ export function KinexHandoffPanel() {
     }
   }
 
-  useEffect(() => {
-    void load();
-  }, []);
+  useEffect(() => { void load(); }, []);
 
   const health = useMemo(() => {
     const queued = outbox.filter((row) => row.status === "queued").length;
@@ -119,138 +126,79 @@ export function KinexHandoffPanel() {
     const bookingConfirmed = outbox.filter((row) => row.event_type === "booking_confirmed");
     const failedConfirmed = bookingConfirmed.filter((row) => row.status === "failed").length;
     const heldRelationshipConfirmed = bookingConfirmed.filter(
-      (row) =>
-        row.status === "queued" &&
-        row.payload?.relationship_assignment_pending === true &&
-        !relationshipDeliveryEnabled
+      (row) => row.status === "queued" && row.payload?.relationship_assignment_pending === true && !relationshipDeliveryEnabled
     ).length;
     return { queued, processing, failed, sent, failedConfirmed, heldRelationshipConfirmed };
   }, [outbox, relationshipDeliveryEnabled]);
 
   return (
-    <>
+    <div className="space-y-6">
       <AdminDisputePanel />
-      <section
-        className="rounded-xl border p-4"
-        style={{ borderColor: adminTheme.border, backgroundColor: adminTheme.card }}
-      >
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <p className="text-sm font-semibold" style={{ color: adminTheme.textPrimary }}>
-              Kinex handoff attention
-            </p>
-            <p className="mt-1 max-w-3xl text-xs leading-5" style={{ color: adminTheme.textSecondary }}>
-              Cleanr records payment and relationship context; Kinex owns orchestration; Cleanr only persists a provider after trusted reconciliation. Transport controls here cannot manually assign a provider or bypass Kinex relationship routing.
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => void drainOrdinaryEvents()}
-              disabled={draining}
-              className="rounded-lg px-3 py-2 text-xs font-semibold text-white disabled:opacity-50"
-              style={{ backgroundColor: adminTheme.primary }}
-            >
-              {draining ? "Draining…" : "Drain ordinary events"}
-            </button>
-            <button
-              type="button"
-              onClick={() => void load()}
-              disabled={loading}
-              className="rounded-lg border px-3 py-2 text-xs font-semibold disabled:opacity-50"
-              style={{ borderColor: adminTheme.border, color: adminTheme.textPrimary }}
-            >
-              {loading ? "Refreshing…" : "Refresh"}
-            </button>
-          </div>
+
+      <section>
+        <AdminSectionHeader
+          title="Kinex handoff"
+          description="Transport and reconciliation health across the Cleanr → Kinex boundary."
+          actions={
+            <>
+              <AdminSecondaryButton disabled={loading} onClick={() => void load()}>{loading ? "Refreshing…" : "Refresh"}</AdminSecondaryButton>
+              <AdminPrimaryButton disabled={draining} onClick={() => void drainOrdinaryEvents()}>{draining ? "Draining…" : "Drain ordinary events"}</AdminPrimaryButton>
+            </>
+          }
+        />
+
+        {error ? <div className="mt-3"><AdminNotice tone="warning">{error}</AdminNotice></div> : null}
+        {notice ? <div className="mt-3"><AdminNotice tone="success">{notice}</AdminNotice></div> : null}
+
+        <div className="mt-3">
+          <AdminStatStrip
+            items={[
+              { label: "Pending assignment", value: bookings.length, detail: "Paid relationship bookings awaiting provider reconciliation" },
+              { label: "Held relationship events", value: health.heldRelationshipConfirmed, detail: relationshipDeliveryEnabled ? "Gate enabled" : "Held intentionally" },
+              { label: "Outbox queued", value: health.queued, detail: `${health.processing} processing` },
+              { label: "Outbox failed", value: health.failed, detail: `${health.failedConfirmed} booking confirmations · ${health.sent} sent` },
+            ]}
+          />
         </div>
 
-        {error ? (
-          <div className="mt-3 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-            {error}
-          </div>
-        ) : null}
-
-        {notice ? (
-          <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-900">
-            {notice}
-          </div>
-        ) : null}
-
-        <KinexDrainAuditCard />
-
-        <div className="mt-4 rounded-lg border px-3 py-3" style={{ borderColor: relationshipDeliveryEnabled ? "#B7E0A4" : "#F2D38A", backgroundColor: relationshipDeliveryEnabled ? "#F5FBF2" : "#FFF9E8" }}>
-          <p className="text-xs font-semibold" style={{ color: adminTheme.textPrimary }}>
-            Relationship assignment delivery: {relationshipDeliveryEnabled ? "enabled" : "held intentionally"}
-          </p>
-          <p className="mt-1 text-xs leading-5" style={{ color: adminTheme.textSecondary }}>
-            {relationshipDeliveryEnabled
-              ? "Cleanr may release relationship-pending booking_confirmed events to Kinex. Keep this enabled only after the Kinex routing migration and callback worker are verified live."
-              : "Cleanr preserves relationship-pending booking_confirmed rows without claiming them or consuming retry attempts. The admin drain control can still move ordinary lifecycle events."}
-          </p>
-        </div>
-
-        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
-          {[
-            ["Pending relationship assignment", bookings.length, "Paid relationship bookings still waiting for formal provider reconciliation"],
-            ["Relationship events held", health.heldRelationshipConfirmed, "Queued intentionally while the Kinex relationship rail is disabled"],
-            ["Outbox queued", health.queued, "Cleanr events waiting to be delivered to Kinex"],
-            ["Outbox processing", health.processing, "Rows currently claimed by the transport worker"],
-            ["Outbox failed", health.failed, `${health.failedConfirmed} failed booking_confirmed events`],
-            ["Outbox sent", health.sent, "Recent transport rows successfully handed to Kinex"],
-          ].map(([label, value, detail]) => (
-            <div key={String(label)} className="rounded-xl border p-3" style={{ borderColor: adminTheme.border, backgroundColor: adminTheme.surface }}>
-              <p className="text-[11px] font-medium" style={{ color: adminTheme.textSecondary }}>{label}</p>
-              <p className="mt-1 text-xl font-semibold" style={{ color: adminTheme.textPrimary }}>{value}</p>
-              <p className="mt-1 text-[11px] leading-4" style={{ color: adminTheme.textSecondary }}>{detail}</p>
+        <AdminPanel className="mt-3" padding="compact">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold text-slate-900">Relationship assignment delivery</p>
+              <p className="mt-1 text-xs text-slate-500">Relationship-pending booking confirmations remain protected by a separate delivery gate.</p>
             </div>
-          ))}
-        </div>
+            <AdminStatus tone={relationshipDeliveryEnabled ? "success" : "warning"}>{relationshipDeliveryEnabled ? "Enabled" : "Held intentionally"}</AdminStatus>
+          </div>
+        </AdminPanel>
 
         {bookings.length > 0 ? (
-          <div className="mt-4 overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead style={{ color: adminTheme.textSecondary }}>
-                <tr>
-                  <th className="py-2">Booking</th>
-                  <th>Relationship</th>
-                  <th>Waiting since</th>
-                  <th>Inspect</th>
-                </tr>
-              </thead>
-              <tbody>
-                {bookings.map((booking) => (
-                  <tr key={booking.id} className="border-t border-slate-200">
-                    <td className="py-2 font-mono text-[11px]">{booking.id}</td>
-                    <td className="font-mono text-[11px]">{booking.service_relationship_id ?? "—"}</td>
-                    <td>{formatTimestamp(booking.updated_at || booking.created_at)}</td>
-                    <td>
-                      <Link
-                        to={`/admin/full-app/customer/bookings/${booking.id}`}
-                        className="font-semibold underline"
-                        style={{ color: adminTheme.primary }}
-                      >
-                        customer view
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="mt-3">
+            <AdminTableShell>
+              <div className="grid grid-cols-[minmax(220px,1fr)_minmax(220px,1fr)_190px_130px] gap-4 border-b border-slate-200 bg-slate-50 px-5 py-3 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                <span>Booking</span><span>Relationship</span><span>Waiting since</span><span>Inspect</span>
+              </div>
+              {bookings.map((booking) => (
+                <div key={booking.id} className="grid grid-cols-[minmax(220px,1fr)_minmax(220px,1fr)_190px_130px] items-center gap-4 border-b border-slate-200 px-5 py-4 text-xs last:border-b-0">
+                  <span className="truncate font-mono text-slate-700">{booking.id}</span>
+                  <span className="truncate font-mono text-slate-500">{booking.service_relationship_id ?? "—"}</span>
+                  <span className="text-slate-500">{formatTimestamp(booking.updated_at || booking.created_at)}</span>
+                  <Link to={`/admin/full-app/customer/bookings/${booking.id}`} className="font-semibold text-[#0000FE] hover:underline">Inspect</Link>
+                </div>
+              ))}
+            </AdminTableShell>
           </div>
-        ) : (
-          <p className="mt-4 text-xs" style={{ color: adminTheme.textSecondary }}>
-            No paid relationship booking is currently waiting for provider reconciliation.
-          </p>
-        )}
+        ) : null}
 
-        <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3">
-          <p className="text-xs font-semibold text-slate-800">Blocked Kinex database activation</p>
-          <p className="mt-1 text-xs leading-5 text-slate-600">
-            The Kinex source migration for the Cleanr relationship-assignment routing rule is ready, but live Kinex database access is not currently available. Until that migration is confirmed live, the delivery gate remains off. Draining ordinary events does not release the held relationship assignment events.
-          </p>
-        </div>
+        <details className="mt-3 rounded-2xl border border-slate-200 bg-white">
+          <summary className="cursor-pointer list-none px-5 py-4 text-sm font-semibold text-slate-950">Transport diagnostics</summary>
+          <div className="space-y-4 border-t border-slate-200 px-5 py-4">
+            <KinexDrainAuditCard />
+            <div className="rounded-xl bg-slate-50 p-4 text-xs leading-5 text-slate-600">
+              Cleanr persists payment, relationship context, and durable assignment truth. Kinex owns orchestration and routing. Relationship-pending delivery remains gated until the Kinex routing migration and callback worker are verified live; ordinary lifecycle events may still be drained independently.
+            </div>
+          </div>
+        </details>
       </section>
-    </>
+    </div>
   );
 }
