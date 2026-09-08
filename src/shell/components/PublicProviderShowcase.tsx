@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { ArrowRight, Clock3, Search, ShieldCheck, Sparkles, Star, UserRoundSearch, X } from "lucide-react";
+import { ArrowRight, Search, ShieldCheck, Star, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import {
   listMarketplaceProvidersForZip,
@@ -172,32 +172,34 @@ export function PublicProviderShowcase() {
 
   return (
     <>
-      <section className="bg-[#F7F9FC] px-6 py-16 sm:py-20">
-        <div className="mx-auto max-w-7xl">
-          <div className="mx-auto max-w-3xl text-center">
+      <section className="bg-white px-6 py-16 sm:py-20">
+        <div className="mx-auto max-w-6xl">
+          <div className="max-w-3xl">
             <p className="text-sm font-semibold uppercase tracking-wide text-[#0000FE]">How Cleanr works</p>
-            <h2 className="mt-3 text-3xl font-bold tracking-tight text-[#0B1220] sm:text-4xl">A simple way to find the right clean—and the right person</h2>
-            <p className="mt-4 text-lg leading-relaxed text-[#667085]">Start with your home, choose a CSP if someone feels like a fit, then pick a time and book securely.</p>
+            <h2 className="mt-3 text-3xl font-bold tracking-tight text-[#0B1220] sm:text-4xl">From “I need a clean” to booked in a few clear steps.</h2>
+            <p className="mt-4 text-lg leading-relaxed text-[#667085]">Choose the person if that matters to you. Let Cleanr handle the rest of the booking infrastructure around the visit.</p>
           </div>
 
-          <div className="mt-10 grid gap-4 md:grid-cols-3">
+          <div className="mt-12 grid border-y border-slate-200 md:grid-cols-3">
             {[
-              { icon: <Sparkles className="h-6 w-6" />, number: "1", title: "Tell us about your home", text: "Share your ZIP, service needs, and home details so Cleanr can narrow the right fit." },
-              { icon: <UserRoundSearch className="h-6 w-6" />, number: "2", title: "Choose a CSP—or let Cleanr match", text: "See real CSPs, their photos, experience, trust signals, and profile before you decide." },
-              { icon: <Clock3 className="h-6 w-6" />, number: "3", title: "Pick a time and book", text: "Cleanr verifies the exact address and schedule before secure payment begins." },
-            ].map((step) => (
-              <div key={step.number} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#EEF2FF] text-[#0000FE]">{step.icon}</div>
-                <p className="mt-5 text-xs font-semibold uppercase tracking-wider text-[#166534]">Step {step.number}</p>
-                <h3 className="mt-1 text-lg font-semibold text-[#0B1220]">{step.title}</h3>
-                <p className="mt-2 text-sm leading-6 text-[#667085]">{step.text}</p>
+              { number: "01", title: "Tell us about your home", text: "Share your ZIP, service needs, and home details so Cleanr can narrow the right fit." },
+              { number: "02", title: "Choose a CSP—or don't", text: "Browse real CSPs before booking, or let Cleanr match around your service needs and schedule." },
+              { number: "03", title: "Pick a time and book", text: "We verify the exact address and schedule before secure payment begins." },
+            ].map((step, index) => (
+              <div
+                key={step.number}
+                className={`py-8 md:px-8 md:py-10 ${index > 0 ? "border-t border-slate-200 md:border-l md:border-t-0" : ""}`}
+              >
+                <p className="text-3xl font-semibold tracking-tight text-slate-300">{step.number}</p>
+                <h3 className="mt-6 text-lg font-semibold text-[#0B1220]">{step.title}</h3>
+                <p className="mt-2 max-w-sm text-sm leading-6 text-[#667085]">{step.text}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      <section id="meet-cleanr-csps" className="bg-white px-6 py-16 sm:py-20">
+      <section id="meet-cleanr-csps" className="bg-[#F7F9FC] px-6 py-16 sm:py-20">
         <div className="mx-auto max-w-7xl">
           <div className="mx-auto max-w-3xl text-center">
             <p className="text-sm font-semibold uppercase tracking-wide text-[#166534]">Meet Cleanr CSPs</p>
