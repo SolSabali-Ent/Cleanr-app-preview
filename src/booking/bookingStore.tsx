@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import type { ReactNode } from "react";
+import { clearPublicProviderBookingIntent, getPublicProviderBookingIntent } from "../lib/publicBookingIntent";
 
 export interface HomeDetails {
   sqft: string;
@@ -85,12 +86,23 @@ const initialState: BookingState = {
 };
 
 function restoreBookingDraft(): BookingState {
-  if (typeof sessionStorage === "undefined") return initialState;
+  const publicIntent = getPublicProviderBookingIntent();
+
+  if (typeof sessionStorage === "undefined") {
+    if (!publicIntent) return initialState;
+    clearPublicProviderBookingIntent();
+    return {
+      ...initialState,
+      zipcode: publicIntent.zip,
+      requestedProviderId: publicIntent.providerId,
+      requestedProviderName: publicIntent.providerName,
+    };
+  }
+
   try {
     const raw = sessionStorage.getItem(BOOKING_DRAFT_STORAGE_KEY);
-    if (!raw) return initialState;
-    const stored = JSON.parse(raw) as Partial<BookingState>;
-    return {
+    const stored = raw ? JSON.parse(raw) as Partial<BookingState> : {};
+    const restored: BookingState = {
       ...initialState,
       ...stored,
       serviceAddress: { ...initialState.serviceAddress, ...(stored.serviceAddress ?? {}) },
@@ -100,8 +112,24 @@ function restoreBookingDraft(): BookingState {
       requestedProviderId: typeof stored.requestedProviderId === "string" && stored.requestedProviderId.trim() ? stored.requestedProviderId : null,
       requestedProviderName: typeof stored.requestedProviderName === "string" && stored.requestedProviderName.trim() ? stored.requestedProviderName : null,
     };
+
+    if (publicIntent) {
+      restored.requestedProviderId = publicIntent.providerId;
+      restored.requestedProviderName = publicIntent.providerName;
+      if (!restored.zipcode && publicIntent.zip) restored.zipcode = publicIntent.zip;
+      clearPublicProviderBookingIntent();
+    }
+
+    return restored;
   } catch {
-    return initialState;
+    if (!publicIntent) return initialState;
+    clearPublicProviderBookingIntent();
+    return {
+      ...initialState,
+      zipcode: publicIntent.zip,
+      requestedProviderId: publicIntent.providerId,
+      requestedProviderName: publicIntent.providerName,
+    };
   }
 }
 
@@ -146,6 +174,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
 
   const reset = () => {
     clearPersistedBookingDraft();
+    clearPublicProviderBookingIntent();
     setState(initialState);
   };
 
