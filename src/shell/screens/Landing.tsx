@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import {
   ArrowRight,
   BadgeCheck,
@@ -225,8 +225,8 @@ function SectionHeading({
 function FaqItemRow({ item }: { item: FaqItem }) {
   return (
     <details className="group border-b last:border-b-0" style={{ borderColor: c.border }}>
-      <summary className="flex cursor-pointer list-none items-start justify-between gap-4 py-4 text-left [&::-webkit-details-marker]:hidden">
-        <span className="text-sm font-semibold leading-6" style={{ color: c.ink }}>
+      <summary className="flex cursor-pointer list-none items-start justify-between gap-4 py-5 text-left [&::-webkit-details-marker]:hidden">
+        <span className="text-sm font-semibold leading-6 sm:text-base" style={{ color: c.ink }}>
           {item.question}
         </span>
         <ChevronDown
@@ -278,6 +278,9 @@ function BluePrimaryLink({ to, children }: { to: string; children: ReactNode }) 
 }
 
 export default function Landing() {
+  const [activeFaqGroup, setActiveFaqGroup] = useState(0);
+  const activeFaq = FAQ_GROUPS[activeFaqGroup] ?? FAQ_GROUPS[0];
+
   useEffect(() => {
     captureReferralCodeFromUrl();
   }, []);
@@ -497,27 +500,77 @@ export default function Landing() {
         </div>
       </section>
 
-      <section id="faq" className="scroll-mt-6 bg-white px-6 py-16 sm:py-24">
-        <div className="mx-auto max-w-7xl">
-          <SectionHeading
-            eyebrow="Frequently asked questions"
-            title="A few things worth knowing before you book or join"
-            description="Clear answers about residential visits, provider work, safety, payments, continuity, and what Cleanr is building."
-          />
-          <div className="mt-12 grid gap-6 lg:grid-cols-3">
-            {FAQ_GROUPS.map((group) => (
-              <section key={group.title} className="self-start rounded-2xl border bg-white p-5 shadow-sm sm:p-6" style={{ borderColor: c.border }}>
-                <h3 className="text-lg font-semibold" style={{ color: c.ink }}>{group.title}</h3>
-                <p className="mt-2 text-sm leading-6" style={{ color: c.inkMuted }}>{group.description}</p>
-                <div className="mt-4 border-t" style={{ borderColor: c.border }}>
-                  {group.items.map((item) => <FaqItemRow key={item.question} item={item} />)}
-                </div>
-              </section>
-            ))}
+      <section id="faq" className="scroll-mt-6 bg-[#F7F9FC] px-6 py-16 sm:py-24">
+        <div className="mx-auto grid max-w-6xl gap-10 lg:grid-cols-[0.72fr_1.28fr] lg:gap-16">
+          <div className="lg:sticky lg:top-8 lg:self-start">
+            <p className="text-sm font-semibold uppercase tracking-wide text-[#166534]">Questions?</p>
+            <h2 className="mt-3 max-w-xl text-3xl font-bold tracking-tight text-[#0B1220] sm:text-4xl">
+              Everything you need before you book.
+            </h2>
+            <p className="mt-4 max-w-lg text-lg leading-relaxed text-[#667085]">
+              Start the booking first. Choose a CSP if you want one. We’ll only ask you to sign in when it’s time to continue securely toward payment.
+            </p>
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row lg:flex-col lg:items-start xl:flex-row">
+              <BluePrimaryLink to={CUSTOMER_ENTRY_PATH}>
+                Book now
+                <ArrowRight className="h-5 w-5 shrink-0" />
+              </BluePrimaryLink>
+              <a
+                href="#meet-cleanr-csps"
+                className="inline-flex min-h-[3rem] items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-7 py-4 text-center font-medium text-[#0B1220]"
+              >
+                Meet CSPs
+              </a>
+            </div>
+            <p className="mt-4 max-w-md text-xs leading-5 text-[#667085]">
+              Need help with a visit already in progress? Use the support tools inside that booking so Cleanr keeps the right context attached.
+            </p>
           </div>
-          <p className="mx-auto mt-8 max-w-3xl text-center text-sm leading-6" style={{ color: c.inkMuted }}>
-            Have a visit-specific safety or service concern? Use the support tools inside your booking so Cleanr can preserve the right context and respond appropriately.
-          </p>
+
+          <div>
+            <div
+              className="flex gap-1 overflow-x-auto rounded-xl border border-slate-200 bg-white p-1 shadow-sm"
+              role="tablist"
+              aria-label="FAQ categories"
+            >
+              {FAQ_GROUPS.map((group, index) => {
+                const active = activeFaqGroup === index;
+                const shortLabel = index === 0 ? "Customers" : index === 1 ? "Providers" : "About Cleanr";
+                return (
+                  <button
+                    key={group.title}
+                    type="button"
+                    role="tab"
+                    aria-selected={active}
+                    onClick={() => setActiveFaqGroup(index)}
+                    className={`min-h-11 flex-1 whitespace-nowrap rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors ${
+                      active
+                        ? "bg-[#0B1220] text-white"
+                        : "bg-transparent text-[#667085] hover:bg-slate-50 hover:text-[#0B1220]"
+                    }`}
+                  >
+                    {shortLabel}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div
+              key={activeFaq.title}
+              className="mt-4 overflow-hidden rounded-[24px] border border-slate-200 bg-white px-5 shadow-sm sm:px-7"
+              role="tabpanel"
+            >
+              <div className="border-b border-slate-200 py-6">
+                <p className="text-lg font-semibold text-[#0B1220]">{activeFaq.title}</p>
+                <p className="mt-1 text-sm leading-6 text-[#667085]">{activeFaq.description}</p>
+              </div>
+              <div>
+                {activeFaq.items.map((item) => (
+                  <FaqItemRow key={item.question} item={item} />
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
