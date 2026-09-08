@@ -32,6 +32,7 @@ import {
   LANDING_LOGO_HERO_SRC,
   LANDING_LOGO_SRC,
 } from "../../lib/brand";
+import { PublicProviderShowcase } from "../components/PublicProviderShowcase";
 
 const c = cleanrBrand.color;
 
@@ -320,6 +321,12 @@ export default function Landing() {
 
             <nav className="mt-0.5 flex shrink-0 items-center justify-end gap-2" aria-label="Public navigation">
               <a
+                href="#meet-cleanr-csps"
+                className="hidden min-h-11 items-center justify-center rounded-lg px-3 py-2 text-xs font-medium text-white/90 transition-colors hover:text-white sm:inline-flex sm:px-3.5 sm:text-sm"
+              >
+                Meet CSPs
+              </a>
+              <a
                 href="#faq"
                 className="inline-flex min-h-11 min-w-[44px] items-center justify-center rounded-lg px-3 py-2 text-xs font-medium text-white/90 transition-colors hover:text-white sm:px-3.5 sm:text-sm"
               >
@@ -361,6 +368,8 @@ export default function Landing() {
           </div>
         </div>
       </section>
+
+      <PublicProviderShowcase />
 
       <section className="bg-white px-6 py-16 sm:py-20">
         <div className="mx-auto max-w-7xl">

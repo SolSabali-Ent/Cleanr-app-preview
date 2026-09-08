@@ -4,6 +4,7 @@ import { supabase, isOfflinePreviewMode } from "@/lib/supabase";
 import { useSession } from "@/lib/useSession";
 import { attachRefereeByCode } from "@/lib/referralApi";
 import { getStoredReferralCode, clearStoredReferralCode } from "@/lib/referralRef";
+import { hasPublicProviderBookingIntent } from "@/lib/publicBookingIntent";
 
 export function CustomerGate({ children }: { children: ReactNode }) {
   const { session, loading: sessionLoading } = useSession();
@@ -81,6 +82,15 @@ export function CustomerGate({ children }: { children: ReactNode }) {
           } catch {
             // Preserve the code for a future retry; customer access itself should still work.
           }
+        }
+
+        // Public CSP discovery is allowed before authentication. If the customer
+        // chose a CSP first, auth is only a temporary interruption: return them to
+        // the existing booking flow, which consumes the saved provider intent.
+        if (pathname === "/app" && hasPublicProviderBookingIntent()) {
+          setRedirectPath("/book");
+          setLoading(false);
+          return;
         }
       }
 
