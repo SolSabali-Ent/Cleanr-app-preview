@@ -376,6 +376,12 @@ export default function Landing() {
             <FeatureCard icon={<FileCheck className="h-6 w-6" />} title="Get confirmation" description="See booking details in one place after you submit your request." />
             <FeatureCard icon={<Star className="h-6 w-6" />} title="Review after service" description="Share feedback when the visit is complete to help future bookings." />
           </div>
+          <div className="mt-10 flex justify-center">
+            <BluePrimaryLink to={CUSTOMER_ENTRY_PATH}>
+              Book now
+              <ArrowRight className="h-5 w-5 shrink-0" />
+            </BluePrimaryLink>
+          </div>
         </div>
       </section>
 
