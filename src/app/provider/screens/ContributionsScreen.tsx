@@ -113,12 +113,12 @@ export default function ContributionsScreen() {
   return (
     <div className="pb-24" style={{ color: CSP_TEXT_PRIMARY }}>
       <button type="button" onClick={() => navigate(CSP_GROWTH_ROUTES.home)} className="mb-5 flex items-center gap-2 text-sm" style={{ color: CSP_TEXT_SECONDARY }}>
-        <ArrowLeft size={16} /> Growth
+        <ArrowLeft size={16} /> North Star
       </button>
 
       <header className="mb-6">
         <h1 className="text-2xl font-semibold">Impact</h1>
-        <p className="mt-1 text-sm" style={{ color: CSP_TEXT_SECONDARY }}>What your work has helped create.</p>
+        <p className="mt-1 text-sm" style={{ color: CSP_TEXT_SECONDARY }}>What your work has helped create for people and the network.</p>
       </header>
 
       {error ? <p className="mb-4 text-sm text-red-300">{error}</p> : null}

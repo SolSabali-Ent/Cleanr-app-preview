@@ -117,7 +117,7 @@ export default function BookingConfirmation() {
           {fullyScheduled
             ? "We'll keep the visit, CSP, messages, and updates together in Cleanr."
             : paymentConfirmed
-              ? "Your visit is secured. New marketplace work becomes scheduled when a CSP accepts it; an existing relationship is reconciled to the CSP you already chose."
+              ? "Your visit is secured. If this is a new connection, a CSP can accept the opportunity; if you already chose someone you know, Cleanr keeps that relationship attached to the booking."
               : paymentCancelled
                 ? "Payment wasn't completed, so this visit is not confirmed yet."
                 : "Stripe is still processing. This page will update when payment is recorded."}
