@@ -85,17 +85,21 @@ export default function UploadInsuranceScreen() {
 
     await refresh();
     setSaving(false);
-    setMessage("Submitted — pending review");
+    setMessage("Submitted for verification");
   }
 
   return (
     <div className="min-h-screen px-4 py-8" style={{ color: CSP_TEXT_PRIMARY }}>
       <header style={{ marginBottom: CSP_SECTION_GAP }}>
-        <h1 className="text-2xl font-semibold">Insurance (optional)</h1>
+        <h1 className="text-2xl font-semibold">Business insurance (optional)</h1>
         <p className="text-sm mt-2" style={{ color: CSP_TEXT_SECONDARY }}>
-          Upload insurance if you have it. It is not required to join or accept jobs.
+          If you carry your own business insurance, you can submit evidence for Cleanr to verify. It is not currently required to join or accept jobs.
         </p>
       </header>
+
+      <section className="mb-5 border-y border-white/10 py-3 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>
+        A verified status means Cleanr reviewed the provider-supplied insurance evidence on file. It does not mean Cleanr issued the policy or guarantees coverage for a particular claim.
+      </section>
 
       <div className="space-y-3">
         <div className="w-full min-w-0">
@@ -151,7 +155,7 @@ export default function UploadInsuranceScreen() {
           className="w-full py-3 rounded-xl text-white text-sm font-semibold transition-opacity hover:opacity-90 disabled:opacity-60"
           style={{ backgroundColor: CSP_PRIMARY_BUTTON }}
         >
-          {saving ? "Uploading..." : "Get Verified"}
+          {saving ? "Uploading..." : "Submit for verification"}
         </button>
         <button
           type="button"
