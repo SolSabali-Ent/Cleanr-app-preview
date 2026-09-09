@@ -9,6 +9,11 @@ import { recordBookingProgressEvent, serviceOptionKeyFromBookingService } from "
 import { emitBookingAbandoned } from "../../lib/kinex/events";
 import { customerFacingServiceLabel } from "../../lib/serviceCatalog";
 import { getMyCustomerValueSummary } from "../../lib/customerAffiliateApi";
+import {
+  acceptCheckoutLegalDocuments,
+  getCheckoutLegalDocuments,
+  type CheckoutLegalDocument,
+} from "../../lib/legalAcceptanceApi";
 import { Button } from "../../components/ui/Button";
 import { supabase } from "../../lib/supabase";
 
@@ -54,6 +59,8 @@ export function StepReview({ onBack }: StepReviewProps) {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [priorityRate, setPriorityRate] = useState(0.25);
   const [valueSummary, setValueSummary] = useState({ cleanrCreditBalanceCents: 0, acquisitionCreditCents: 0 });
+  const [legalDocuments, setLegalDocuments] = useState<CheckoutLegalDocument[]>([]);
+  const [legalAccepted, setLegalAccepted] = useState(false);
   const serviceRelationshipId = searchParams.get("relationship")?.trim() || null;
   const requestedProviderName = state.requestedProviderName?.trim() || "your selected CSP";
 
@@ -67,6 +74,14 @@ export function StepReview({ onBack }: StepReviewProps) {
     void getMyCustomerValueSummary().then((summary) => {
       if (active) setValueSummary(summary);
     }).catch(() => undefined);
+    void getCheckoutLegalDocuments().then((documents) => {
+      if (active) {
+        setLegalDocuments(documents);
+        setLegalAccepted(false);
+      }
+    }).catch(() => {
+      if (active) setLegalDocuments([]);
+    });
     return () => { active = false; };
   }, []);
 
@@ -84,6 +99,14 @@ export function StepReview({ onBack }: StepReviewProps) {
         });
         navigate("/signin?continue=booking");
         return;
+      }
+
+      if (legalDocuments.length > 0) {
+        if (!legalAccepted) {
+          setSubmitError("Review and accept the required terms before continuing to payment.");
+          return;
+        }
+        await acceptCheckoutLegalDocuments(legalDocuments);
       }
 
       const bookingId = await createVerifiedBooking(state);
@@ -130,7 +153,9 @@ export function StepReview({ onBack }: StepReviewProps) {
         void recordBookingProgressEvent({ eventType: "booking_created_payment_not_started", currentStep: "review", zip: state.zipcode ?? null, serviceOptionKey: serviceOptionKeyFromBookingService(state.serviceType), metadata: { checkout_block_reason: activationReason } });
         void supabase.auth.getUser().then(({ data: { user } }) => { if (user?.id) emitBookingAbandoned(user.id, "review_checkout_blocked", 0); });
       }
-      if (relationshipBlocked) setSubmitError("This relationship is paused or ended. Manage it or choose another CSP.");
+      if (message.includes("LEGAL_ACCEPTANCE_REQUIRED") || message.includes("legal_document_not_published")) setSubmitError("The required terms changed before payment. Review the current terms and try again.");
+      else if (message.includes("LEGAL_CONFIGURATION_INCOMPLETE")) setSubmitError("Checkout is temporarily unavailable while Cleanr updates required terms.");
+      else if (relationshipBlocked) setSubmitError("This relationship is paused or ended. Manage it or choose another CSP.");
       else if (message.includes("requested_provider_not_available_for_booking")) setSubmitError(`${requestedProviderName} isn't available for this arrival window. Choose another time, CSP, or let Cleanr match you.`);
       else if (message.includes("requested_provider_outside_service_radius")) setSubmitError(`${requestedProviderName} doesn't serve this exact address. Choose another CSP or let Cleanr match you.`);
       else if (message.includes("requested_provider_rejects_booking")) setSubmitError(`${requestedProviderName} isn't accepting this service or frequency right now.`);
@@ -188,6 +213,23 @@ export function StepReview({ onBack }: StepReviewProps) {
         </div>
       </details>
 
+      {legalDocuments.length > 0 ? (
+        <section className="rounded-2xl border border-[#D0D5DD] bg-white p-4">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#667085]">Required before payment</p>
+          <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[12px] font-semibold">
+            {legalDocuments.map((document) => document.url ? (
+              <a key={`${document.document_key}:${document.version}`} href={document.url} target="_blank" rel="noreferrer" className="text-[#0000FE] underline underline-offset-2">{document.title}</a>
+            ) : (
+              <span key={`${document.document_key}:${document.version}`} className="text-[#475467]">{document.title}</span>
+            ))}
+          </div>
+          <label className="mt-3 flex cursor-pointer items-start gap-3 border-t border-[#E4E7EC] pt-3">
+            <input type="checkbox" checked={legalAccepted} onChange={(event) => setLegalAccepted(event.target.checked)} className="mt-0.5 h-4 w-4" />
+            <span className="text-[12px] leading-5 text-[#475467]">I have reviewed and agree to the required documents listed above.</span>
+          </label>
+        </section>
+      ) : null}
+
       {submitError ? <div className="border-y border-red-200 bg-red-50 py-3 text-[12px] font-medium leading-5 text-red-600">{submitError}</div> : null}
 
       <Button type="button" onClick={handleConfirm} disabled={isSubmitting || !state.serviceAddress.verified} loading={isSubmitting} variant="primaryBlue" size="lg" fullWidth>
@@ -195,7 +237,7 @@ export function StepReview({ onBack }: StepReviewProps) {
       </Button>
       <p className="text-center text-[11px] leading-4 text-[#667085]">You'll see the final total before you're charged. Sign in only if needed.</p>
       <button type="button" onClick={onBack} className="w-full py-2 text-[12px] font-semibold text-[#475467]">Make changes</button>
-      <p className="text-center text-[10px] leading-4 text-[#98A2B3]">Continuing means you agree to Cleanr's terms and cancellation policy.</p>
+      {legalDocuments.length === 0 ? <p className="text-center text-[10px] leading-4 text-[#98A2B3]">Any required legal documents will be shown for explicit review before payment.</p> : null}
     </div>
   );
 }
