@@ -156,19 +156,19 @@ export default function ExistingClientsScreen() {
       </button>
 
       <header className="mb-6">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.14em]" style={{ color: CSP_TEXT_SECONDARY }}>
-          Existing relationship
+        <p className="text-[10px] font-semibold uppercase tracking-[0.14em]" style={{ color: CSP_PRIMARY_BUTTON }}>
+          Founding Circle · Existing relationships
         </p>
-        <h1 className="mt-2 text-2xl font-semibold">Bring an existing client into Cleanr</h1>
+        <h1 className="mt-2 text-2xl font-semibold">Bring the relationships you already built.</h1>
         <p className="mt-2 text-sm leading-6" style={{ color: CSP_TEXT_SECONDARY }}>
-          Use this for a household you already serve. Cleanr preserves that the relationship started with you.
+          Use this for a household you already serve. Cleanr adds infrastructure around the work while preserving that the relationship started with you.
         </p>
       </header>
 
       <section className="mb-6 border-y border-white/10 py-4">
         <div className="flex items-end justify-between gap-4">
           <div>
-            <p className="text-sm font-medium">Your Cleanr fee</p>
+            <p className="text-sm font-medium">Provider-brought relationship fee</p>
             <p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>
               This relationship originated with you.
             </p>
