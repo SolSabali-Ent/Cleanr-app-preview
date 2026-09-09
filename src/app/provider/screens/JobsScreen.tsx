@@ -218,7 +218,7 @@ export default function JobsScreen() {
         setOpportunityError("This opportunity was already accepted and is no longer available.");
         setAvailable((current) => current.filter((job) => job.id !== opportunity.id));
       } else if (message.includes("provider_new_marketplace_work_paused")) {
-        setOpportunityError("New marketplace work is paused in your Work preferences.");
+        setOpportunityError("New Cleanr opportunities are paused in your Work preferences.");
         setAcceptingNewMarketplaceWork(false);
       } else {
         setOpportunityError("We couldn't accept this opportunity. Its availability may have changed.");
@@ -236,7 +236,7 @@ export default function JobsScreen() {
       <AppPageHeader
         tone="provider"
         title="Jobs"
-        description={marketplaceEnabled ? "Opportunities to consider, work you've accepted, and completed visits." : "Your existing-client work stays here while marketplace access is pending."}
+        description={marketplaceEnabled ? "Opportunities to consider, work you've accepted, and completed visits." : "Your existing-client work stays here while access to new Cleanr opportunities is being finished."}
       />
 
       {missed.length > 0 ? (
@@ -267,13 +267,13 @@ export default function JobsScreen() {
       {tab === "available" ? (
         !marketplaceEnabled ? (
           <div className="border-y border-white/10 py-5">
-            <p className="text-sm font-semibold">Marketplace access is pending</p>
-            <p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>Existing-client bookings still appear under Active and Completed.</p>
+            <p className="text-sm font-semibold">New Cleanr opportunities aren't available yet</p>
+            <p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>Existing household bookings still appear under Active and Completed.</p>
             <button type="button" onClick={() => navigate("/csp/dashboard/existing-clients")} className="mt-3 text-xs font-semibold" style={{ color: CSP_PRIMARY_BUTTON }}>Bring an existing client</button>
           </div>
         ) : !acceptingNewMarketplaceWork ? (
           <div className="border-y border-white/10 py-5">
-            <p className="text-sm font-semibold">New marketplace work is paused</p>
+            <p className="text-sm font-semibold">New Cleanr opportunities are paused</p>
             <p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>Booked visits and existing household relationships are unchanged. Turn new opportunities back on whenever you want.</p>
             <button type="button" onClick={() => navigate("/csp/dashboard/profile")} className="mt-3 text-xs font-semibold" style={{ color: CSP_PRIMARY_BUTTON }}>Open Work preferences</button>
           </div>
@@ -314,7 +314,7 @@ export default function JobsScreen() {
         onClose={() => setOpportunityOpen(false)}
         snap={opportunitySnap}
         setSnap={setOpportunitySnap}
-        title="Marketplace opportunity"
+        title="Cleanr opportunity"
         subtitle="Review the service facts before you choose. Household details unlock only after acceptance."
         tone="dark"
       >
