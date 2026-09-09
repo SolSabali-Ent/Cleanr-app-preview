@@ -212,7 +212,7 @@ export default function TodayScreen() {
 
   return (
     <div className="relative min-h-[60vh]" style={{ color: CSP_TEXT_PRIMARY }}>
-      <AppPageHeader tone="provider" title="Home" description="Your next work and what needs attention." />
+      <AppPageHeader tone="provider" title="Home" description="Your accepted work and marketplace opportunities." />
 
       {missedJobs.length > 0 ? (
         <button
@@ -253,7 +253,7 @@ export default function TodayScreen() {
           <AppEmptyState
             tone="provider"
             title="No visit scheduled"
-            description={availableJobs.length > 0 ? "There are jobs available nearby." : "New work will appear in Jobs when it's available."}
+            description={availableJobs.length > 0 ? "There are marketplace opportunities nearby." : "New opportunities will appear in Jobs when they fit your preferences."}
             action={<button type="button" onClick={() => navigate("/csp/dashboard/jobs")} className="text-xs font-semibold" style={{ color: CSP_PRIMARY_BUTTON }}>Open Jobs</button>}
           />
         )}
@@ -265,7 +265,7 @@ export default function TodayScreen() {
             tone="provider"
             items={[
               { label: "Scheduled", value: activeJobs.length },
-              { label: "Available nearby", value: availableJobs.length },
+              { label: "Opportunities", value: availableJobs.length },
             ]}
           />
         </section>
@@ -278,7 +278,7 @@ export default function TodayScreen() {
           <AppSectionHeader
             tone="provider"
             title="Available near you"
-            action={<button type="button" onClick={() => navigate("/csp/dashboard/jobs")} className="text-xs font-semibold" style={{ color: CSP_PRIMARY_BUTTON }}>View all</button>}
+            action={<button type="button" onClick={() => navigate("/csp/dashboard/jobs")} className="text-xs font-semibold" style={{ color: CSP_PRIMARY_BUTTON }}>Review</button>}
           />
           <AppList tone="provider">
             {availableJobs.slice(0, 2).map((job, index) => (
@@ -287,8 +287,8 @@ export default function TodayScreen() {
                 tone="provider"
                 divided={index > 0}
                 title={formatDateTime(job.scheduled_start)}
-                description={formatDistance(job.distance_meters)}
-                onClick={() => navigate(`/csp/dashboard/jobs/${job.id}`)}
+                description={`${formatDistance(job.distance_meters)} · review before accepting`}
+                onClick={() => navigate("/csp/dashboard/jobs")}
               />
             ))}
           </AppList>
