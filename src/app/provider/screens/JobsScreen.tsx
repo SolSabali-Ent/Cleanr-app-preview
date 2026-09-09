@@ -1,30 +1,17 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  findAvailableJobsForProvider,
-  listMyJobsAsProvider,
-  type AvailableJob,
-} from "../../../lib/bookingApi";
+import { findAvailableJobsForProvider, listMyJobsAsProvider, type AvailableJob } from "../../../lib/bookingApi";
 import { useProfile } from "../../../lib/useProfile";
 import type { Booking } from "../../../domain/booking";
 import { supabase } from "../../../lib/supabase";
 import { isCurrentProviderWork, isMissedAcceptedVisit } from "../../../lib/bookingServiceDay";
-import {
-  CSP_SURFACE,
-  CSP_CARD_PADDING,
-  CSP_PRIMARY_BUTTON,
-  CSP_SECTION_GAP,
-  CSP_TEXT_PRIMARY,
-  CSP_TEXT_SECONDARY,
-} from "@/theme/cspTheme";
+import { AppEmptyState, AppList, AppListRow, AppPageHeader, AppTabs } from "@/components/shared/AppUi";
+import { CSP_PRIMARY_BUTTON, CSP_TEXT_PRIMARY, CSP_TEXT_SECONDARY } from "@/theme/cspTheme";
 import { useUnreadBookingMessageIds } from "../../../hooks/useUnreadBookingMessageIds";
 
 function formatTime(iso: string) {
   try {
-    return new Date(iso).toLocaleTimeString(undefined, {
-      hour: "numeric",
-      minute: "2-digit",
-    });
+    return new Date(iso).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
   } catch {
     return "";
   }
@@ -39,7 +26,7 @@ function formatDate(iso: string) {
 }
 
 function formatDistance(meters: number | undefined): string {
-  if (meters == null) return "—";
+  if (meters == null) return "Distance unavailable";
   const miles = meters / 1609.34;
   if (miles < 0.1) return "< 0.1 mi";
   return `${miles.toFixed(1)} mi`;
@@ -52,7 +39,7 @@ function providerStatusLabel(booking: Booking): string {
   if (booking.status === "completed_by_provider") return "Awaiting confirmation";
   if (booking.status === "confirmed") return "Completed";
   if (booking.status === "disputed") return "Needs attention";
-  return booking.status.replace("_", " ");
+  return booking.status.replaceAll("_", " ");
 }
 
 type BookingFinancial = {
@@ -62,96 +49,42 @@ type BookingFinancial = {
 
 type Tab = "available" | "active" | "completed";
 
-function JobCardAvailable({
-  job,
-  onAccept,
-}: {
-  job: AvailableJob;
-  onAccept: (id: string) => void;
-}) {
+function AvailableJobRow({ job, divided = false, onOpen }: { job: AvailableJob; divided?: boolean; onOpen: (id: string) => void }) {
   return (
-    <div
-      className="rounded-2xl border w-full text-left overflow-hidden"
-      style={{
-        backgroundColor: CSP_SURFACE,
-        borderColor: "rgba(248, 250, 252, 0.08)",
-      }}
-    >
-      <div style={{ padding: CSP_CARD_PADDING }}>
-        <p className="font-semibold" style={{ color: CSP_TEXT_PRIMARY }}>
-          {formatDistance(job.distance_meters)}
-        </p>
-        <p className="text-sm mt-1" style={{ color: CSP_TEXT_SECONDARY }}>
-          {formatTime(job.scheduled_start)} · {formatDate(job.scheduled_start)}
-        </p>
-        <p className="text-sm mt-0.5" style={{ color: CSP_TEXT_SECONDARY }}>
-          Customer total ${((job.price_cents ?? 0) / 100).toFixed(0)}
-        </p>
-        <p className="text-xs mt-0.5 truncate" style={{ color: CSP_TEXT_SECONDARY }}>
-          {job.address}
-        </p>
-        <button
-          type="button"
-          onClick={() => onAccept(job.id)}
-          className="mt-3 w-full py-2.5 rounded-xl text-white text-sm font-semibold transition-opacity hover:opacity-90 active:opacity-85 disabled:opacity-50"
-          style={{ backgroundColor: CSP_PRIMARY_BUTTON }}
-        >
-          View job
-        </button>
-      </div>
-    </div>
+    <AppListRow
+      tone="provider"
+      divided={divided}
+      title={`${formatDate(job.scheduled_start)} · ${formatTime(job.scheduled_start)}`}
+      description={`${formatDistance(job.distance_meters)} · Customer total $${((job.price_cents ?? 0) / 100).toFixed(0)}`}
+      trailing={<span className="text-xs font-semibold" style={{ color: CSP_PRIMARY_BUTTON }}>View</span>}
+      onClick={() => onOpen(job.id)}
+    />
   );
 }
 
-function JobCardMy({
-  booking,
-  financial,
-  hasUnreadMessages,
-}: {
-  booking: Booking;
-  financial: BookingFinancial | null;
-  hasUnreadMessages: boolean;
-}) {
+function MyJobRow({ booking, financial, hasUnreadMessages, divided = false }: { booking: Booking; financial: BookingFinancial | null; hasUnreadMessages: boolean; divided?: boolean }) {
   const navigate = useNavigate();
   const grossCents = financial?.price_cents ?? booking.price_cents ?? 0;
   const earningCents = Math.max(0, grossCents - (financial?.platform_fee_cents ?? 0));
-
   return (
-    <button
-      type="button"
+    <AppListRow
+      tone="provider"
+      divided={divided}
+      title={booking.address}
+      description={
+        <div>
+          <p>{formatDate(booking.scheduled_start)} · {formatTime(booking.scheduled_start)}</p>
+          <p className="mt-0.5">{providerStatusLabel(booking)} · Expected ${(earningCents / 100).toFixed(0)}</p>
+        </div>
+      }
+      trailing={
+        <div className="flex items-center gap-2">
+          {hasUnreadMessages ? <span className="h-2 w-2 rounded-full bg-[#0A84FF]" aria-hidden /> : null}
+          <span className="text-xs font-semibold" style={{ color: CSP_PRIMARY_BUTTON }}>Open</span>
+        </div>
+      }
       onClick={() => navigate(`/csp/dashboard/jobs/${booking.id}`)}
-      className="w-full text-left rounded-2xl border transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[#0B0F1A] relative"
-      style={{
-        backgroundColor: CSP_SURFACE,
-        padding: CSP_CARD_PADDING,
-        borderColor: "rgba(248, 250, 252, 0.08)",
-      }}
-    >
-      {hasUnreadMessages ? (
-        <span
-          className="absolute top-4 right-4 w-2 h-2 rounded-full bg-[#0A84FF]"
-          aria-hidden
-        />
-      ) : null}
-      <p className="font-semibold" style={{ color: CSP_TEXT_PRIMARY }}>
-        {booking.address}
-      </p>
-      <p className="text-sm mt-1" style={{ color: CSP_TEXT_SECONDARY }}>
-        {formatTime(booking.scheduled_start)} · {formatDate(booking.scheduled_start)}
-      </p>
-      <p className="text-sm mt-0.5" style={{ color: CSP_TEXT_SECONDARY }}>
-        Expected earnings ${(earningCents / 100).toFixed(0)}
-      </p>
-      <span
-        className="inline-block mt-2 px-2 py-0.5 rounded text-xs font-medium"
-        style={{
-          backgroundColor: "rgba(248, 250, 252, 0.1)",
-          color: CSP_TEXT_SECONDARY,
-        }}
-      >
-        {providerStatusLabel(booking)}
-      </span>
-    </button>
+    />
   );
 }
 
@@ -205,7 +138,10 @@ export default function JobsScreen() {
     if (!marketplaceEnabled) {
       setAvailable([]);
       Promise.all([listMyJobsAsProvider(), loadFinancialsAndResolution()])
-        .then(([my]) => setMyJobs(my))
+        .then(([my]) => {
+          setMyJobs(my);
+          if (my.some((booking) => isCurrentProviderWork(booking) || isMissedAcceptedVisit(booking))) setTab("active");
+        })
         .catch((err) => {
           setMyJobs([]);
           setFinancials({});
@@ -215,213 +151,92 @@ export default function JobsScreen() {
         .finally(() => setLoading(false));
       return;
     }
-    Promise.all([
-      findAvailableJobsForProvider(providerId, 100),
-      listMyJobsAsProvider(),
-      loadFinancialsAndResolution(),
-    ])
+
+    Promise.all([findAvailableJobsForProvider(providerId, 100), listMyJobsAsProvider(), loadFinancialsAndResolution()])
       .then(([av, my]) => {
         setAvailable(av);
         setMyJobs(my);
+        if (my.some((booking) => isCurrentProviderWork(booking) || isMissedAcceptedVisit(booking))) setTab("active");
       })
-      .catch((err) => {
-        setError(err?.message ?? "Failed to load jobs");
-      })
+      .catch((err) => setError(err?.message ?? "Failed to load jobs"))
       .finally(() => setLoading(false));
   }, [profile?.id, profile?.role, marketplaceEnabled]);
 
   const active = myJobs.filter((booking) => isCurrentProviderWork(booking));
   const missed = myJobs.filter((booking) => isMissedAcceptedVisit(booking) && !resolvedMissedIds.has(booking.id));
-  const completed = myJobs.filter(
-    (b) => b.status === "completed_by_provider" || b.status === "confirmed"
-  );
+  const completed = myJobs.filter((booking) => booking.status === "completed_by_provider" || booking.status === "confirmed");
 
-  const handleAccept = (jobId: string) => {
-    navigate(`/csp/dashboard/jobs/${jobId}`);
-  };
-
-  if (loading) {
-    return (
-      <div
-        className="min-h-[40vh] flex items-center justify-center"
-        style={{ color: CSP_TEXT_SECONDARY }}
-      >
-        <p className="text-sm">Loading…</p>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-[40vh] flex flex-col justify-center">
-        <p className="text-sm" style={{ color: CSP_TEXT_SECONDARY }}>
-          Unable to load jobs. Please try again.
-        </p>
-      </div>
-    );
-  }
+  if (loading) return <div className="min-h-[40vh] flex items-center justify-center text-sm" style={{ color: CSP_TEXT_SECONDARY }}>Loading jobs…</div>;
+  if (error) return <div className="min-h-[40vh] flex items-center text-sm" style={{ color: CSP_TEXT_SECONDARY }}>Unable to load jobs. Please try again.</div>;
 
   return (
     <div className="relative" style={{ color: CSP_TEXT_PRIMARY }}>
-      <header style={{ marginBottom: CSP_SECTION_GAP }}>
-        <h1 className="text-2xl font-semibold">Jobs</h1>
-        <p className="text-sm mt-2" style={{ color: CSP_TEXT_SECONDARY }}>
-          {marketplaceEnabled
-            ? "Manage available, active, and completed work."
-            : "Your provider account is approved. Open-market jobs will appear after marketplace access is enabled."}
-        </p>
-      </header>
+      <AppPageHeader
+        tone="provider"
+        title="Jobs"
+        description={marketplaceEnabled ? "Work to consider, work in progress, and completed visits." : "Your existing-client work stays here while marketplace access is pending."}
+      />
 
       {missed.length > 0 ? (
-        <section className="mb-5 rounded-2xl border border-amber-400/25 bg-amber-950/20 p-4">
-          <p className="text-sm font-semibold text-amber-200">{missed.length} visit{missed.length === 1 ? "" : "s"} need rescheduling</p>
-          <p className="mt-1 text-xs leading-5 text-amber-100/75">These dates passed without service starting. They are not counted as active work. Open a visit to suggest a new future time with the household.</p>
-          <div className="mt-3 space-y-2">
-            {missed.map((booking) => (
-              <JobCardMy key={booking.id} booking={booking} financial={financials[booking.id] ?? null} hasUnreadMessages={unreadBookingIds.has(booking.id)} />
-            ))}
+        <section className="mb-5 border-y border-amber-400/25 bg-amber-950/20 py-4">
+          <p className="text-sm font-semibold text-amber-200">{missed.length} visit{missed.length === 1 ? "" : "s"} need attention</p>
+          <p className="mt-1 text-xs leading-5 text-amber-100/75">Open the visit to agree on a new future time with the household.</p>
+          <div className="mt-3">
+            <AppList tone="provider">
+              {missed.map((booking, index) => (
+                <MyJobRow key={booking.id} booking={booking} financial={financials[booking.id] ?? null} hasUnreadMessages={unreadBookingIds.has(booking.id)} divided={index > 0} />
+              ))}
+            </AppList>
           </div>
         </section>
       ) : null}
 
-      <div
-        className="flex rounded-xl border p-0.5 mb-6"
-        style={{
-          backgroundColor: CSP_SURFACE,
-          borderColor: "rgba(248, 250, 252, 0.08)",
-        }}
-      >
-        {(
-          [
-            { key: "available" as Tab, label: "Available" },
-            { key: "active" as Tab, label: "Active" },
-            { key: "completed" as Tab, label: "Completed" },
-          ] as const
-        ).map(({ key, label }) => (
-          <button
-            key={key}
-            type="button"
-            onClick={() => setTab(key)}
-            className="flex-1 py-2 text-sm font-medium rounded-lg transition-colors"
-            style={{
-              backgroundColor: tab === key ? "rgba(248, 250, 252, 0.1)" : "transparent",
-              color: tab === key ? CSP_TEXT_PRIMARY : CSP_TEXT_SECONDARY,
-            }}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+      <AppTabs
+        tone="provider"
+        value={tab}
+        onChange={setTab}
+        items={[
+          { value: "available", label: "Available", count: marketplaceEnabled ? available.length : undefined },
+          { value: "active", label: "Active", count: active.length },
+          { value: "completed", label: "Completed", count: completed.length },
+        ]}
+      />
 
-      {tab === "available" && (
-        <section style={{ marginBottom: CSP_SECTION_GAP }}>
-          {!marketplaceEnabled ? (
-            <div
-              className="rounded-2xl border p-5 text-sm"
-              style={{
-                backgroundColor: CSP_SURFACE,
-                borderColor: "rgba(248, 250, 252, 0.08)",
-                color: CSP_TEXT_SECONDARY,
-              }}
-            >
-              <p className="font-medium" style={{ color: CSP_TEXT_PRIMARY }}>
-                Open-market access is pending
-              </p>
-              <p className="mt-2 leading-6">
-                Marketplace jobs are intentionally locked until Cleanr enables access. Existing-client bookings can still appear under Active and Completed.
-              </p>
-              <button
-                type="button"
-                onClick={() => navigate("/csp/dashboard/existing-clients")}
-                className="mt-4 w-full rounded-xl py-3 text-sm font-semibold text-white transition-opacity hover:opacity-90"
-                style={{ backgroundColor: CSP_PRIMARY_BUTTON }}
-              >
-                Bring an existing client
-              </button>
-            </div>
-          ) : available.length === 0 ? (
-            <div
-              className="rounded-2xl border py-8 px-4 text-center text-sm"
-              style={{
-                backgroundColor: CSP_SURFACE,
-                borderColor: "rgba(248, 250, 252, 0.08)",
-                color: CSP_TEXT_SECONDARY,
-              }}
-            >
-              <p>No jobs available right now.</p>
-              <p className="mt-2">
-                New jobs will appear when they fall within your service area.
-              </p>
-            </div>
-          ) : (
-            <div className="flex flex-col gap-3">
-              {available.map((b) => (
-                <JobCardAvailable
-                  key={b.id}
-                  job={b}
-                  onAccept={handleAccept}
-                />
-              ))}
-            </div>
-          )}
-        </section>
-      )}
+      {tab === "available" ? (
+        !marketplaceEnabled ? (
+          <div className="border-y border-white/10 py-5">
+            <p className="text-sm font-semibold">Marketplace access is pending</p>
+            <p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>Existing-client bookings still appear under Active and Completed.</p>
+            <button type="button" onClick={() => navigate("/csp/dashboard/existing-clients")} className="mt-3 text-xs font-semibold" style={{ color: CSP_PRIMARY_BUTTON }}>Bring an existing client</button>
+          </div>
+        ) : available.length === 0 ? (
+          <AppEmptyState tone="provider" title="No jobs available right now" description="New jobs will appear when they fit your service area." />
+        ) : (
+          <AppList tone="provider">
+            {available.map((job, index) => <AvailableJobRow key={job.id} job={job} divided={index > 0} onOpen={(id) => navigate(`/csp/dashboard/jobs/${id}`)} />)}
+          </AppList>
+        )
+      ) : null}
 
-      {tab === "active" && (
-        <section style={{ marginBottom: CSP_SECTION_GAP }}>
-          {active.length === 0 ? (
-            <div
-              className="rounded-2xl border py-6 px-4 text-center text-sm"
-              style={{
-                backgroundColor: CSP_SURFACE,
-                borderColor: "rgba(248, 250, 252, 0.08)",
-                color: CSP_TEXT_SECONDARY,
-              }}
-            >
-              No active jobs.
-            </div>
-          ) : (
-            <div className="flex flex-col gap-3">
-              {active.map((b) => (
-                <JobCardMy
-                  key={b.id}
-                  booking={b}
-                  financial={financials[b.id] ?? null}
-                  hasUnreadMessages={unreadBookingIds.has(b.id)}
-                />
-              ))}
-            </div>
-          )}
-        </section>
-      )}
+      {tab === "active" ? (
+        active.length === 0 ? (
+          <AppEmptyState tone="provider" title="No active jobs" description={marketplaceEnabled ? "Available work is under the Available tab." : "Existing-client work will appear here when scheduled."} />
+        ) : (
+          <AppList tone="provider">
+            {active.map((booking, index) => <MyJobRow key={booking.id} booking={booking} financial={financials[booking.id] ?? null} hasUnreadMessages={unreadBookingIds.has(booking.id)} divided={index > 0} />)}
+          </AppList>
+        )
+      ) : null}
 
-      {tab === "completed" && (
-        <section style={{ marginBottom: CSP_SECTION_GAP }}>
-          {completed.length === 0 ? (
-            <div
-              className="rounded-2xl border py-6 px-4 text-center text-sm"
-              style={{
-                backgroundColor: CSP_SURFACE,
-                borderColor: "rgba(248, 250, 252, 0.08)",
-                color: CSP_TEXT_SECONDARY,
-              }}
-            >
-              No completed jobs.
-            </div>
-          ) : (
-            <div className="flex flex-col gap-3">
-              {completed.map((b) => (
-                <JobCardMy
-                  key={b.id}
-                  booking={b}
-                  financial={financials[b.id] ?? null}
-                  hasUnreadMessages={unreadBookingIds.has(b.id)}
-                />
-              ))}
-            </div>
-          )}
-        </section>
-      )}
+      {tab === "completed" ? (
+        completed.length === 0 ? (
+          <AppEmptyState tone="provider" title="No completed jobs yet" />
+        ) : (
+          <AppList tone="provider">
+            {completed.map((booking, index) => <MyJobRow key={booking.id} booking={booking} financial={financials[booking.id] ?? null} hasUnreadMessages={unreadBookingIds.has(booking.id)} divided={index > 0} />)}
+          </AppList>
+        )
+      ) : null}
     </div>
   );
 }
