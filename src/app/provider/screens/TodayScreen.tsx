@@ -85,16 +85,16 @@ export default function TodayScreen() {
         setAvailableJobs(available);
         setMyJobs(mine);
       })
-      .catch((err) => setError(err instanceof Error ? err.message : "Unable to load dashboard"))
+      .catch((err) => setError(err instanceof Error ? err.message : "Unable to load your home screen"))
       .finally(() => setLoading(false));
   }, [displayProfile?.id, displayProfile?.role, isUnlocked]);
 
   const checklist = useMemo(() => {
     if (!displayProfile) return [];
     return [
-      { label: "CSP terms", status: displayProfile.csp_terms_accepted_at ? "Verified" : "Not started" },
+      { label: "Provider terms", status: displayProfile.csp_terms_accepted_at ? "Verified" : "Not started" },
       { label: "Insurance (optional)", status: toDisplayStatus(displayProfile.insurance_status) },
-      { label: "ID verification", status: toDisplayStatus(displayProfile.identity_status) },
+      { label: "ID check", status: toDisplayStatus(displayProfile.identity_status) },
       { label: "Background check", status: toDisplayStatus(displayProfile.background_check_status) },
       { label: "Screening", status: toDisplayStatus(displayProfile.screening_status) },
     ];
@@ -153,7 +153,7 @@ export default function TodayScreen() {
               tone="provider"
               eyebrow="Provider setup"
               title="You're approved."
-              description="Cleanr is finishing the last eligibility checks for new opportunities. Your existing household relationships can already move through Cleanr."
+              description="Cleanr is finishing the last checks before we can show you new jobs. You can already bring clients you serve into Cleanr."
             />
             <AppList tone="provider">
               <AppListRow
@@ -165,8 +165,8 @@ export default function TodayScreen() {
               <AppListRow
                 tone="provider"
                 divided
-                title="New Cleanr opportunities"
-                description="These will appear when your provider eligibility is fully ready."
+                title="New Cleanr jobs"
+                description="These will appear after your final checks are complete."
                 trailing={<span className="text-xs font-medium" style={{ color: CSP_TEXT_SECONDARY }}>Not available yet</span>}
               />
             </AppList>
@@ -179,8 +179,8 @@ export default function TodayScreen() {
             <AppPageHeader
               tone="provider"
               eyebrow="Provider setup"
-              title="Finish verification"
-              description="Complete the remaining steps to unlock new Cleanr opportunities and payouts."
+              title="Finish setup"
+              description="Finish the last steps so you can see new Cleanr jobs and get paid through Cleanr."
             />
             <AppList tone="provider">
               {checklist.map((item, index) => (
@@ -209,7 +209,7 @@ export default function TodayScreen() {
 
   return (
     <div className="relative min-h-[60vh]" style={{ color: CSP_TEXT_PRIMARY }}>
-      <AppPageHeader tone="provider" title="Home" description="Your accepted work, household relationships, and new Cleanr opportunities." />
+      <AppPageHeader tone="provider" title="Home" description="Your accepted work, clients, and new Cleanr jobs." />
 
       {missedJobs.length > 0 ? (
         <button
@@ -218,7 +218,7 @@ export default function TodayScreen() {
           className="mb-5 w-full border-y border-amber-400/25 bg-amber-950/20 py-3 text-left"
         >
           <p className="text-sm font-semibold text-amber-200">{missedJobs.length} visit{missedJobs.length === 1 ? "" : "s"} need attention</p>
-          <p className="mt-1 text-xs leading-5 text-amber-100/75">Open Jobs to repair the schedule with the household.</p>
+          <p className="mt-1 text-xs leading-5 text-amber-100/75">Open Jobs to fix the schedule with the household.</p>
         </button>
       ) : null}
 
@@ -250,7 +250,7 @@ export default function TodayScreen() {
           <AppEmptyState
             tone="provider"
             title="No visit scheduled"
-            description={availableJobs.length > 0 ? "There are Cleanr opportunities nearby." : "New opportunities will appear in Jobs when they fit your preferences."}
+            description={availableJobs.length > 0 ? "There are Cleanr jobs nearby." : "New jobs will appear in Jobs when they fit your choices."}
             action={<button type="button" onClick={() => navigate("/csp/dashboard/jobs")} className="text-xs font-semibold" style={{ color: CSP_PRIMARY_BUTTON }}>Open Jobs</button>}
           />
         )}
@@ -262,7 +262,7 @@ export default function TodayScreen() {
             tone="provider"
             items={[
               { label: "Scheduled", value: activeJobs.length },
-              { label: "Opportunities", value: availableJobs.length },
+              { label: "New jobs", value: availableJobs.length },
             ]}
           />
         </section>
@@ -306,7 +306,7 @@ export default function TodayScreen() {
             tone="provider"
             divided
             title="North Star"
-            description="Your direction, milestones, and aligned opportunities."
+            description="Your goals, next steps, and work that can help."
             leading={<div className="flex h-9 w-9 items-center justify-center rounded-xl" style={{ backgroundColor: `${CSP_PRIMARY_BUTTON}18` }}><Compass size={18} style={{ color: CSP_PRIMARY_BUTTON }} /></div>}
             onClick={() => navigate(CSP_GROWTH_ROUTES.home)}
           />

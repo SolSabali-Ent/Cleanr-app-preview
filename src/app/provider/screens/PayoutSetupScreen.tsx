@@ -41,12 +41,12 @@ export default function PayoutSetupScreen() {
         if (!mounted) return;
         await refresh();
         if (!mounted) return;
-        if (!res.ready) setMessage("Stripe is still processing your payout details.");
+        if (!res.ready) setMessage("Stripe is still checking your payout details.");
         navigate("/csp/dashboard/application/payout-setup", { replace: true });
       })
       .catch((e) => {
         if (!mounted) return;
-        setError(e?.message ?? "Could not sync payout status.");
+        setError(e?.message ?? "Could not check payout status.");
       })
       .finally(() => {
         if (mounted) setSyncing(false);
@@ -76,9 +76,9 @@ export default function PayoutSetupScreen() {
         <p className="mt-2 text-sm" style={{ color: CSP_TEXT_SECONDARY }}>
           {ready
             ? active
-              ? "Your Stripe account is ready to receive Cleanr payouts."
-              : "Your Stripe account is ready. Marketplace access is a separate activation step."
-            : "Connect a Stripe account so Cleanr can send earnings from completed work."}
+              ? "Your Stripe account is ready for Cleanr payouts."
+              : "Your Stripe account is ready. You still need final approval before you can get new Cleanr jobs."
+            : "Connect a Stripe account so Cleanr can pay you for completed work."}
         </p>
       </header>
 
@@ -86,7 +86,7 @@ export default function PayoutSetupScreen() {
         <div className="flex items-center justify-between gap-4">
           <div>
             <p className="text-sm font-medium">Stripe payout status</p>
-            <p className="mt-1 text-xs" style={{ color: CSP_TEXT_SECONDARY }}>{ready ? "Bank and payout details verified" : syncing ? "Checking your Stripe account" : "Not connected yet"}</p>
+            <p className="mt-1 text-xs" style={{ color: CSP_TEXT_SECONDARY }}>{ready ? "Bank and payout details approved" : syncing ? "Checking your Stripe account" : "Not connected yet"}</p>
           </div>
           <span className={`rounded-full border px-2.5 py-1 text-xs font-medium ${ready ? "border-emerald-400/30 bg-emerald-500/15 text-emerald-300" : syncing ? "border-amber-400/30 bg-amber-500/15 text-amber-200" : "border-white/10 bg-white/5 text-slate-300"}`}>
             {ready ? "Ready" : syncing ? "Checking" : "Action needed"}
@@ -110,7 +110,7 @@ export default function PayoutSetupScreen() {
           </button>
           <details className="mt-4 border-t border-white/10 pt-4">
             <summary className="cursor-pointer text-xs font-semibold" style={{ color: CSP_TEXT_SECONDARY }}>How payout setup works</summary>
-            <p className="mt-2 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>Stripe collects and verifies the bank and identity details needed for payouts. Cleanr tracks payout readiness separately from marketplace access.</p>
+            <p className="mt-2 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>Stripe checks the bank and identity details needed to pay you. Finishing Stripe does not by itself approve you for new Cleanr jobs.</p>
           </details>
         </>
       ) : (
@@ -123,7 +123,7 @@ export default function PayoutSetupScreen() {
         className="mt-3 w-full py-3 text-sm font-medium"
         style={{ color: CSP_TEXT_SECONDARY }}
       >
-        Back to application
+        Back to setup
       </button>
     </div>
   );

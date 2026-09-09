@@ -68,7 +68,7 @@ export default function CandidateReadinessScreen() {
     return (
       <div className="min-h-screen px-4 py-8" style={{ color: CSP_TEXT_PRIMARY }}>
         <p className="text-sm" style={{ color: CSP_TEXT_SECONDARY }}>We couldn&apos;t load your provider profile. You&apos;re still signed in.</p>
-        <button type="button" className="mt-4 w-full rounded-xl py-3 text-sm font-semibold text-white" style={{ backgroundColor: CSP_PRIMARY_BUTTON }} onClick={() => void refreshFlowProfile()}>Retry</button>
+        <button type="button" className="mt-4 w-full rounded-xl py-3 text-sm font-semibold text-white" style={{ backgroundColor: CSP_PRIMARY_BUTTON }} onClick={() => void refreshFlowProfile()}>Try again</button>
         <button type="button" className="mt-3 w-full rounded-xl border py-3 text-sm font-medium" style={{ borderColor: "rgba(248, 250, 252, 0.12)", color: CSP_TEXT_SECONDARY }} onClick={() => navigate("/csp/login", { replace: true })}>Back to sign in</button>
       </div>
     );
@@ -109,7 +109,7 @@ export default function CandidateReadinessScreen() {
     if (!bucket) return setError("Select how long you have been cleaning professionally.");
     if (hasEquipment === null) return setError("Tell us whether you have your own equipment and supplies.");
     if (hasTransport === null) return setError("Tell us whether you have reliable transportation.");
-    if (!existingClients) return setError("Tell us whether you already serve residential households, or choose prefer not to say.");
+    if (!existingClients) return setError("Tell us whether you already serve homes, or choose Prefer not to say.");
 
     const providerId = profile.id;
     setSaving(true);
@@ -127,7 +127,7 @@ export default function CandidateReadinessScreen() {
     if (submitResult.error) { setError(submitResult.error.message); setSaving(false); return; }
 
     const signalResult = await supabase.rpc("set_my_existing_client_readiness_signal", { p_existing_client_household_bucket: existingClients });
-    if (signalResult.error) { setError("Your readiness was saved, but we could not save the existing-client signal. Please try again."); setSaving(false); return; }
+    if (signalResult.error) { setError("We saved your answers, but we could not save the part about current clients. Please try again."); setSaving(false); return; }
 
     const result = (submitResult.data ?? {}) as ReadinessSubmissionResult;
     const submittedAt = result.submitted_at ?? new Date().toISOString();
@@ -148,15 +148,15 @@ export default function CandidateReadinessScreen() {
   return (
     <div className="min-h-screen px-4 py-8" style={{ color: CSP_TEXT_PRIMARY }}>
       <header style={{ marginBottom: CSP_SECTION_GAP }}>
-        <p className="text-xs font-semibold uppercase tracking-[0.16em]" style={{ color: CSP_TEXT_SECONDARY }}>Provider interest</p>
-        <h1 className="mt-2 text-2xl font-semibold">Tell us about your practice</h1>
-        <p className="mt-2 text-sm" style={{ color: CSP_TEXT_SECONDARY }}>A few quick questions help Cleanr understand how you work today and what setup you may need next.</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.16em]" style={{ color: CSP_TEXT_SECONDARY }}>Get started</p>
+        <h1 className="mt-2 text-2xl font-semibold">Tell us about your work</h1>
+        <p className="mt-2 text-sm" style={{ color: CSP_TEXT_SECONDARY }}>A few quick questions help us learn how you work today and what you may need next.</p>
       </header>
 
       <details className="mb-6 border-y border-white/10 py-3">
         <summary className="cursor-pointer text-xs font-semibold" style={{ color: CSP_TEXT_SECONDARY }}>Before you submit</summary>
         <p className="mt-2 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>
-          This is for residential provider opportunities in Metro Atlanta. Submitting interest does not guarantee immediate activation, screening, jobs, or earnings. Existing clients help us understand your current practice but do not improve approval eligibility.
+          This is for home-cleaning work in Metro Atlanta. Applying does not promise jobs or earnings. Having existing clients does not give you special approval.
         </p>
       </details>
 
@@ -188,8 +188,8 @@ export default function CandidateReadinessScreen() {
         </section>
 
         <section>
-          <p className="text-sm font-medium">Do you already serve residential households outside Cleanr?</p>
-          <p className="mb-2 mt-1 text-xs" style={{ color: CSP_TEXT_SECONDARY }}>This helps us understand the practice you already built.</p>
+          <p className="text-sm font-medium">Do you already clean homes outside Cleanr?</p>
+          <p className="mb-2 mt-1 text-xs" style={{ color: CSP_TEXT_SECONDARY }}>This helps us understand the work you already built.</p>
           <div className="overflow-hidden rounded-2xl border border-white/10" style={{ backgroundColor: CSP_SURFACE }}>
             {(Object.keys(EXISTING_CLIENT_LABELS) as ExistingClientHouseholdBucket[]).map((value, index) => (
               <label key={value} className={`${choiceClass(existingClients === value)} ${index > 0 ? "border-t border-white/10" : ""}`}>
@@ -203,7 +203,7 @@ export default function CandidateReadinessScreen() {
         {error ? <p className="text-sm text-red-300">{error}</p> : null}
 
         <button type="submit" disabled={saving} className="w-full rounded-xl py-3 text-sm font-semibold text-white disabled:opacity-60" style={{ backgroundColor: CSP_PRIMARY_BUTTON }}>
-          {saving ? "Saving…" : "Continue to provider setup"}
+          {saving ? "Saving…" : "Continue setup"}
         </button>
       </form>
     </div>

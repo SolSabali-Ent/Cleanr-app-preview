@@ -79,30 +79,30 @@ export default function IdentityScreen() {
     <div className="min-h-screen px-4 py-8" style={{ color: CSP_TEXT_PRIMARY }}>
       <header style={{ marginBottom: CSP_SECTION_GAP }}>
         <p className="mb-2 text-xs font-semibold uppercase tracking-wide" style={{ color: CSP_TEXT_SECONDARY }}>
-          Provider setup · ID verification
+          Provider setup · ID check
         </p>
-        <h1 className="text-2xl font-semibold">Verify your identity</h1>
+        <h1 className="text-2xl font-semibold">Check your identity</h1>
         <p className="text-sm mt-2" style={{ color: CSP_TEXT_SECONDARY }}>
-          Upload a government-issued ID. Once it’s saved, we’ll take you straight to the background-check step.
+          Upload a government-issued ID. After it is saved, we&apos;ll take you to the background-check step.
         </p>
       </header>
 
       {mode === "completed" && (
         <div className="mb-4 rounded-xl border px-4 py-3 text-sm" style={{ borderColor: "rgba(52, 211, 153, 0.3)", backgroundColor: "rgba(52, 211, 153, 0.08)", color: "rgb(167, 243, 208)" }}>
-          <p className="font-medium">Verified. Your current ID has been approved.</p>
+          <p className="font-medium">Your ID is approved.</p>
           <p className="mt-1 text-xs leading-5">
-            You can replace it if needed. A different ID reopens verification and any current application approval or marketplace access is paused until the new evidence receives a fresh independent review.
+            You can replace it if needed. If you upload a new ID, we must review it again before you can get new Cleanr jobs.
           </p>
         </div>
       )}
       {mode === "submitted" && (
         <div className="mb-4 rounded-xl border px-4 py-3 text-sm" style={{ borderColor: "rgba(245, 158, 11, 0.3)", backgroundColor: "rgba(245, 158, 11, 0.08)", color: "rgb(253, 224, 71)" }}>
-          Your ID is already submitted. You can replace it below if needed; a changed document must be reviewed independently before it can become verified.
+          Your ID was sent for review. You can replace it below if needed. Any new ID must be reviewed again.
         </div>
       )}
       {profile?.identity_status && mode === "not_started" ? (
         <div className="mb-4 rounded-xl border px-4 py-3 text-sm" style={{ borderColor: "rgba(245, 158, 11, 0.3)", backgroundColor: "rgba(245, 158, 11, 0.08)", color: "rgb(253, 224, 71)" }}>
-          Your prior status does not include a stored ID document. Please upload your ID to complete this step.
+          We do not have your ID file yet. Please upload it to finish this step.
         </div>
       ) : null}
 
@@ -112,10 +112,10 @@ export default function IdentityScreen() {
 
       <div className="mt-6 grid gap-3">
         <button type="button" onClick={handleUpload} disabled={saving || !file} className="w-full py-3 rounded-xl text-white text-sm font-semibold transition-opacity hover:opacity-90 disabled:opacity-60" style={{ backgroundColor: CSP_PRIMARY_BUTTON }}>
-          {saving ? "Uploading..." : mode === "completed" ? "Replace ID and resubmit" : mode === "submitted" ? "Save replacement and continue" : "Upload ID and continue"}
+          {saving ? "Uploading..." : mode === "completed" ? "Replace ID and send again" : mode === "submitted" ? "Save new ID and continue" : "Upload ID and continue"}
         </button>
         <button type="button" onClick={() => navigate("/csp/dashboard/application")} className="w-full py-3 rounded-xl text-sm font-medium border" style={{ borderColor: "rgba(248, 250, 252, 0.12)", color: CSP_TEXT_SECONDARY }}>
-          View application checklist
+          View setup steps
         </button>
       </div>
     </div>
