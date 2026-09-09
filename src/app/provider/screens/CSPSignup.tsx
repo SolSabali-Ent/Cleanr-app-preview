@@ -61,7 +61,7 @@ export default function CSPSignup() {
         navigate(CANDIDATE_READINESS_PATH, { replace: true });
       } else if (data.user) {
         setConfirmationMessage(
-          "Check your email to confirm your account, then sign in to continue provider setup.",
+          "Check your email to confirm your account. Then sign in to finish setting up.",
         );
       }
     } finally {
@@ -79,12 +79,12 @@ export default function CSPSignup() {
             className="h-10 object-contain mx-auto mb-4"
           />
           <h1 className="text-2xl font-bold text-slate-900">
-            {recruitmentSource ? "Cleanr Founding Circle" : "Cleanr Service Provider"}
+            {recruitmentSource ? "Cleanr Founding Circle" : "Cleanr Provider"}
           </h1>
           <p className="text-sm text-slate-600 mt-2">
             {recruitmentSource
-              ? "Create your provider account. Founding Circle is recruitment provenance only and does not change approval standards."
-              : "Create an account to start managing jobs"}
+              ? "Create your provider account. Founding Circle only tells us how you joined. Everyone is reviewed the same way."
+              : "Create an account to get started with Cleanr."}
           </p>
         </div>
 
@@ -136,7 +136,7 @@ export default function CSPSignup() {
               shadow-md shadow-[#0A84FF]/40 disabled:opacity-60 disabled:cursor-not-allowed
               active:scale-[0.99] transition"
           >
-            {isLoading ? "Creating account…" : recruitmentSource ? "Join the provider pilot" : "Sign Up"}
+            {isLoading ? "Creating account…" : recruitmentSource ? "Join the Founding Circle" : "Create account"}
           </button>
         </form>
 

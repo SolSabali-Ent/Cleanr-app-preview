@@ -64,7 +64,7 @@ export default function FoundingCircleJoin() {
               Bring the relationships you already built.
             </h1>
             <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-600 sm:text-xl">
-              Keep serving the households who already trust you. Cleanr adds the scheduling, payments, continuity, coverage, and support around the relationship.
+              Keep serving the households who already trust you. Cleanr helps with scheduling, payments, backup help, and support around the relationship.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
               <button
@@ -80,12 +80,12 @@ export default function FoundingCircleJoin() {
           </div>
 
           <aside className="border-t border-slate-200 pt-6 lg:border-l lg:border-t-0 lg:pl-10 lg:pt-0">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Pilot economics</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Pilot fee</p>
             <p className="mt-3 text-5xl font-semibold tracking-[-0.04em] text-[#0B1220]">{rateLabel}</p>
             <p className="mt-3 max-w-sm text-sm leading-6 text-slate-600">
               {ratePercent == null
-                ? "Provider-brought relationships use the current Founding Circle pilot platform rate."
-                : `For paid bookings that continue a provider-brought relationship, Cleanr currently uses a ${ratePercent}% platform fee.`}
+                ? "If you bring a client you already serve, Cleanr uses the current Founding Circle fee."
+                : `If you bring a client you already serve, Cleanr currently uses a ${ratePercent}% fee on paid bookings.`}
               {" "}The customer still pays the normal service price.
             </p>
           </aside>
@@ -96,7 +96,7 @@ export default function FoundingCircleJoin() {
         <div className="mx-auto max-w-6xl">
           <div className="max-w-2xl">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#166534]">What stays yours</p>
-            <h2 className="mt-3 text-3xl font-bold tracking-[-0.025em] sm:text-4xl">The relationship stays human. Cleanr supports the infrastructure.</h2>
+            <h2 className="mt-3 text-3xl font-bold tracking-[-0.025em] sm:text-4xl">The relationship stays human. Cleanr helps with the busy work.</h2>
           </div>
 
           <div className="mt-10 border-y border-slate-200">
@@ -104,17 +104,17 @@ export default function FoundingCircleJoin() {
               {
                 number: "01",
                 title: "Bring existing households",
-                body: "After approval, you can invite households you already serve into Cleanr. Their relationship with you is recorded as provider-brought and remains distinct from open-market matching.",
+                body: "After approval, you can invite households you already serve into Cleanr. We keep a record that you brought that relationship.",
               },
               {
                 number: "02",
-                title: "No artificial lock-in",
-                body: "Cleanr handles scheduling, payments, continuity, protection, coverage, and relationship memory. The relationship is not treated as something the platform owns.",
+                title: "No lock-in",
+                body: "Cleanr helps with scheduling, payments, backup help, and useful household notes. Cleanr does not treat the relationship as something the app owns.",
               },
               {
                 number: "03",
                 title: "Same provider standards",
-                body: "Founding Circle recruitment does not improve your approval score or bypass verification, payout readiness, marketplace eligibility, or service requirements.",
+                body: "Joining the Founding Circle does not give you special approval. Everyone must complete the same required checks and setup steps.",
               },
             ].map((item, index) => (
               <div
@@ -137,7 +137,7 @@ export default function FoundingCircleJoin() {
             <h2 className="mt-3 text-3xl font-bold tracking-[-0.025em]">Can a local network create more stability than going it alone?</h2>
           </div>
           <p className="mt-6 text-base leading-7 text-slate-300 lg:mt-0 lg:self-end">
-            Reliable recurring service, trusted handoffs when coverage is needed, better household continuity, and whether a small local network can create more opportunity and stability than each person operating alone.
+            Reliable repeat service, trusted backup when help is needed, better handoffs, and whether a small local network can create more work and stability than each person working alone.
           </p>
         </div>
       </section>
@@ -148,7 +148,7 @@ export default function FoundingCircleJoin() {
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">One important note</p>
             <h2 className="mt-3 text-2xl font-bold tracking-[-0.02em] sm:text-3xl">You do not need existing clients to apply.</h2>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
-              Existing households simply let us test relationship continuity sooner. They are not a quality score and are not required for provider approval.
+              Existing households simply help us test this part of Cleanr sooner. They do not raise your score and are not required for approval.
             </p>
           </div>
           <button
@@ -160,7 +160,7 @@ export default function FoundingCircleJoin() {
             <ArrowRight className="h-4 w-4" />
           </button>
         </div>
-        <p className="mx-auto mt-8 max-w-6xl text-xs text-slate-400">Residential-first pilot · Metro Atlanta · independent service providers</p>
+        <p className="mx-auto mt-8 max-w-6xl text-xs text-slate-400">Residential pilot · Metro Atlanta · independent providers</p>
       </section>
     </main>
   );
