@@ -57,17 +57,7 @@ export default function Landing() {
   return (
     <div className="min-h-screen bg-white">
       <section className="relative min-h-[100svh] overflow-hidden text-white" style={{ backgroundColor: c.heroBg }}>
-        <video
-          autoPlay
-          muted
-          loop
-          playsInline
-          preload="metadata"
-          poster="/media/hero-cleaning-poster.jpg"
-          aria-hidden="true"
-          tabIndex={-1}
-          className="absolute inset-0 h-full w-full object-cover object-top"
-        >
+        <video autoPlay muted loop playsInline preload="metadata" poster="/media/hero-cleaning-poster.jpg" aria-hidden="true" tabIndex={-1} className="absolute inset-0 h-full w-full object-cover object-top">
           <source src="/media/cleanr-hero.mp4" type="video/mp4" />
         </video>
         <div className="pointer-events-none absolute inset-0 bg-[#071A2F]/45" />
@@ -88,19 +78,13 @@ export default function Landing() {
 
           <div className="flex flex-1 items-center py-10 sm:py-14 lg:py-16">
             <div className="max-w-3xl">
-              <h1 className="max-w-[12ch] text-[44px] font-bold leading-[0.98] text-white drop-shadow-lg sm:text-5xl lg:text-7xl lg:leading-[0.93]">
-                A cleaner home,
-                <br />
-                without the back-and-forth.
-              </h1>
-              <p className="mt-6 max-w-2xl text-lg leading-[1.55] text-white/95 drop-shadow-md sm:text-xl md:mt-8 md:text-2xl">
-                Book trusted residential cleaning support with a clear, simple service experience.
-              </p>
+              <h1 className="max-w-[12ch] text-[44px] font-bold leading-[0.98] text-white drop-shadow-lg sm:text-5xl lg:text-7xl lg:leading-[0.93]">A cleaner home,<br />without the back-and-forth.</h1>
+              <p className="mt-6 max-w-2xl text-lg leading-[1.55] text-white/95 drop-shadow-md sm:text-xl md:mt-8 md:text-2xl">Book trusted home cleaning with a simple, clear experience.</p>
               <div className="mt-8 flex flex-col gap-4 sm:mt-10 sm:flex-row">
                 <HeroPrimaryLink to={CUSTOMER_ENTRY_PATH}>Book a clean <ArrowRight className="h-4 w-4" /></HeroPrimaryLink>
                 <HeroSecondaryLink to={FOUNDING_CIRCLE_ENTRY_PATH}>Earn with Cleanr</HeroSecondaryLink>
               </div>
-              <p className="mt-4 text-sm text-white/75">Independent CSPs in Metro Atlanta can join the Founding Circle—including providers who already have clients.</p>
+              <p className="mt-4 text-sm text-white/75">Independent providers in Metro Atlanta can join the Founding Circle, including people who already have clients.</p>
             </div>
           </div>
         </div>
@@ -113,27 +97,22 @@ export default function Landing() {
           <div>
             <p className="text-sm font-semibold uppercase tracking-wide text-[#166534]">Founding Circle · Metro Atlanta</p>
             <h2 className="mt-3 max-w-xl text-3xl font-bold tracking-tight text-[#0B1220] sm:text-4xl">Grow the work without giving up the relationship.</h2>
-            <p className="mt-4 max-w-xl text-lg leading-relaxed text-[#667085]">
-              The Founding Circle is Cleanr's early provider cohort. Bring the households who already trust you—or join without existing clients—and help shape the relationship-first service network from the beginning.
-            </p>
+            <p className="mt-4 max-w-xl text-lg leading-relaxed text-[#667085]">The Founding Circle is for Cleanr&apos;s first group of providers. Bring households who already trust you, or join without existing clients, and help shape what we build.</p>
             <div className="mt-8 flex flex-col items-start gap-3 sm:flex-row sm:items-center">
               <BluePrimaryLink to={FOUNDING_CIRCLE_ENTRY_PATH}>Explore the Founding Circle <ArrowRight className="h-4 w-4" /></BluePrimaryLink>
-              <Link to="/csp/signup" className="inline-flex min-h-12 items-center px-2 text-sm font-semibold text-[#0000FE]">Apply directly</Link>
+              <Link to="/csp/signup" className="inline-flex min-h-12 items-center px-2 text-sm font-semibold text-[#0000FE]">Apply now</Link>
             </div>
           </div>
 
           <div className="border-y border-slate-200">
             {[
-              ["01", "Bring existing relationships", "If you already serve households, Cleanr can preserve that the relationship started with you while adding scheduling, payments, continuity, and support."],
-              ["02", "Choose new opportunities", "Set availability and service area, then decide which new marketplace opportunities fit your practice—without acceptance quotas."],
-              ["03", "Build toward what comes next", "A strong cleaning practice can be the goal—or the foundation for mentorship, business ownership, and other North-Star-aligned opportunities."],
+              ["01", "Bring relationships you already have", "If you already serve households, Cleanr keeps track that the relationship started with you and adds scheduling, payments, and support."],
+              ["02", "Choose new jobs that fit", "Set when and where you want to work, then choose which new Cleanr jobs make sense for you. You are not forced to accept jobs."],
+              ["03", "Build toward what comes next", "A strong cleaning business can be the goal. Or it can help you move toward mentoring, owning a business, school, another career, or other goals."],
             ].map(([number, title, body]) => (
               <div key={number} className="grid gap-3 border-b border-slate-200 py-7 last:border-b-0 sm:grid-cols-[72px_1fr] sm:gap-6">
                 <p className="text-2xl font-semibold tracking-tight text-slate-300">{number}</p>
-                <div>
-                  <h3 className="text-lg font-semibold text-[#0B1220]">{title}</h3>
-                  <p className="mt-2 max-w-2xl text-sm leading-6 text-[#667085]">{body}</p>
-                </div>
+                <div><h3 className="text-lg font-semibold text-[#0B1220]">{title}</h3><p className="mt-2 max-w-2xl text-sm leading-6 text-[#667085]">{body}</p></div>
               </div>
             ))}
           </div>
@@ -145,18 +124,15 @@ export default function Landing() {
           <div>
             <p className="text-sm font-semibold uppercase tracking-wide text-[#8DCC64]">Built for repeat trust</p>
             <h2 className="mt-3 max-w-3xl text-3xl font-bold tracking-tight sm:text-4xl">Choose who cleans your home. Keep the connection when it works.</h2>
-            <p className="mt-4 max-w-2xl text-lg leading-relaxed text-white/70">Cleanr handles the administration around the visit so a good household-CSP relationship can continue without restarting from zero every time.</p>
+            <p className="mt-4 max-w-2xl text-lg leading-relaxed text-white/70">Cleanr handles the busywork around each visit so a good relationship can keep growing.</p>
           </div>
           <div className="divide-y divide-white/15 border-y border-white/15">
             {[
-              ["Know who you're booking", "See real CSP profiles before deciding who may come into your home."],
-              ["Keep continuity", "When the fit is good, your shared history and preferences remain connected."],
-              ["Let Cleanr handle the admin", "Scheduling, payments, service updates, and support stay organized around the relationship."],
+              ["Know who you're booking", "See real CSP profiles before you choose who may come into your home."],
+              ["Keep a good match", "When things work well, your past visits and home preferences stay connected."],
+              ["Let Cleanr handle the busywork", "Scheduling, payments, updates, and support stay organized around the relationship."],
             ].map(([title, body]) => (
-              <div key={title} className="py-5">
-                <p className="font-semibold text-white">{title}</p>
-                <p className="mt-1 text-sm leading-6 text-white/60">{body}</p>
-              </div>
+              <div key={title} className="py-5"><p className="font-semibold text-white">{title}</p><p className="mt-1 text-sm leading-6 text-white/60">{body}</p></div>
             ))}
           </div>
           <div className="flex flex-col gap-3 sm:flex-row lg:col-span-2">
@@ -169,14 +145,9 @@ export default function Landing() {
       <section className="bg-white px-6 py-16 sm:py-20">
         <div className="mx-auto max-w-6xl border-y border-slate-200 py-10">
           <div className="grid gap-8 lg:grid-cols-[0.7fr_1.3fr] lg:items-center">
-            <div>
-              <p className="text-sm font-semibold uppercase tracking-wide text-[#166534]">Residential services</p>
-              <h2 className="mt-2 text-3xl font-bold tracking-tight text-[#0B1220]">Home cleaning options</h2>
-            </div>
+            <div><p className="text-sm font-semibold uppercase tracking-wide text-[#166534]">Home cleaning</p><h2 className="mt-2 text-3xl font-bold tracking-tight text-[#0B1220]">Cleaning options</h2></div>
             <div className="grid gap-x-8 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
-              {["Standard clean", "Deep clean", "Move-out clean", "Recurring upkeep", "Home reset"].map((label) => (
-                <p key={label} className="border-b border-slate-200 pb-3 text-sm font-medium text-[#0B1220]">{label}</p>
-              ))}
+              {["Standard clean", "Deep clean", "Move-out clean", "Repeat cleaning", "Home reset"].map((label) => <p key={label} className="border-b border-slate-200 pb-3 text-sm font-medium text-[#0B1220]">{label}</p>)}
             </div>
           </div>
         </div>
@@ -187,7 +158,7 @@ export default function Landing() {
       <section className="px-6 py-16 sm:py-24" style={{ backgroundColor: c.heroBg }}>
         <div className="mx-auto max-w-3xl text-center text-white">
           <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">Ready for a cleaner home?</h2>
-          <p className="mt-4 text-lg leading-relaxed text-white/85">Start the booking, choose a CSP if you want one, and keep moving without unnecessary setup.</p>
+          <p className="mt-4 text-lg leading-relaxed text-white/85">Start your booking, choose a CSP if you want one, and keep moving.</p>
           <div className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row">
             <HeroPrimaryLink to={CUSTOMER_ENTRY_PATH}>Book a clean <ArrowRight className="h-4 w-4" /></HeroPrimaryLink>
             <HeroSecondaryLink to={FOUNDING_CIRCLE_ENTRY_PATH}>Join the Founding Circle</HeroSecondaryLink>
@@ -197,16 +168,12 @@ export default function Landing() {
 
       <footer className="border-t border-slate-200 bg-white px-6 py-10">
         <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-6 sm:flex-row">
-          <Link to="/" className="block">
-            <img src={LANDING_LOGO_SRC} alt="Cleanr" width={906} height={209} loading="lazy" decoding="async" className={LANDING_LOGO_FOOTER_CLASS} />
-          </Link>
+          <Link to="/" className="block"><img src={LANDING_LOGO_SRC} alt="Cleanr" width={906} height={209} loading="lazy" decoding="async" className={LANDING_LOGO_FOOTER_CLASS} /></Link>
           <div className="text-center sm:text-right">
             <div className="mb-2 flex flex-wrap items-center justify-center gap-4 text-sm sm:justify-end">
-              <Link to={FOUNDING_CIRCLE_ENTRY_PATH} className="font-medium text-slate-700 hover:text-slate-950">Founding Circle</Link>
-              <a href="#faq" className="font-medium text-slate-700 hover:text-slate-950">FAQ</a>
-              <Link to="/trust-safety" className="font-medium text-slate-700 hover:text-slate-950">Trust & Safety</Link>
+              <Link to={FOUNDING_CIRCLE_ENTRY_PATH} className="font-medium text-slate-700 hover:text-slate-950">Founding Circle</Link><a href="#faq" className="font-medium text-slate-700 hover:text-slate-950">FAQ</a><Link to="/trust-safety" className="font-medium text-slate-700 hover:text-slate-950">Trust & Safety</Link>
             </div>
-            <p className="text-sm text-slate-600">© 2026 Cleanr. Residential cleaning made simple.</p>
+            <p className="text-sm text-slate-600">© 2026 Cleanr. Home cleaning made simple.</p>
           </div>
         </div>
       </footer>
