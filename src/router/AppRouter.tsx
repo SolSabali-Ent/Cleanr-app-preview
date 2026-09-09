@@ -76,7 +76,6 @@ import { ProviderList } from "../provider/ProviderList";
 import { ProviderDetail } from "../provider/ProviderDetail";
 import { AuthGate } from "./AuthGate";
 import { AdminGate } from "./AdminGate";
-import { ProviderHub } from "../app/provider/screens/ProviderHub";
 import { CustomerGate } from "./CustomerGate";
 
 export function AppRouter() {
@@ -89,7 +88,7 @@ export function AppRouter() {
           <Route path="/" element={<Landing />} />
           <Route path="/signin" element={<CustomerLogin />} />
           <Route path="/dashboard" element={<AuthGate />} />
-          <Route path="/csp" element={<ProviderHub />} />
+          <Route path="/csp" element={<Navigate to="/csp/founding-circle" replace />} />
           <Route path="/csp/founding-circle" element={<FoundingCircleJoin />} />
           <Route path="/start-booking" element={<Navigate to="/book" replace />} />
           <Route path="/service" element={<Navigate to="/book" replace />} />
@@ -141,121 +140,63 @@ export function AppRouter() {
               <Route path="onboarding" element={<OnboardingRoute />} />
               <Route path="verification" element={<ProviderVerificationScreen />} />
               <Route path="application-status" element={<ApplicationStatusScreen />} />
+              <Route path="terms" element={<CSPTermsScreen />} />
+              <Route path="application" element={<ApplicationHubScreen />} />
+              <Route path="application/:step" element={<ApplicationStepScreen />} />
               <Route element={<CspDashboardGate />}>
-                <Route path="terms" element={<CSPTermsScreen />} />
-                <Route path="application" element={<ApplicationHubScreen />} />
-                <Route path="application/:step" element={<ApplicationStepScreen />} />
                 <Route index element={<ProviderHome />} />
                 <Route path="jobs" element={<JobQueue />} />
                 <Route path="jobs/:jobId" element={<JobDetails />} />
                 <Route path="jobs/:jobId/message" element={<JobMessagePage />} />
                 <Route path="jobs/:jobId/incident" element={<IncidentLog />} />
-                <Route path="relationships" element={<RelationshipInboxScreen variant="csp" />} />
-                <Route path="relationships/:relationshipId/message" element={<RelationshipMessageScreen variant="csp" theme="dark" backPath="/csp/dashboard/relationships" title="Message household" />} />
                 <Route path="calendar" element={<ProviderCalendar />} />
                 <Route path="earnings" element={<Earnings />} />
                 <Route path="affiliate" element={<AffiliateScreen />} />
-                <Route path="growth" element={<Navigate to={CSP_GROWTH_ROUTES.home} replace />} />
-                <Route path="growth/milestones" element={<Navigate to={CSP_GROWTH_ROUTES.milestones} replace />} />
-                <Route path="growth/capabilities" element={<Navigate to={CSP_GROWTH_ROUTES.capabilities} replace />} />
-                <Route path="growth/opportunities" element={<Navigate to={CSP_GROWTH_ROUTES.opportunities} replace />} />
-                <Route path="growth/opportunities/fit" element={<Navigate to={CSP_GROWTH_ROUTES.opportunities} replace />} />
-                <Route path="growth/network" element={<Navigate to={CSP_GROWTH_ROUTES.network} replace />} />
-                <Route path="growth/contributions" element={<Navigate to={CSP_GROWTH_ROUTES.contributions} replace />} />
                 <Route path="existing-clients" element={<ExistingClientsScreen />} />
                 <Route path="availability" element={<Availability />} />
                 <Route path="profile" element={<ProviderProfile />} />
+                <Route path="relationships" element={<RelationshipInboxScreen variant="csp" />} />
+                <Route path="relationships/:relationshipId/message" element={<RelationshipMessageScreen variant="csp" backPath="/csp/dashboard/relationships" title="Message household" />} />
               </Route>
             </Route>
           </Route>
 
-          <Route path="/admin/device" element={<AdminGate><AdminDeviceSurface /></AdminGate>}>
-            <Route path="public" element={<Landing />} />
-            <Route path="public/signin" element={<CustomerLogin />} />
-            <Route path="public/csp" element={<ProviderHub />} />
-            <Route path="public/csp/founding-circle" element={<FoundingCircleJoin />} />
-            <Route path="public/csp/login" element={<CSPLogin />} />
-            <Route path="public/csp/signup" element={<CSPSignup />} />
-            <Route path="public/booking-confirmed" element={<BookingConfirmation />} />
-            <Route path="public/trust-safety" element={<TrustSafety />} />
-            <Route path="public/book" element={<CustomerLayout />}><Route index element={<BookService />} /></Route>
-            <Route path="customer" element={<CustomerLayout />}>
-              <Route index element={<CustomerHome />} />
-              <Route path="bookings" element={<Schedule />} />
-              <Route path="bookings/:bookingId" element={<CustomerBookingDetails />} />
-              <Route path="bookings/:bookingId/prep" element={<BeforeYourCleaning />} />
-              <Route path="bookings/:bookingId/message" element={<CustomerBookingMessagePage />} />
-              <Route path="relationships" element={<RelationshipInboxScreen variant="customer" />} />
-              <Route path="relationships/:relationshipId/message" element={<RelationshipMessageScreen variant="customer" backPath="/admin/device/customer/relationships" title="Message your CSP" />} />
-              <Route path="provider" element={<ProviderOverview />} />
-              <Route path="provider/list" element={<ProviderList />} />
-              <Route path="provider/:providerId" element={<ProviderDetail />} />
-              <Route path="profile" element={<CustomerProfile />} />
-              <Route path="payments" element={<Payments />} />
-              <Route path="addresses" element={<Addresses />} />
-              <Route path="affiliate" element={<Affiliate />} />
-              <Route path="support" element={<Support />} />
-              <Route path="emergency" element={<EmergencyContact />} />
-            </Route>
-            <Route path="csp" element={<ProviderLayout />}>
-              <Route element={<AdminProviderPreviewOutlet />}>
-                <Route index element={<ProviderHome />} />
-                <Route path="candidate-readiness" element={<CandidateReadinessScreen />} />
-                <Route path="onboarding" element={<OnboardingRoute />} />
-                <Route path="verification" element={<ProviderVerificationScreen />} />
-                <Route path="application-status" element={<ApplicationStatusScreen />} />
-                <Route path="terms" element={<CSPTermsScreen />} />
-                <Route path="application" element={<ApplicationHubScreen />} />
-                <Route path="application/:step" element={<ApplicationStepScreen />} />
-                <Route path="jobs" element={<JobQueue />} />
-                <Route path="jobs/:jobId" element={<JobDetails />} />
-                <Route path="jobs/:jobId/message" element={<JobMessagePage />} />
-                <Route path="jobs/:jobId/incident" element={<IncidentLog />} />
-                <Route path="relationships" element={<RelationshipInboxScreen variant="csp" />} />
-                <Route path="relationships/:relationshipId/message" element={<RelationshipMessageScreen variant="csp" theme="dark" backPath="/admin/device/csp/relationships" title="Message household" />} />
-                <Route path="calendar" element={<ProviderCalendar />} />
-                <Route path="earnings" element={<Earnings />} />
-                <Route path="affiliate" element={<AffiliateScreen />} />
-                <Route path="existing-clients" element={<ExistingClientsScreen />} />
-                <Route path="availability" element={<Availability />} />
-                <Route path="profile" element={<ProviderProfile />} />
-                <Route path="growth" element={<GrowthScreen />} />
-                <Route path="growth/milestones" element={<MilestonesScreen />} />
-                <Route path="growth/capabilities" element={<CapabilitiesScreen />} />
-                <Route path="growth/opportunities" element={<GrowthOpportunitiesScreen />} />
-                <Route path="growth/network" element={<NetworkScreen />} />
-                <Route path="growth/contributions" element={<ContributionsScreen />} />
-              </Route>
-            </Route>
-          </Route>
+          <Route path="/provider" element={<Navigate to="/csp/login" replace />} />
 
           <Route path="/admin" element={<AdminGate><AdminLayout /></AdminGate>}>
-            <Route index element={<Navigate to="/admin/ops" replace />} />
-            <Route path="geo" element={<GeoHarness />} />
+            <Route index element={<Navigate to="ops" replace />} />
             <Route path="ops" element={<OperationsDashboard />} />
-            <Route path="missed-visit-payments" element={<AdminMissedVisitPaymentReviews />} />
             <Route path="circles" element={<AdminCircles />} />
             <Route path="transformation-metrics" element={<AdminTransformationMetrics />} />
             <Route path="relationship-recovery" element={<AdminRelationshipRecovery />} />
-            <Route path="message-safety" element={<AdminMessageSafety />} />
             <Route path="collective-demand" element={<AdminCollectiveDemand />} />
             <Route path="collective-capacity" element={<AdminCollectiveCapacity />} />
             <Route path="opportunity-circulation" element={<AdminGrowthCirculation />} />
             <Route path="affiliate-cashouts" element={<AdminAffiliateCashouts />} />
             <Route path="founding-circle" element={<FoundingCircle />} />
+            <Route path="providers" element={<ProviderApplications />} />
             <Route path="csp-directory" element={<AdminCspDirectory />} />
             <Route path="access" element={<AdminAccess />} />
+            <Route path="geo" element={<GeoHarness />} />
             <Route path="booking/:bookingId/messages" element={<AdminBookingMessagesScreen />} />
-            <Route path="providers" element={<ProviderApplications />} />
+            <Route path="message-safety" element={<AdminMessageSafety />} />
+            <Route path="missed-visit-payments" element={<AdminMissedVisitPaymentReviews />} />
             <Route path="full-app" element={<AdminFullAppShell />}>
               <Route index element={<AdminFullAppIndex />} />
-              <Route path="public/*" element={<AdminIframePreviewFrame />} />
-              <Route path="customer/*" element={<AdminIframePreviewFrame />} />
-              <Route path="csp/*" element={<AdminIframePreviewFrame />} />
+              <Route path="public" element={<AdminIframePreviewFrame />}>
+                <Route path="*" element={<AdminDeviceSurface />} />
+              </Route>
+              <Route path="customer" element={<AdminIframePreviewFrame />}>
+                <Route path="*" element={<AdminDeviceSurface />} />
+              </Route>
+              <Route path="csp" element={<AdminIframePreviewFrame />}>
+                <Route element={<AdminProviderPreviewOutlet />}>
+                  <Route path="*" element={<AdminDeviceSurface />} />
+                </Route>
+              </Route>
             </Route>
           </Route>
 
-          <Route path="/provider" element={<Navigate to="/csp/login" replace />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </div>
