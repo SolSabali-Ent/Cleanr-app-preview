@@ -39,6 +39,9 @@ export function StepDateTime({ onNext }: StepDateTimeProps) {
   const { state, update } = useBooking();
   const [searchParams] = useSearchParams();
   const priorityEntry = searchParams.get("priority") === "urgent";
+  const adminTimeTestRequested = searchParams.get("time_test") === "1";
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [adminChecked, setAdminChecked] = useState(false);
   const [date, setDate] = useState(state.date ?? "");
   const [time, setTime] = useState(state.time ?? "");
   const [availability, setAvailability] = useState<SlotAvailability>({});
@@ -48,6 +51,17 @@ export function StepDateTime({ onNext }: StepDateTimeProps) {
   const [nowMs, setNowMs] = useState(() => Date.now());
   const hasVerifiedLocation = state.serviceAddress.verified && typeof state.serviceAddress.lat === "number" && typeof state.serviceAddress.lng === "number";
   const today = localDateInputValue(new Date(nowMs));
+  const timeTestMode = adminChecked && isAdmin && adminTimeTestRequested;
+
+  useEffect(() => {
+    let active = true;
+    void supabase.rpc("is_admin").then(({ data, error }) => {
+      if (!active) return;
+      setIsAdmin(!error && data === true);
+      setAdminChecked(true);
+    });
+    return () => { active = false; };
+  }, []);
 
   useEffect(() => {
     const timer = window.setInterval(() => setNowMs(Date.now()), 30_000);
@@ -55,11 +69,12 @@ export function StepDateTime({ onNext }: StepDateTimeProps) {
   }, []);
 
   useEffect(() => {
-    if (date && date < today) {
+    if (!adminChecked) return;
+    if (!timeTestMode && date && date < today) {
       setDate("");
       setTime("");
     }
-  }, [date, today]);
+  }, [adminChecked, date, timeTestMode, today]);
 
   useEffect(() => {
     let active = true;
@@ -74,7 +89,7 @@ export function StepDateTime({ onNext }: StepDateTimeProps) {
   }, []);
 
   useEffect(() => {
-    if (!date || date < today || !hasVerifiedLocation) {
+    if (!adminChecked || !date || (!timeTestMode && date < today) || !hasVerifiedLocation) {
       setAvailability({});
       setAvailabilityError(null);
       return;
@@ -87,7 +102,8 @@ export function StepDateTime({ onNext }: StepDateTimeProps) {
       try {
         await Promise.all(TIME_WINDOWS.map(async (window) => {
           const normalized = normalizeBookingSchedule(date, window);
-          if (!normalized || !isFutureWindow(date, window)) { next[window] = 0; return; }
+          const selectableByTime = timeTestMode || isFutureWindow(date, window);
+          if (!normalized || !selectableByTime) { next[window] = 0; return; }
           const { data, error } = await supabase.rpc("count_checkout_eligible_providers_for_slot", {
             p_lat: state.serviceAddress.lat,
             p_lng: state.serviceAddress.lng,
@@ -100,7 +116,7 @@ export function StepDateTime({ onNext }: StepDateTimeProps) {
         }));
         if (!cancelled) {
           setAvailability(next);
-          if (time && ((next[time] ?? 0) < 1 || !isFutureWindow(date, time))) setTime("");
+          if (time && ((next[time] ?? 0) < 1 || (!timeTestMode && !isFutureWindow(date, time)))) setTime("");
         }
       } catch (error) {
         console.error("[booking] Failed to load slot availability", error);
@@ -111,11 +127,12 @@ export function StepDateTime({ onNext }: StepDateTimeProps) {
     };
     void run();
     return () => { cancelled = true; };
-  }, [date, today, hasVerifiedLocation, state.frequency, state.serviceAddress.lat, state.serviceAddress.lng, time]);
+  }, [adminChecked, date, timeTestMode, today, hasVerifiedLocation, state.frequency, state.serviceAddress.lat, state.serviceAddress.lng, time]);
 
-  const hasAnyAvailableSlot = useMemo(() => TIME_WINDOWS.some((window) => isFutureWindow(date, window, nowMs) && (availability[window] ?? 0) > 0), [availability, date, nowMs]);
+  const hasAnyAvailableSlot = useMemo(() => TIME_WINDOWS.some((window) => (timeTestMode || isFutureWindow(date, window, nowMs)) && (availability[window] ?? 0) > 0), [availability, date, nowMs, timeTestMode]);
   const selectedSchedule = useMemo(() => normalizeBookingSchedule(date || null, time || null), [date, time]);
   const selectedIsFuture = useMemo(() => Boolean(time && isFutureWindow(date, time, nowMs)), [date, time, nowMs]);
+  const selectedIsAllowed = Boolean(time && (timeTestMode || selectedIsFuture));
   const selectedIsUrgent = useMemo(() => {
     if (!selectedSchedule) return false;
     const delta = new Date(selectedSchedule.scheduledStartIso).getTime() - nowMs;
@@ -124,15 +141,26 @@ export function StepDateTime({ onNext }: StepDateTimeProps) {
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
-    if (!date || !time || !selectedIsFuture || (availability[time] ?? 0) < 1) return;
+    if (!date || !time || !selectedIsAllowed || (availability[time] ?? 0) < 1) return;
     update({ date, time, priorityRequested: selectedIsUrgent });
     onNext();
   };
 
-  const isValid = Boolean(date && date >= today && time && selectedIsFuture && (availability[time] ?? 0) > 0 && !loadingAvailability);
+  const dateAllowed = Boolean(date && (timeTestMode || date >= today));
+  const isValid = Boolean(dateAllowed && time && selectedIsAllowed && (availability[time] ?? 0) > 0 && !loadingAvailability);
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {timeTestMode ? (
+        <div className="border-y border-violet-200 bg-violet-50 py-3 text-[12px] leading-5 text-violet-800">
+          <span className="font-semibold">Admin test mode:</span> past booking times are available for end-to-end testing only.
+        </div>
+      ) : adminTimeTestRequested && adminChecked && !isAdmin ? (
+        <div className="border-y border-amber-200 bg-amber-50 py-3 text-[12px] leading-5 text-amber-800">
+          Time test mode is only available to a Cleanr admin account.
+        </div>
+      ) : null}
+
       {priorityEntry ? (
         <div className="border-y border-[#F59E0B]/30 bg-[#FFFBEB] py-3 text-[12px] leading-5 text-[#92400E]">
           Priority times within {upsell.urgent_window_hours} hours include a <span className="font-semibold">+{percent(upsell.urgent_surcharge_rate)}</span> charge.
@@ -144,7 +172,7 @@ export function StepDateTime({ onNext }: StepDateTimeProps) {
         <div className="relative flex min-h-[46px] w-full items-center rounded-xl border border-slate-300 bg-white pl-3 pr-10 focus-within:ring-2 focus-within:ring-[#0000FE]">
           <span className={date ? "text-sm text-slate-900" : "text-sm text-slate-400"}>{date ? formatDateDisplay(date) : "Pick a date"}</span>
           <Calendar className="ml-auto h-4 w-4 text-slate-400" aria-hidden />
-          <input type="date" min={today} value={date} onChange={(e) => { setDate(e.target.value); setTime(""); }} className="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-[0.01]" style={{ fontSize: "16px" }} aria-label="Pick a date" />
+          <input type="date" min={timeTestMode ? undefined : today} value={date} onChange={(e) => { setDate(e.target.value); setTime(""); }} className="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-[0.01]" style={{ fontSize: "16px" }} aria-label="Pick a date" />
         </div>
       </div>
 
@@ -159,7 +187,8 @@ export function StepDateTime({ onNext }: StepDateTimeProps) {
             const providerCount = availability[window] ?? 0;
             const known = Object.prototype.hasOwnProperty.call(availability, window);
             const future = Boolean(date && isFutureWindow(date, window, nowMs));
-            const available = known && future && providerCount > 0;
+            const selectableByTime = future || timeTestMode;
+            const available = known && selectableByTime && providerCount > 0;
             const disabled = loadingAvailability || !available;
             return (
               <button
@@ -170,7 +199,7 @@ export function StepDateTime({ onNext }: StepDateTimeProps) {
                 className={`flex min-h-[58px] w-full items-center justify-between gap-3 px-4 py-3 text-left ${index > 0 ? "border-t border-slate-200" : ""} ${active ? "bg-[#F7F8FF]" : available ? "bg-white" : "bg-slate-50"}`}
               >
                 <span className={`text-sm font-semibold ${available ? "text-slate-900" : "text-slate-400"}`}>{window}</span>
-                {date ? <span className={`text-[11px] ${available ? "text-[#667085]" : "text-slate-400"}`}>{!future ? "Time passed" : known ? (available ? `${providerCount} available` : "Unavailable") : ""}</span> : null}
+                {date ? <span className={`text-[11px] ${available ? "text-[#667085]" : "text-slate-400"}`}>{!future && timeTestMode ? (available ? `${providerCount} available · test` : "Unavailable") : !future ? "Time passed" : known ? (available ? `${providerCount} available` : "Unavailable") : ""}</span> : null}
               </button>
             );
           })}
@@ -180,11 +209,11 @@ export function StepDateTime({ onNext }: StepDateTimeProps) {
       {selectedIsUrgent ? <p className="text-[11px] font-medium text-[#92400E]">This selected time includes the +{percent(upsell.urgent_surcharge_rate)} priority charge.</p> : null}
       {availabilityError ? <p className="text-[12px] font-medium text-red-500">{availabilityError}</p> : null}
       {date && !loadingAvailability && !availabilityError && Object.keys(availability).length > 0 && !hasAnyAvailableSlot ? (
-        <div className="border-y border-amber-200 bg-amber-50 py-3 text-[12px] text-amber-800"><span className="font-semibold">No times left on this date.</span> Choose another day.</div>
+        <div className="border-y border-amber-200 bg-amber-50 py-3 text-[12px] text-amber-800"><span className="font-semibold">No times available on this date.</span> Choose another day.</div>
       ) : null}
 
       <Button type="submit" disabled={!isValid} variant="primaryBlue" size="lg" fullWidth>Continue</Button>
-      <p className="text-center text-[10px] text-slate-400">We check the time again before payment.</p>
+      <p className="text-center text-[10px] text-slate-400">{timeTestMode ? "Admin test mode is on. Normal customers cannot book past times." : "We check the time again before payment."}</p>
     </form>
   );
 }
