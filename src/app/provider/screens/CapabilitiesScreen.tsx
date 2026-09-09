@@ -56,13 +56,13 @@ export default function CapabilitiesScreen() {
   return (
     <div className="pb-24" style={{ color: CSP_TEXT_PRIMARY }}>
       <button type="button" onClick={() => navigate(CSP_GROWTH_ROUTES.home)} className="mb-5 flex items-center gap-2 text-sm" style={{ color: CSP_TEXT_SECONDARY }}>
-        <ArrowLeft size={16} /> Growth
+        <ArrowLeft size={16} /> North Star
       </button>
 
       <header className="mb-6">
         <h1 className="text-2xl font-semibold">Skills & strengths</h1>
         <p className="mt-1 text-sm" style={{ color: CSP_TEXT_SECONDARY }}>
-          Add what you&apos;re good at.
+          Add what you&apos;re good at so Cleanr can recognize what you can contribute and what may fit you next.
         </p>
       </header>
 
@@ -98,7 +98,7 @@ export default function CapabilitiesScreen() {
         {capabilities.length === 0 ? (
           <div className="border-y border-white/10 py-5">
             <p className="text-sm font-medium">Nothing added yet.</p>
-            <p className="mt-1 text-xs" style={{ color: CSP_TEXT_SECONDARY }}>Start with one skill you want Cleanr to know about.</p>
+            <p className="mt-1 text-xs" style={{ color: CSP_TEXT_SECONDARY }}>Start with one skill you want the network to know about.</p>
           </div>
         ) : (
           <div className="border-y border-white/10">
