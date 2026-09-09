@@ -171,7 +171,10 @@ export default function Landing() {
           <Link to="/" className="block"><img src={LANDING_LOGO_SRC} alt="Cleanr" width={906} height={209} loading="lazy" decoding="async" className={LANDING_LOGO_FOOTER_CLASS} /></Link>
           <div className="text-center sm:text-right">
             <div className="mb-2 flex flex-wrap items-center justify-center gap-4 text-sm sm:justify-end">
-              <Link to={FOUNDING_CIRCLE_ENTRY_PATH} className="font-medium text-slate-700 hover:text-slate-950">Founding Circle</Link><a href="#faq" className="font-medium text-slate-700 hover:text-slate-950">FAQ</a><Link to="/trust-safety" className="font-medium text-slate-700 hover:text-slate-950">Trust & Safety</Link>
+              <Link to={FOUNDING_CIRCLE_ENTRY_PATH} className="font-medium text-slate-700 hover:text-slate-950">Founding Circle</Link>
+              <a href="#faq" className="font-medium text-slate-700 hover:text-slate-950">FAQ</a>
+              <a href="/media/Cleanr Coverage Map (205).png" target="_blank" rel="noreferrer" className="font-medium text-slate-700 hover:text-slate-950">Service area</a>
+              <Link to="/trust-safety" className="font-medium text-slate-700 hover:text-slate-950">Trust & Safety</Link>
             </div>
             <p className="text-sm text-slate-600">© 2026 Cleanr. Home cleaning made simple.</p>
           </div>
