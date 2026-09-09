@@ -2,8 +2,8 @@ import { supabase } from "./supabase";
 
 /**
  * Stores or clears the authenticated customer's requested marketplace CSP on an
- * unpaid booking. The database boundary revalidates exact address, work
- * preferences, weekly availability, capacity, time off, and schedule conflicts.
+ * unpaid booking. The database boundary revalidates exact address, provider-owned
+ * work intake/preferences, weekly availability, capacity, time off, and conflicts.
  */
 export async function setMyBookingRequestedProvider(
   bookingId: string,
@@ -17,5 +17,12 @@ export async function setMyBookingRequestedProvider(
     p_booking_id: normalizedBookingId,
     p_provider_id: normalizedProviderId,
   });
-  if (error) throw error;
+  if (error) {
+    // Keep the checkout-facing error taxonomy stable while the durable DB keeps the
+    // more precise distinction between Cleanr eligibility and CSP-owned intake.
+    if (error.message?.includes("requested_provider_not_accepting_new_marketplace_work")) {
+      throw new Error("requested_provider_not_marketplace_available");
+    }
+    throw error;
+  }
 }
