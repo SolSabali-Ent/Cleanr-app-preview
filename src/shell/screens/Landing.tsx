@@ -2,7 +2,7 @@ import { useEffect, type ReactNode } from "react";
 import { ArrowRight } from "lucide-react";
 import { Link } from "react-router-dom";
 import { captureReferralCodeFromUrl } from "../../lib/referralRef";
-import { CUSTOMER_ENTRY_PATH, CSP_ENTRY_PATH, LOGIN_PATH } from "../../lib/entryRoutes";
+import { CUSTOMER_ENTRY_PATH, FOUNDING_CIRCLE_ENTRY_PATH, LOGIN_PATH } from "../../lib/entryRoutes";
 import {
   cleanrBrand,
   LANDING_LOGO_FOOTER_CLASS,
@@ -78,9 +78,10 @@ export default function Landing() {
             <Link to="/" className="block min-w-0 shrink sm:max-w-none" aria-label="Cleanr home">
               <img src={LANDING_LOGO_HERO_SRC} alt="Cleanr" width={906} height={209} loading="eager" decoding="async" className={LANDING_LOGO_HERO_CLASS} />
             </Link>
-            <nav className="mt-0.5 flex shrink-0 items-center justify-end gap-2" aria-label="Public navigation">
-              <a href="#meet-cleanr-csps" className="hidden min-h-11 items-center justify-center px-3 py-2 text-xs font-medium text-white/90 transition-colors hover:text-white sm:inline-flex sm:text-sm">Meet CSPs</a>
-              <a href="#faq" className="inline-flex min-h-11 items-center justify-center px-3 py-2 text-xs font-medium text-white/90 transition-colors hover:text-white sm:text-sm">FAQ</a>
+            <nav className="mt-0.5 flex shrink-0 items-center justify-end gap-1 sm:gap-2" aria-label="Public navigation">
+              <Link to={FOUNDING_CIRCLE_ENTRY_PATH} className="inline-flex min-h-11 items-center justify-center px-2 py-2 text-[11px] font-semibold text-white transition-colors hover:text-white sm:px-3 sm:text-sm">Founding Circle</Link>
+              <a href="#meet-cleanr-csps" className="hidden min-h-11 items-center justify-center px-3 py-2 text-xs font-medium text-white/90 transition-colors hover:text-white md:inline-flex md:text-sm">Meet CSPs</a>
+              <a href="#faq" className="hidden min-h-11 items-center justify-center px-3 py-2 text-xs font-medium text-white/90 transition-colors hover:text-white sm:inline-flex sm:text-sm">FAQ</a>
               <Link to={LOGIN_PATH} className="inline-flex min-h-11 items-center justify-center rounded-lg border border-white/45 bg-black/10 px-3 py-2 text-xs font-medium text-white backdrop-blur-md sm:text-sm">Log in</Link>
             </nav>
           </div>
@@ -97,8 +98,9 @@ export default function Landing() {
               </p>
               <div className="mt-8 flex flex-col gap-4 sm:mt-10 sm:flex-row">
                 <HeroPrimaryLink to={CUSTOMER_ENTRY_PATH}>Book a clean <ArrowRight className="h-4 w-4" /></HeroPrimaryLink>
-                <HeroSecondaryLink to={CSP_ENTRY_PATH}>Earn with Cleanr</HeroSecondaryLink>
+                <HeroSecondaryLink to={FOUNDING_CIRCLE_ENTRY_PATH}>Earn with Cleanr</HeroSecondaryLink>
               </div>
+              <p className="mt-4 text-sm text-white/75">Independent CSPs in Metro Atlanta can join the Founding Circle—including providers who already have clients.</p>
             </div>
           </div>
         </div>
@@ -109,20 +111,21 @@ export default function Landing() {
       <section className="bg-white px-6 py-16 sm:py-24">
         <div className="mx-auto grid max-w-6xl gap-12 lg:grid-cols-[0.9fr_1.1fr] lg:gap-20">
           <div>
-            <p className="text-sm font-semibold uppercase tracking-wide text-[#166534]">For Cleanr service providers</p>
+            <p className="text-sm font-semibold uppercase tracking-wide text-[#166534]">Founding Circle · Metro Atlanta</p>
             <h2 className="mt-3 max-w-xl text-3xl font-bold tracking-tight text-[#0B1220] sm:text-4xl">Grow the work without giving up the relationship.</h2>
             <p className="mt-4 max-w-xl text-lg leading-relaxed text-[#667085]">
-              Cleanr gives independent residential cleaning professionals infrastructure for opportunity, scheduling, payments, reputation, and continuity—while keeping the human relationship visible.
+              The Founding Circle is Cleanr's early provider cohort. Bring the households who already trust you—or join without existing clients—and help shape the relationship-first service network from the beginning.
             </p>
-            <div className="mt-8">
-              <BluePrimaryLink to={CSP_ENTRY_PATH}>Earn with Cleanr <ArrowRight className="h-4 w-4" /></BluePrimaryLink>
+            <div className="mt-8 flex flex-col items-start gap-3 sm:flex-row sm:items-center">
+              <BluePrimaryLink to={FOUNDING_CIRCLE_ENTRY_PATH}>Explore the Founding Circle <ArrowRight className="h-4 w-4" /></BluePrimaryLink>
+              <Link to="/csp/signup" className="inline-flex min-h-12 items-center px-2 text-sm font-semibold text-[#0000FE]">Apply directly</Link>
             </div>
           </div>
 
           <div className="border-y border-slate-200">
             {[
-              ["01", "Bring your reputation with you", "Your experience, trust signals, customer history, and profile become durable assets—not disposable marketplace data."],
-              ["02", "Work around your actual life", "Set availability, manage visits, and handle schedule changes through one operating system instead of scattered texts and calls."],
+              ["01", "Bring existing relationships", "If you already serve households, Cleanr can preserve that the relationship started with you while adding scheduling, payments, continuity, and support."],
+              ["02", "Choose new opportunities", "Set availability and service area, then decide which new marketplace opportunities fit your practice—without acceptance quotas."],
               ["03", "Build toward what comes next", "A strong cleaning practice can be the goal—or the foundation for mentorship, business ownership, and other North-Star-aligned opportunities."],
             ].map(([number, title, body]) => (
               <div key={number} className="grid gap-3 border-b border-slate-200 py-7 last:border-b-0 sm:grid-cols-[72px_1fr] sm:gap-6">
@@ -187,7 +190,7 @@ export default function Landing() {
           <p className="mt-4 text-lg leading-relaxed text-white/85">Start the booking, choose a CSP if you want one, and keep moving without unnecessary setup.</p>
           <div className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row">
             <HeroPrimaryLink to={CUSTOMER_ENTRY_PATH}>Book a clean <ArrowRight className="h-4 w-4" /></HeroPrimaryLink>
-            <HeroSecondaryLink to={CSP_ENTRY_PATH}>Earn with Cleanr</HeroSecondaryLink>
+            <HeroSecondaryLink to={FOUNDING_CIRCLE_ENTRY_PATH}>Join the Founding Circle</HeroSecondaryLink>
           </div>
         </div>
       </section>
@@ -198,7 +201,8 @@ export default function Landing() {
             <img src={LANDING_LOGO_SRC} alt="Cleanr" width={906} height={209} loading="lazy" decoding="async" className={LANDING_LOGO_FOOTER_CLASS} />
           </Link>
           <div className="text-center sm:text-right">
-            <div className="mb-2 flex items-center justify-center gap-4 text-sm sm:justify-end">
+            <div className="mb-2 flex flex-wrap items-center justify-center gap-4 text-sm sm:justify-end">
+              <Link to={FOUNDING_CIRCLE_ENTRY_PATH} className="font-medium text-slate-700 hover:text-slate-950">Founding Circle</Link>
               <a href="#faq" className="font-medium text-slate-700 hover:text-slate-950">FAQ</a>
               <Link to="/trust-safety" className="font-medium text-slate-700 hover:text-slate-950">Trust & Safety</Link>
             </div>
