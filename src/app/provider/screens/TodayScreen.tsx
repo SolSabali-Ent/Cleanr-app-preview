@@ -128,13 +128,6 @@ export default function TodayScreen() {
     console.info(isUnlocked ? "[today-screen] render live" : "[today-screen] render locked");
   }, [showInitialBlocking, displayProfile?.id, isUnlocked, isOnboarded]);
 
-  const marketplaceReviewRows = [
-    { label: "Application", badge: "Approved" },
-    { label: "Provider profile", badge: "Complete" },
-    { label: "Marketplace access", badge: "Pending" },
-    { label: "Open-market jobs", badge: "Not available yet" },
-  ] as const;
-
   const existingClientRow = (
     <AppListRow
       tone="provider"
@@ -158,20 +151,24 @@ export default function TodayScreen() {
           <>
             <AppPageHeader
               tone="provider"
-              eyebrow="Marketplace"
+              eyebrow="Provider setup"
               title="You're approved."
-              description="Marketplace access is next. You can still bring households you already serve into Cleanr now."
+              description="Cleanr is finishing the last eligibility checks for new opportunities. Your existing household relationships can already move through Cleanr."
             />
             <AppList tone="provider">
-              {marketplaceReviewRows.map((item, index) => (
-                <AppListRow
-                  key={item.label}
-                  tone="provider"
-                  divided={index > 0}
-                  title={item.label}
-                  trailing={<span className="text-xs font-medium" style={{ color: CSP_TEXT_SECONDARY }}>{item.badge}</span>}
-                />
-              ))}
+              <AppListRow
+                tone="provider"
+                title="Provider setup"
+                description="Your application and required setup are complete."
+                trailing={<span className="text-xs font-medium" style={{ color: "#8DCC64" }}>Complete</span>}
+              />
+              <AppListRow
+                tone="provider"
+                divided
+                title="New Cleanr opportunities"
+                description="These will appear when your provider eligibility is fully ready."
+                trailing={<span className="text-xs font-medium" style={{ color: CSP_TEXT_SECONDARY }}>Not available yet</span>}
+              />
             </AppList>
             <div className="mt-5">
               <AppList tone="provider">{existingClientRow}</AppList>
@@ -183,7 +180,7 @@ export default function TodayScreen() {
               tone="provider"
               eyebrow="Provider setup"
               title="Finish verification"
-              description="Complete the remaining steps to unlock jobs and payouts."
+              description="Complete the remaining steps to unlock new Cleanr opportunities and payouts."
             />
             <AppList tone="provider">
               {checklist.map((item, index) => (
@@ -212,7 +209,7 @@ export default function TodayScreen() {
 
   return (
     <div className="relative min-h-[60vh]" style={{ color: CSP_TEXT_PRIMARY }}>
-      <AppPageHeader tone="provider" title="Home" description="Your accepted work and marketplace opportunities." />
+      <AppPageHeader tone="provider" title="Home" description="Your accepted work, household relationships, and new Cleanr opportunities." />
 
       {missedJobs.length > 0 ? (
         <button
@@ -253,7 +250,7 @@ export default function TodayScreen() {
           <AppEmptyState
             tone="provider"
             title="No visit scheduled"
-            description={availableJobs.length > 0 ? "There are marketplace opportunities nearby." : "New opportunities will appear in Jobs when they fit your preferences."}
+            description={availableJobs.length > 0 ? "There are Cleanr opportunities nearby." : "New opportunities will appear in Jobs when they fit your preferences."}
             action={<button type="button" onClick={() => navigate("/csp/dashboard/jobs")} className="text-xs font-semibold" style={{ color: CSP_PRIMARY_BUTTON }}>Open Jobs</button>}
           />
         )}
@@ -308,8 +305,8 @@ export default function TodayScreen() {
           <AppListRow
             tone="provider"
             divided
-            title="Growth"
-            description="Goals, progress, and opportunities."
+            title="North Star"
+            description="Your direction, milestones, and aligned opportunities."
             leading={<div className="flex h-9 w-9 items-center justify-center rounded-xl" style={{ backgroundColor: `${CSP_PRIMARY_BUTTON}18` }}><Compass size={18} style={{ color: CSP_PRIMARY_BUTTON }} /></div>}
             onClick={() => navigate(CSP_GROWTH_ROUTES.home)}
           />
