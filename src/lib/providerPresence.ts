@@ -48,7 +48,11 @@ function rowToMarketplaceProvider(row: Record<string, unknown>): MarketplaceProv
     review_count: Number(row.review_count ?? 0),
     repeat_household_count: Number(row.repeat_household_count ?? 0),
     background_checked: Boolean(row.background_checked),
-    insured: Boolean(row.insured),
+    // Do not surface a generic "Insured" claim from public marketplace data.
+    // Cleanr may retain verified provider-supplied insurance evidence internally,
+    // but public coverage language stays off until the actual policy/representation
+    // boundary is finalized. Specific in-app surfaces can use precise wording.
+    insured: false,
     platform_verified: Boolean(row.platform_verified),
   };
 }
@@ -151,7 +155,7 @@ export async function getProviderPresenceSummary(
           avg_rating: typeof row.avg_rating === "number" ? row.avg_rating : null,
           review_count: Number(row.review_count ?? 0),
           background_checked: Boolean(row.background_checked),
-          insured: Boolean(row.insured),
+          insured: false,
           platform_verified: Boolean(row.platform_verified),
         }));
       }
