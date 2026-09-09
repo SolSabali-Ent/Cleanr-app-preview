@@ -4,10 +4,8 @@ import { useProfile } from "../../lib/useProfile";
 import { getSignedProfilePhotoUrl, uploadMyProfilePhoto } from "../../lib/profilePhotoApi";
 import { supabase } from "../../lib/supabase";
 import {
-  CSP_CARD_PADDING,
   CSP_INPUT,
   CSP_PRIMARY_BUTTON,
-  CSP_SURFACE,
   CSP_TEXT_PRIMARY,
   CSP_TEXT_SECONDARY,
 } from "@/theme/cspTheme";
@@ -135,16 +133,21 @@ export function ProviderProfileEnrichmentCard() {
   }
 
   return (
-    <section className="mb-6">
-      <div className="mb-3 flex items-center justify-between gap-3">
+    <section className="mb-7">
+      <div className="mb-3 flex items-end justify-between gap-3">
         <div>
-          <h2 className="text-sm font-medium" style={{ color: CSP_TEXT_SECONDARY }}>Customer-facing profile</h2>
-          <p className="mt-1 text-xs" style={{ color: CSP_TEXT_SECONDARY }}>Help households know who is coming into their home.</p>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.14em]" style={{ color: CSP_TEXT_SECONDARY }}>Your profile</p>
+          <h1 className="mt-1 text-xl font-semibold" style={{ color: CSP_TEXT_PRIMARY }}>What households see</h1>
+          <p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>Help people know who is coming into their home.</p>
         </div>
-        {!editing ? <button type="button" onClick={() => setEditing(true)} className="inline-flex items-center gap-1.5 text-xs font-semibold text-white"><Pencil size={14} /> Edit</button> : null}
+        {!editing ? (
+          <button type="button" onClick={() => setEditing(true)} className="inline-flex shrink-0 items-center gap-1.5 pb-0.5 text-xs font-semibold text-white">
+            <Pencil size={14} /> Edit
+          </button>
+        ) : null}
       </div>
 
-      <div className="rounded-2xl border" style={{ backgroundColor: CSP_SURFACE, padding: CSP_CARD_PADDING, borderColor: "rgba(248,250,252,0.08)" }}>
+      <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-4">
         <div className="flex items-start gap-4">
           <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-full border border-white/15 bg-white/5">
             {photoUrl ? <img src={photoUrl} alt={`${displayName} profile`} className="h-full w-full object-cover" /> : <div className="flex h-full w-full items-center justify-center text-2xl font-semibold text-white/70">{displayName.charAt(0)}</div>}
@@ -152,33 +155,48 @@ export function ProviderProfileEnrichmentCard() {
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <p className="text-lg font-semibold" style={{ color: CSP_TEXT_PRIMARY }}>{displayName}</p>
-              {photoMissing ? <span className="rounded-full border border-amber-400/30 bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold text-amber-200">Photo required</span> : <span className="rounded-full border border-emerald-400/30 bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold text-emerald-200">Photo ready</span>}
+              {photoMissing ? (
+                <span className="rounded-full border border-amber-400/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold text-amber-200">Photo needed</span>
+              ) : (
+                <span className="rounded-full border border-emerald-400/25 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-200">Photo ready</span>
+              )}
             </div>
-            <p className="mt-1 text-xs" style={{ color: CSP_TEXT_SECONDARY }}>{completeFields}/6 core trust fields complete</p>
-            {profile.provider_bio ? <p className="mt-2 text-sm leading-5" style={{ color: CSP_TEXT_SECONDARY }}>{profile.provider_bio}</p> : null}
+            <p className="mt-1 text-xs" style={{ color: CSP_TEXT_SECONDARY }}>{completeFields}/6 trust details complete</p>
+            {profile.provider_bio ? <p className="mt-2 line-clamp-3 text-sm leading-5" style={{ color: CSP_TEXT_SECONDARY }}>{profile.provider_bio}</p> : null}
           </div>
         </div>
 
-        <div className="mt-4 flex flex-wrap gap-2">
-          <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold text-white" style={{ backgroundColor: CSP_INPUT }}>
-            <Camera size={15} /> {photoBusy ? "Updating…" : photoUrl ? "Change photo" : "Add required photo"}
+        <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-white/10 pt-4">
+          <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-white/5 px-3 py-2 text-xs font-semibold text-white">
+            <Camera size={15} /> {photoBusy ? "Updating…" : photoUrl ? "Change photo" : "Add photo"}
             <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" disabled={photoBusy} onChange={(event) => void handlePhoto(event.target.files?.[0] ?? null)} />
           </label>
-        </div>
-        <p className="mt-2 text-[11px] leading-4" style={{ color: CSP_TEXT_SECONDARY }}>A clear photo is required for new marketplace activation. Existing active CSPs without one stay operational while completing it.</p>
-
-        <div className="mt-4 grid grid-cols-3 gap-2">
-          <div className="rounded-xl bg-white/5 p-3 text-center"><p className="text-base font-semibold">{metrics?.completed_jobs ?? 0}</p><p className="text-[10px]" style={{ color: CSP_TEXT_SECONDARY }}>Completed cleans</p></div>
-          <div className="rounded-xl bg-white/5 p-3 text-center"><p className="text-base font-semibold">{publicSummary?.repeat_household_count ?? 0}</p><p className="text-[10px]" style={{ color: CSP_TEXT_SECONDARY }}>Repeat households</p></div>
-          <div className="rounded-xl bg-white/5 p-3 text-center"><p className="inline-flex items-center gap-1 text-base font-semibold"><Star size={13} />{publicSummary?.avg_rating ?? "—"}</p><p className="text-[10px]" style={{ color: CSP_TEXT_SECONDARY }}>{publicSummary?.review_count ?? 0} reviews</p></div>
+          <span className="text-[11px]" style={{ color: CSP_TEXT_SECONDARY }}>Required for new marketplace activation.</span>
         </div>
 
-        <div className="mt-3 flex flex-wrap gap-2">
-          {publicSummary?.background_checked ? <span className="inline-flex items-center gap-1 rounded-full bg-white/5 px-2.5 py-1 text-[10px]"><ShieldCheck size={12} /> Background checked</span> : null}
-          {publicSummary?.insured ? <span className="inline-flex items-center gap-1 rounded-full bg-white/5 px-2.5 py-1 text-[10px]"><ShieldCheck size={12} /> Insured</span> : null}
-          {publicSummary?.platform_verified ? <span className="inline-flex items-center gap-1 rounded-full bg-white/5 px-2.5 py-1 text-[10px]"><CheckCircle2 size={12} /> Cleanr verified</span> : null}
-          {(publicSummary?.repeat_household_count ?? 0) > 0 ? <span className="inline-flex items-center gap-1 rounded-full bg-white/5 px-2.5 py-1 text-[10px]"><UsersRound size={12} /> Repeat relationships</span> : null}
+        <div className="mt-4 grid grid-cols-3 border-t border-white/10 pt-4 text-center">
+          <div className="border-r border-white/10 px-2">
+            <p className="text-base font-semibold">{metrics?.completed_jobs ?? 0}</p>
+            <p className="mt-1 text-[10px] leading-4" style={{ color: CSP_TEXT_SECONDARY }}>Completed</p>
+          </div>
+          <div className="border-r border-white/10 px-2">
+            <p className="text-base font-semibold">{publicSummary?.repeat_household_count ?? 0}</p>
+            <p className="mt-1 text-[10px] leading-4" style={{ color: CSP_TEXT_SECONDARY }}>Repeat homes</p>
+          </div>
+          <div className="px-2">
+            <p className="inline-flex items-center gap-1 text-base font-semibold"><Star size={13} />{publicSummary?.avg_rating ?? "—"}</p>
+            <p className="mt-1 text-[10px] leading-4" style={{ color: CSP_TEXT_SECONDARY }}>{publicSummary?.review_count ?? 0} reviews</p>
+          </div>
         </div>
+
+        {(publicSummary?.background_checked || publicSummary?.insured || publicSummary?.platform_verified || (publicSummary?.repeat_household_count ?? 0) > 0) ? (
+          <div className="mt-4 flex flex-wrap gap-2 border-t border-white/10 pt-4">
+            {publicSummary?.background_checked ? <span className="inline-flex items-center gap-1 text-[10px]" style={{ color: CSP_TEXT_SECONDARY }}><ShieldCheck size={12} /> Background checked</span> : null}
+            {publicSummary?.insured ? <span className="inline-flex items-center gap-1 text-[10px]" style={{ color: CSP_TEXT_SECONDARY }}><ShieldCheck size={12} /> Insured</span> : null}
+            {publicSummary?.platform_verified ? <span className="inline-flex items-center gap-1 text-[10px]" style={{ color: CSP_TEXT_SECONDARY }}><CheckCircle2 size={12} /> Cleanr verified</span> : null}
+            {(publicSummary?.repeat_household_count ?? 0) > 0 ? <span className="inline-flex items-center gap-1 text-[10px]" style={{ color: CSP_TEXT_SECONDARY }}><UsersRound size={12} /> Repeat relationships</span> : null}
+          </div>
+        ) : null}
 
         {editing ? (
           <div className="mt-5 space-y-3 border-t border-white/10 pt-4">
@@ -190,11 +208,11 @@ export function ProviderProfileEnrichmentCard() {
             <label className="block text-xs" style={{ color: CSP_TEXT_SECONDARY }}>A little about me<textarea value={bio} onChange={(e) => setBio(e.target.value)} maxLength={800} rows={4} placeholder="What should a household know about how you work and what you care about?" className="mt-1 w-full resize-none rounded-xl border-0 text-white" style={{ backgroundColor: CSP_INPUT, padding: "11px 12px" }} /></label>
             <label className="block text-xs" style={{ color: CSP_TEXT_SECONDARY }}>Years of cleaning experience<input type="number" min={0} max={80} value={yearsExperience} onChange={(e) => setYearsExperience(e.target.value)} className="mt-1 w-full rounded-xl border-0 text-white" style={{ backgroundColor: CSP_INPUT, padding: "11px 12px" }} /></label>
             <label className="block text-xs" style={{ color: CSP_TEXT_SECONDARY }}>Languages <span className="opacity-70">(comma separated)</span><input value={languages} onChange={(e) => setLanguages(e.target.value)} placeholder="English, Spanish" className="mt-1 w-full rounded-xl border-0 text-white" style={{ backgroundColor: CSP_INPUT, padding: "11px 12px" }} /></label>
-            <label className="block text-xs" style={{ color: CSP_TEXT_SECONDARY }}>Cleaning strengths / specialties <span className="opacity-70">(comma separated)</span><input value={specialties} onChange={(e) => setSpecialties(e.target.value)} placeholder="Deep cleans, kitchens, pet-friendly homes" className="mt-1 w-full rounded-xl border-0 text-white" style={{ backgroundColor: CSP_INPUT, padding: "11px 12px" }} /></label>
-            <label className="block text-xs" style={{ color: CSP_TEXT_SECONDARY }}>Areas I serve <span className="opacity-70">(display labels only)</span><input value={areas} onChange={(e) => setAreas(e.target.value)} placeholder="Decatur, East Atlanta, Kirkwood" className="mt-1 w-full rounded-xl border-0 text-white" style={{ backgroundColor: CSP_INPUT, padding: "11px 12px" }} /><span className="mt-1 block text-[10px] opacity-70">This describes your profile. Actual job eligibility still uses your ZIP + service radius.</span></label>
+            <label className="block text-xs" style={{ color: CSP_TEXT_SECONDARY }}>Cleaning strengths <span className="opacity-70">(comma separated)</span><input value={specialties} onChange={(e) => setSpecialties(e.target.value)} placeholder="Deep cleans, kitchens, pet-friendly homes" className="mt-1 w-full rounded-xl border-0 text-white" style={{ backgroundColor: CSP_INPUT, padding: "11px 12px" }} /></label>
+            <label className="block text-xs" style={{ color: CSP_TEXT_SECONDARY }}>Areas I serve <span className="opacity-70">(display only)</span><input value={areas} onChange={(e) => setAreas(e.target.value)} placeholder="Decatur, East Atlanta, Kirkwood" className="mt-1 w-full rounded-xl border-0 text-white" style={{ backgroundColor: CSP_INPUT, padding: "11px 12px" }} /><span className="mt-1 block text-[10px] opacity-70">Actual job eligibility still uses your ZIP + service radius.</span></label>
             {message ? <p className="text-xs text-emerald-300">{message}</p> : null}
             <div className="flex gap-2">
-              <button type="button" disabled={saving} onClick={() => void handleSave()} className="flex-1 rounded-xl py-3 text-sm font-semibold text-white disabled:opacity-50" style={{ backgroundColor: CSP_PRIMARY_BUTTON }}>{saving ? "Saving…" : "Save customer-facing profile"}</button>
+              <button type="button" disabled={saving} onClick={() => void handleSave()} className="flex-1 rounded-xl py-3 text-sm font-semibold text-white disabled:opacity-50" style={{ backgroundColor: CSP_PRIMARY_BUTTON }}>{saving ? "Saving…" : "Save profile"}</button>
               <button type="button" disabled={saving} onClick={() => setEditing(false)} className="rounded-xl px-4 py-3 text-sm font-semibold" style={{ backgroundColor: CSP_INPUT, color: CSP_TEXT_PRIMARY }}>Cancel</button>
             </div>
           </div>

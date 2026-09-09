@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { ChevronRight } from "lucide-react";
 import { useProfile } from "../../../lib/useProfile";
 import { supabase } from "../../../lib/supabase";
 import BottomSheet, { type Snap } from "../../../components/ui/BottomSheet";
@@ -7,11 +8,8 @@ import Toggle from "../../../components/ui/Toggle";
 import { ContinuumParticipationCard } from "../../../components/continuum/ContinuumParticipationCard";
 import {
   CSP_BACKGROUND,
-  CSP_SURFACE,
   CSP_INPUT,
-  CSP_CARD_PADDING,
   CSP_PRIMARY_BUTTON,
-  CSP_SECTION_GAP,
   CSP_TEXT_PRIMARY,
   CSP_TEXT_SECONDARY,
 } from "@/theme/cspTheme";
@@ -33,74 +31,82 @@ type ProviderPreferences = {
   updated_at: string;
 };
 
+function defaultPreferences(providerId: string): ProviderPreferences {
+  return {
+    provider_id: providerId,
+    accepts_recurring: true,
+    accepts_premium: true,
+    max_jobs_per_day: 3,
+    preferred_arrival_windows: [],
+    preferred_service_types: [],
+    updated_at: new Date().toISOString(),
+  };
+}
+
+function SettingRow({
+  label,
+  value,
+  onClick,
+}: {
+  label: string;
+  value: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex w-full items-center justify-between gap-4 border-b border-white/10 py-4 text-left last:border-b-0"
+    >
+      <div className="min-w-0">
+        <p className="text-sm font-medium" style={{ color: CSP_TEXT_PRIMARY }}>{label}</p>
+        <p className="mt-1 truncate text-xs" style={{ color: CSP_TEXT_SECONDARY }}>{value}</p>
+      </div>
+      <ChevronRight className="h-4 w-4 shrink-0" style={{ color: CSP_TEXT_SECONDARY }} />
+    </button>
+  );
+}
+
 export default function ProfileScreen() {
   const navigate = useNavigate();
   const { profile, refresh } = useProfile();
-  const [editing, setEditing] = useState(false);
-  const [saving, setSaving] = useState(false);
+  const [editingArea, setEditingArea] = useState(false);
+  const [savingArea, setSavingArea] = useState(false);
   const [workSettingsOpen, setWorkSettingsOpen] = useState(false);
   const [sheetSnap, setSheetSnap] = useState<Snap>("medium");
   const [preferencesLoading, setPreferencesLoading] = useState(true);
   const [preferencesSaving, setPreferencesSaving] = useState(false);
-  const [preferencesError, setPreferencesError] = useState<string | null>(null);
-  const [scheduleSummaryLoading, setScheduleSummaryLoading] = useState(true);
-  const [hasWeeklyAvailability, setHasWeeklyAvailability] = useState(false);
-  const [scheduleSummaryError, setScheduleSummaryError] = useState<string | null>(null);
-  const [toast, setToast] = useState<string | null>(null);
   const [preferences, setPreferences] = useState<ProviderPreferences | null>(null);
   const [draftPreferences, setDraftPreferences] = useState<ProviderPreferences | null>(null);
-
+  const [scheduleSummaryLoading, setScheduleSummaryLoading] = useState(true);
+  const [hasWeeklyAvailability, setHasWeeklyAvailability] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
   const [zip, setZip] = useState(profile?.zip_code ?? "");
-  const [radius, setRadius] = useState(
-    clampServiceRadiusMiles(profile?.service_radius_miles ?? 10) ?? 10
-  );
+  const [radius, setRadius] = useState(clampServiceRadiusMiles(profile?.service_radius_miles ?? 10) ?? 10);
 
   const loadPreferences = useCallback(async () => {
     if (!profile?.id) return;
     setPreferencesLoading(true);
-    setPreferencesError(null);
-
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const { data: { user } } = await supabase.auth.getUser();
     if (!user?.id) {
       setPreferencesLoading(false);
       return;
     }
 
-    const fetchPreferences = async () =>
-      supabase
-        .from("provider_preferences")
-        .select("*")
-        .eq("provider_id", user.id)
-        .single();
+    const { data, error } = await supabase
+      .from("provider_preferences")
+      .select("*")
+      .eq("provider_id", user.id)
+      .maybeSingle();
 
-    let { data, error } = await fetchPreferences();
-    if (error && (error.code === "PGRST116" || error.message.toLowerCase().includes("0 rows"))) {
-      const { error: insertError } = await supabase.from("provider_preferences").insert({
-        provider_id: user.id,
-        accepts_recurring: true,
-        accepts_premium: true,
-        max_jobs_per_day: 3,
-        preferred_arrival_windows: [],
-        preferred_service_types: [],
-      });
-      if (!insertError) {
-        const refetch = await fetchPreferences();
-        data = refetch.data;
-        error = refetch.error;
-      } else {
-        error = insertError;
-      }
-    }
-
-    if (error) {
-      setPreferences(null);
-      setPreferencesError(error.message);
-    } else {
-      const normalized = (data as ProviderPreferences) ?? null;
+    if (!error && data) {
+      const normalized = data as ProviderPreferences;
       setPreferences(normalized);
       setDraftPreferences(normalized);
+    } else {
+      const fallback = defaultPreferences(profile.id);
+      setPreferences(fallback);
+      setDraftPreferences(fallback);
     }
     setPreferencesLoading(false);
   }, [profile?.id]);
@@ -108,12 +114,7 @@ export default function ProfileScreen() {
   const loadScheduleSummary = useCallback(async () => {
     if (!profile?.id) return;
     setScheduleSummaryLoading(true);
-    setScheduleSummaryError(null);
-
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
+    const { data: { user } } = await supabase.auth.getUser();
     if (!user?.id) {
       setScheduleSummaryLoading(false);
       return;
@@ -125,12 +126,7 @@ export default function ProfileScreen() {
       .eq("provider_id", user.id)
       .eq("active", true);
 
-    if (error) {
-      setScheduleSummaryError(error.message);
-      setHasWeeklyAvailability(false);
-    } else {
-      setHasWeeklyAvailability((count ?? 0) > 0);
-    }
+    setHasWeeklyAvailability(!error && (count ?? 0) > 0);
     setScheduleSummaryLoading(false);
   }, [profile?.id]);
 
@@ -140,65 +136,78 @@ export default function ProfileScreen() {
   }, [loadPreferences, loadScheduleSummary]);
 
   if (!profile) return null;
+  const currentProfile = profile;
 
-  const applicationApproved = (profile.application_status ?? "").toLowerCase() === "approved";
-  const payoutReady = profile.stripe_connect_ready === true && Boolean(profile.stripe_connect_account_id?.trim());
+  const applicationApproved = (currentProfile.application_status ?? "").toLowerCase() === "approved";
+  const payoutReady = currentProfile.stripe_connect_ready === true && Boolean(currentProfile.stripe_connect_account_id?.trim());
+  const verificationSummary = applicationApproved
+    ? "Application approved"
+    : currentProfile.application_status
+      ? `Application ${currentProfile.application_status.replaceAll("_", " ")}`
+      : "Application not started";
+  const payoutSummary = payoutReady
+    ? "Stripe connected"
+    : applicationApproved
+      ? "Stripe setup required"
+      : "Available after approval";
+  const workSummary = preferencesLoading
+    ? "Loading…"
+    : `${preferences?.accepts_recurring ? "Recurring on" : "Recurring off"} · ${preferences?.max_jobs_per_day ?? 3}/day`;
+  const scheduleSummary = scheduleSummaryLoading
+    ? "Loading…"
+    : hasWeeklyAvailability
+      ? "Weekly availability set"
+      : "Weekly availability not set";
 
-  async function handleSave() {
-    if (!profile) return;
+  async function handleSaveArea() {
     const clampedRadius = clampServiceRadiusMiles(radius) ?? SERVICE_RADIUS_MILES_MIN;
     if (!isValidServiceRadiusMiles(radius)) {
-      setToast(`Service radius must be between ${SERVICE_RADIUS_MILES_MIN} and ${SERVICE_RADIUS_MILES_MAX} miles. Value was clamped.`);
+      setToast(`Service radius must be between ${SERVICE_RADIUS_MILES_MIN} and ${SERVICE_RADIUS_MILES_MAX} miles.`);
+      return;
     }
-    setSaving(true);
-    const durableName =
-      profile.full_name?.trim() ||
-      [profile.first_name, profile.last_name].filter(Boolean).join(" ").trim();
+
+    setSavingArea(true);
+    const durableName = currentProfile.full_name?.trim() || [currentProfile.first_name, currentProfile.last_name].filter(Boolean).join(" ").trim();
     const rpcArgs = {
       p_full_name: durableName,
-      p_phone: profile.phone?.trim() || null,
+      p_phone: currentProfile.phone?.trim() || null,
       p_zip: zip.trim(),
       p_service_radius_miles: clampedRadius,
     };
     const traceRpc = await traceProfileWriteStart({
       source: "ProfileScreen.handleSave:update_provider_profile_self_service",
       operation: "rpc",
-      targetId: profile.id,
+      targetId: currentProfile.id,
       payload: rpcArgs,
       pathname: "/csp/dashboard/profile",
       cspFlowState: {
-        is_onboarded: profile.is_onboarded,
-        application_status: profile.application_status,
+        is_onboarded: currentProfile.is_onboarded,
+        application_status: currentProfile.application_status,
       },
     });
     const rpcResult = await supabase.rpc("update_provider_profile_self_service", rpcArgs);
     traceProfileWriteResult(traceRpc, rpcResult);
-    const { error } = rpcResult;
-    if (error) {
-      setSaving(false);
-      setToast(error.message);
+    setSavingArea(false);
+
+    if (rpcResult.error) {
+      setToast("Could not update service area.");
       return;
     }
     await refresh();
-    setSaving(false);
-    setEditing(false);
+    setEditingArea(false);
     setToast("Service area updated");
     window.setTimeout(() => setToast(null), 2200);
   }
 
   async function handleSavePreferences() {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const { data: { user } } = await supabase.auth.getUser();
     if (!user?.id || !draftPreferences) return;
 
     const safeMaxJobs = Number.isFinite(draftPreferences.max_jobs_per_day)
-      ? Math.max(1, Math.round(draftPreferences.max_jobs_per_day))
-      : 1;
+      ? Math.max(1, Math.min(20, Math.round(draftPreferences.max_jobs_per_day)))
+      : 3;
 
     setPreferencesSaving(true);
-    setPreferencesError(null);
-
     const { error } = await supabase.from("provider_preferences").upsert({
       provider_id: user.id,
       accepts_recurring: draftPreferences.accepts_recurring,
@@ -206,10 +215,10 @@ export default function ProfileScreen() {
       max_jobs_per_day: safeMaxJobs,
       updated_at: new Date().toISOString(),
     });
-
     setPreferencesSaving(false);
+
     if (error) {
-      setPreferencesError(error.message);
+      setToast("Work settings could not be updated.");
       return;
     }
 
@@ -224,127 +233,108 @@ export default function ProfileScreen() {
   }
 
   return (
-    <div
-      className="min-h-screen px-4 pt-6 pb-24"
-      style={{ backgroundColor: CSP_BACKGROUND, color: CSP_TEXT_PRIMARY }}
-    >
-      <header style={{ marginBottom: CSP_SECTION_GAP }}>
-        <h1 className="text-2xl font-semibold">Service settings</h1>
-        <p className="text-sm mt-2" style={{ color: CSP_TEXT_SECONDARY }}>
-          Manage where and how you work, verification, and payouts.
-        </p>
-      </header>
-
+    <div className="min-h-screen px-4 pb-24 pt-2" style={{ backgroundColor: CSP_BACKGROUND, color: CSP_TEXT_PRIMARY }}>
       {toast ? (
-        <div
-          className="mb-4 rounded-xl border px-3 py-2 text-sm"
-          style={{
-            backgroundColor: "rgba(141, 204, 100, 0.12)",
-            borderColor: "rgba(141, 204, 100, 0.4)",
-            color: CSP_TEXT_PRIMARY,
-          }}
-        >
-          {toast}
-        </div>
+        <div className="mb-4 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm">{toast}</div>
       ) : null}
 
-      <section style={{ marginBottom: CSP_SECTION_GAP }}>
-        <h2 className="text-sm font-medium mb-3" style={{ color: CSP_TEXT_SECONDARY }}>Service Area</h2>
-        <div className="rounded-2xl border" style={{ backgroundColor: CSP_SURFACE, padding: CSP_CARD_PADDING, borderColor: "rgba(248, 250, 252, 0.08)" }}>
-          {editing ? (
-            <div className="flex flex-col gap-3">
-              <div>
-                <label className="block text-xs mb-1" style={{ color: CSP_TEXT_SECONDARY }}>ZIP code</label>
-                <input type="text" value={zip} onChange={(e) => setZip(e.target.value)} placeholder="ZIP code" className="w-full rounded-xl border-0 text-white placeholder:opacity-60 focus:ring-2 focus:ring-offset-0 focus:ring-white/30" style={{ backgroundColor: CSP_INPUT, padding: "12px 14px" }} />
-              </div>
-              <div>
-                <label className="block text-xs mb-1" style={{ color: CSP_TEXT_SECONDARY }}>Radius (miles)</label>
-                <input type="number" min={SERVICE_RADIUS_MILES_MIN} max={SERVICE_RADIUS_MILES_MAX} value={radius} onChange={(e) => { const next = Number(e.target.value); if (!Number.isFinite(next)) return; setRadius(clampServiceRadiusMiles(next) ?? SERVICE_RADIUS_MILES_MIN); }} className="w-full rounded-xl border-0 text-white focus:ring-2 focus:ring-offset-0 focus:ring-white/30" style={{ backgroundColor: CSP_INPUT, padding: "12px 14px" }} />
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-1"><p>ZIP: {profile.zip_code ?? "—"}</p><p className="text-sm" style={{ color: CSP_TEXT_SECONDARY }}>Radius: {profile.service_radius_miles ?? "—"} miles</p></div>
-          )}
-        </div>
-      </section>
-
-      <section style={{ marginBottom: CSP_SECTION_GAP }}>
-        <h2 className="text-sm font-medium mb-3" style={{ color: CSP_TEXT_SECONDARY }}>Work Settings</h2>
-        <div className="rounded-2xl border" style={{ backgroundColor: CSP_SURFACE, padding: CSP_CARD_PADDING, borderColor: "rgba(248, 250, 252, 0.08)" }}>
-          <p className="text-sm" style={{ color: CSP_TEXT_SECONDARY }}>Control the types of jobs you receive.</p>
-          <div className="mt-3 space-y-1">
-            {preferencesLoading ? <p className="text-sm" style={{ color: CSP_TEXT_SECONDARY }}>Loading work settings...</p> : preferencesError ? <p className="text-sm" style={{ color: CSP_TEXT_SECONDARY }}>Work settings unavailable: {preferencesError}</p> : <><p className="text-sm" style={{ color: CSP_TEXT_SECONDARY }}>{preferences?.accepts_recurring ? "Accepts recurring clients" : "Recurring clients paused"}</p><p className="text-sm" style={{ color: CSP_TEXT_SECONDARY }}>{preferences?.accepts_premium ? "Eligible for premium bookings" : "Premium bookings paused"}</p><p className="text-sm" style={{ color: CSP_TEXT_SECONDARY }}>Max {preferences?.max_jobs_per_day ?? 3} jobs per day</p></>}
-          </div>
-          <button type="button" className="w-full mt-4 py-3 rounded-xl font-medium text-sm transition-opacity hover:opacity-90 active:opacity-85" style={{ backgroundColor: CSP_INPUT, color: CSP_TEXT_PRIMARY, border: "1px solid rgba(248, 250, 252, 0.08)" }} onClick={() => { setDraftPreferences(preferences ?? { provider_id: profile.id, accepts_recurring: true, accepts_premium: true, max_jobs_per_day: 3, preferred_arrival_windows: [], preferred_service_types: [], updated_at: new Date().toISOString() }); setSheetSnap("medium"); setWorkSettingsOpen(true); }}>Edit Work Settings</button>
-        </div>
-      </section>
-
-      <section style={{ marginBottom: CSP_SECTION_GAP }}>
-        <h2 className="text-sm font-medium mb-3" style={{ color: CSP_TEXT_SECONDARY }}>Schedule</h2>
-        <div className="rounded-2xl border" style={{ backgroundColor: CSP_SURFACE, padding: CSP_CARD_PADDING, borderColor: "rgba(248, 250, 252, 0.08)" }}>
-          <p className="text-sm" style={{ color: CSP_TEXT_SECONDARY }}>{scheduleSummaryLoading ? "Loading schedule..." : scheduleSummaryError ? "Schedule unavailable" : hasWeeklyAvailability ? "Weekly availability set" : "Not set"}</p>
-          <div className="mt-4 flex flex-col gap-2">
-            <button type="button" onClick={() => navigate("/csp/dashboard/calendar?tab=availability")} className="w-full py-3 rounded-xl font-medium text-sm transition-opacity hover:opacity-90 active:opacity-85" style={{ backgroundColor: CSP_INPUT, color: CSP_TEXT_PRIMARY, border: "1px solid rgba(248, 250, 252, 0.08)" }}>Edit weekly availability</button>
-            <button type="button" onClick={() => navigate("/csp/dashboard/calendar")} className="w-full py-3 rounded-xl font-medium text-sm transition-opacity hover:opacity-90 active:opacity-85" style={{ backgroundColor: CSP_INPUT, color: CSP_TEXT_PRIMARY, border: "1px solid rgba(248, 250, 252, 0.08)" }}>View calendar</button>
+      <section className="mb-7">
+        <div className="mb-2 flex items-center justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-semibold">Service settings</h2>
+            <p className="mt-1 text-xs" style={{ color: CSP_TEXT_SECONDARY }}>The practical settings that control how you work.</p>
           </div>
         </div>
-      </section>
 
-      <section style={{ marginBottom: CSP_SECTION_GAP }}>
-        <h2 className="text-sm font-medium mb-3" style={{ color: CSP_TEXT_SECONDARY }}>Verification Status</h2>
-        <div className="rounded-2xl border space-y-1" style={{ backgroundColor: CSP_SURFACE, padding: CSP_CARD_PADDING, borderColor: "rgba(248, 250, 252, 0.08)" }}>
-          <p className="text-sm" style={{ color: CSP_TEXT_SECONDARY }}>Customers trust verified pros.</p>
-          <p className="text-sm" style={{ color: CSP_TEXT_SECONDARY }}>Verification supports trust and access to eligible opportunities.</p>
-          <p className="text-sm">Application: <span style={{ color: CSP_TEXT_SECONDARY }}>{profile.application_status ?? "draft"}</span></p>
-          <p className="text-sm">Insurance (optional): <span style={{ color: CSP_TEXT_SECONDARY }}>{profile.insurance_status ?? "not_started"}</span></p>
-          <p className="text-sm">Identity: <span style={{ color: CSP_TEXT_SECONDARY }}>{profile.identity_status ?? "not_started"}</span></p>
+        <div className="border-y border-white/10">
+          <SettingRow
+            label="Service area"
+            value={currentProfile.zip_code ? `ZIP ${currentProfile.zip_code} · ${currentProfile.service_radius_miles ?? radius} mi radius` : "Not set"}
+            onClick={() => {
+              setZip(currentProfile.zip_code ?? "");
+              setRadius(clampServiceRadiusMiles(currentProfile.service_radius_miles ?? 10) ?? 10);
+              setEditingArea(true);
+            }}
+          />
+          <SettingRow
+            label="Work preferences"
+            value={workSummary}
+            onClick={() => {
+              setDraftPreferences(preferences ?? defaultPreferences(currentProfile.id));
+              setSheetSnap("medium");
+              setWorkSettingsOpen(true);
+            }}
+          />
+          <SettingRow label="Calendar & availability" value={scheduleSummary} onClick={() => navigate("/csp/dashboard/calendar")} />
+          <SettingRow label="Verification" value={verificationSummary} onClick={() => navigate("/csp/dashboard/application-status")} />
+          <SettingRow label="Payouts" value={payoutSummary} onClick={() => navigate("/csp/dashboard/application/payout-setup")} />
         </div>
       </section>
 
-      <section style={{ marginBottom: CSP_SECTION_GAP }}>
-        <h2 className="text-sm font-medium mb-3" style={{ color: CSP_TEXT_SECONDARY }}>Payout Setup (Stripe)</h2>
-        <div className="rounded-2xl border" style={{ backgroundColor: CSP_SURFACE, padding: CSP_CARD_PADDING, borderColor: "rgba(248, 250, 252, 0.08)" }}>
-          {payoutReady ? (
-            <>
-              <p className="text-sm font-medium">Stripe payout setup complete</p>
-              <p className="mt-1 text-sm" style={{ color: CSP_TEXT_SECONDARY }}>
-                Your payout account is connected and ready.
-              </p>
-              <button type="button" onClick={() => navigate("/csp/dashboard/application/payout-setup")} className="mt-4 w-full py-3 rounded-xl font-medium text-sm transition-opacity hover:opacity-90 active:opacity-85" style={{ backgroundColor: CSP_INPUT, color: CSP_TEXT_PRIMARY, border: "1px solid rgba(248, 250, 252, 0.08)" }}>
-                View payout setup
-              </button>
-            </>
-          ) : applicationApproved ? (
-            <>
-              <p className="text-sm font-medium">Connect Stripe to receive payouts</p>
-              <p className="mt-1 text-sm" style={{ color: CSP_TEXT_SECONDARY }}>
-                Your application is approved. Complete Stripe payout setup to finish activation.
-              </p>
-              <button type="button" onClick={() => navigate("/csp/dashboard/application/payout-setup")} className="mt-4 w-full py-3 rounded-xl font-semibold text-sm text-white transition-opacity hover:opacity-90 active:opacity-85" style={{ backgroundColor: CSP_PRIMARY_BUTTON }}>
-                Connect with Stripe
-              </button>
-            </>
-          ) : (
-            <p className="text-sm" style={{ color: CSP_TEXT_SECONDARY }}>
-              Stripe payout setup unlocks after your application is approved.
-            </p>
-          )}
-        </div>
-      </section>
+      {editingArea ? (
+        <section className="mb-7 rounded-2xl border border-white/10 bg-white/5 p-4">
+          <div className="mb-4 flex items-center justify-between">
+            <h3 className="text-sm font-semibold">Edit service area</h3>
+            <button type="button" className="text-xs" style={{ color: CSP_TEXT_SECONDARY }} onClick={() => setEditingArea(false)}>Cancel</button>
+          </div>
+          <div className="space-y-3">
+            <label className="block text-xs" style={{ color: CSP_TEXT_SECONDARY }}>
+              ZIP code
+              <input
+                type="text"
+                value={zip}
+                onChange={(e) => setZip(e.target.value.replace(/\D/g, "").slice(0, 5))}
+                inputMode="numeric"
+                className="mt-1 w-full rounded-xl border border-white/10 px-3 py-3 text-white outline-none"
+                style={{ backgroundColor: CSP_INPUT }}
+              />
+            </label>
+            <label className="block text-xs" style={{ color: CSP_TEXT_SECONDARY }}>
+              Service radius
+              <div className="mt-2 flex items-center gap-3">
+                <input
+                  type="range"
+                  min={SERVICE_RADIUS_MILES_MIN}
+                  max={SERVICE_RADIUS_MILES_MAX}
+                  value={radius}
+                  onChange={(e) => setRadius(clampServiceRadiusMiles(Number(e.target.value)) ?? SERVICE_RADIUS_MILES_MIN)}
+                  className="flex-1 accent-[#0A84FF]"
+                />
+                <span className="w-14 text-right text-sm font-semibold">{radius} mi</span>
+              </div>
+            </label>
+            <button type="button" onClick={() => void handleSaveArea()} disabled={savingArea} className="w-full rounded-xl py-3 text-sm font-semibold text-white disabled:opacity-50" style={{ backgroundColor: CSP_PRIMARY_BUTTON }}>
+              {savingArea ? "Saving…" : "Save service area"}
+            </button>
+          </div>
+        </section>
+      ) : null}
 
-      <ContinuumParticipationCard />
+      <details className="mb-7 border-y border-white/10 py-4">
+        <summary className="cursor-pointer list-none text-sm font-semibold">How I participate beyond cleaning</summary>
+        <p className="mt-1 text-xs" style={{ color: CSP_TEXT_SECONDARY }}>Optional roles and ways you may contribute over time.</p>
+        <div className="mt-4"><ContinuumParticipationCard /></div>
+      </details>
 
-      <div className="flex flex-col gap-3" style={{ marginTop: CSP_SECTION_GAP }}>
-        {editing ? <button type="button" onClick={handleSave} disabled={saving} className="w-full py-3 rounded-xl font-semibold text-sm text-white transition-opacity hover:opacity-90 active:opacity-85 disabled:opacity-50" style={{ backgroundColor: CSP_PRIMARY_BUTTON }}>{saving ? "Saving…" : "Save Service Area"}</button> : <button type="button" onClick={() => { setZip(profile?.zip_code ?? ""); setRadius(clampServiceRadiusMiles(profile?.service_radius_miles ?? 10) ?? 10); setEditing(true); }} className="w-full py-3 rounded-xl font-medium text-sm transition-opacity hover:opacity-90 active:opacity-85" style={{ backgroundColor: CSP_SURFACE, color: CSP_TEXT_PRIMARY, border: "1px solid rgba(248, 250, 252, 0.08)" }}>Edit Service Area</button>}
-        <button type="button" onClick={handleSignOut} className="py-2 text-sm font-medium transition-opacity hover:opacity-80" style={{ color: CSP_TEXT_SECONDARY }}>Sign Out</button>
-      </div>
+      <button type="button" onClick={() => void handleSignOut()} className="w-full py-3 text-sm font-medium" style={{ color: CSP_TEXT_SECONDARY }}>Sign out</button>
 
-      <BottomSheet open={workSettingsOpen} onClose={() => setWorkSettingsOpen(false)} snap={sheetSnap} setSnap={setSheetSnap} title="Edit Work Settings" subtitle="Control the types of jobs you receive." tone="dark">
-        <div className="px-6 pt-6 pb-[calc(24px+env(safe-area-inset-bottom))] space-y-6">
-          <div className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-4 py-4"><div className="pr-4"><p className="text-sm font-semibold text-white">Accept Recurring Clients</p><p className="mt-1 text-xs text-white/60">Allow weekly and bi-weekly maintenance bookings.</p></div><Toggle checked={Boolean(draftPreferences?.accepts_recurring)} onChange={(val) => setDraftPreferences((prev) => (prev ? { ...prev, accepts_recurring: val } : prev))} disabled={preferencesSaving} tone="dark" /></div>
-          <div className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-4 py-4"><div className="pr-4"><p className="text-sm font-semibold text-white">Accept Premium Jobs</p><p className="mt-1 text-xs text-white/60">Higher-value bookings for verified providers.</p></div><Toggle checked={Boolean(draftPreferences?.accepts_premium)} onChange={(val) => setDraftPreferences((prev) => (prev ? { ...prev, accepts_premium: val } : prev))} disabled={preferencesSaving} tone="dark" /></div>
-          <div className="space-y-3 rounded-xl border border-white/10 bg-white/5 px-4 py-4"><div><p className="text-sm font-semibold text-white">Max Jobs Per Day</p><p className="mt-1 text-xs text-white/60">Limit the number of bookings you receive per day.</p></div><input type="number" min={1} value={draftPreferences?.max_jobs_per_day ?? 3} onChange={(e) => setDraftPreferences((prev) => prev ? { ...prev, max_jobs_per_day: Number(e.target.value) } : prev)} className="w-full rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500" /></div>
-          <button type="button" onClick={() => void handleSavePreferences()} disabled={preferencesSaving} className="mt-2 w-full rounded-xl py-3 font-semibold text-white transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60" style={{ backgroundColor: CSP_PRIMARY_BUTTON }}>{preferencesSaving ? "Saving..." : "Save Changes"}</button>
+      <BottomSheet open={workSettingsOpen} onClose={() => setWorkSettingsOpen(false)} snap={sheetSnap} setSnap={setSheetSnap} title="Work preferences" subtitle="Choose the kinds and amount of work that fit your practice." tone="dark">
+        <div className="space-y-5 px-6 pb-[calc(24px+env(safe-area-inset-bottom))] pt-6">
+          <div className="flex items-center justify-between border-b border-white/10 pb-4">
+            <div className="pr-4"><p className="text-sm font-semibold text-white">Recurring clients</p><p className="mt-1 text-xs text-white/60">Allow repeat maintenance bookings.</p></div>
+            <Toggle checked={Boolean(draftPreferences?.accepts_recurring)} onChange={(val) => setDraftPreferences((prev) => prev ? { ...prev, accepts_recurring: val } : prev)} disabled={preferencesSaving} tone="dark" />
+          </div>
+          <div className="flex items-center justify-between border-b border-white/10 pb-4">
+            <div className="pr-4"><p className="text-sm font-semibold text-white">Premium bookings</p><p className="mt-1 text-xs text-white/60">Allow higher-value eligible booking types.</p></div>
+            <Toggle checked={Boolean(draftPreferences?.accepts_premium)} onChange={(val) => setDraftPreferences((prev) => prev ? { ...prev, accepts_premium: val } : prev)} disabled={preferencesSaving} tone="dark" />
+          </div>
+          <label className="block text-sm font-semibold text-white">
+            Max jobs per day
+            <input type="number" min={1} max={20} value={draftPreferences?.max_jobs_per_day ?? 3} onChange={(e) => setDraftPreferences((prev) => prev ? { ...prev, max_jobs_per_day: Number(e.target.value) } : prev)} className="mt-2 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-white outline-none" />
+          </label>
+          <button type="button" onClick={() => void handleSavePreferences()} disabled={preferencesSaving} className="w-full rounded-xl py-3 text-sm font-semibold text-white disabled:opacity-60" style={{ backgroundColor: CSP_PRIMARY_BUTTON }}>
+            {preferencesSaving ? "Saving…" : "Save work preferences"}
+          </button>
         </div>
       </BottomSheet>
     </div>
