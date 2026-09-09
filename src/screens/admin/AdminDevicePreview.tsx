@@ -1,8 +1,12 @@
 import { useEffect, useMemo, useRef, type MouseEvent } from "react";
-import { Outlet, useLocation } from "react-router-dom";
+import { Navigate, Outlet, useLocation } from "react-router-dom";
 
 function devicePathFromInspector(pathname: string): string {
   return pathname.replace(/^\/admin\/full-app/, "/admin/device");
+}
+
+function inspectorPathFromDevice(pathname: string): string {
+  return pathname.replace(/^\/admin\/device/, "/admin/full-app");
 }
 
 export function AdminIframePreviewFrame() {
@@ -10,7 +14,7 @@ export function AdminIframePreviewFrame() {
   const surface = location.pathname.includes("/customer")
     ? "Customer app"
     : location.pathname.includes("/csp")
-      ? "CSP app"
+      ? "Provider app"
       : "Public / booking";
 
   const src = useMemo(
@@ -57,7 +61,12 @@ function resolvesToLockedPath(value: unknown, lockedPath: string): boolean {
 }
 
 export function AdminDeviceSurface() {
+  const location = useLocation();
   const lockedPathRef = useRef(window.location.pathname);
+
+  if (window.self === window.top) {
+    return <Navigate to={`${inspectorPathFromDevice(location.pathname)}${location.search}`} replace />;
+  }
 
   useEffect(() => {
     const lockedPath = lockedPathRef.current;
