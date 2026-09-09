@@ -1,6 +1,6 @@
 /**
  * Post-checkout booking acknowledgment screen.
- * Stripe/webhook state remains payment truth; this screen only reads it.
+ * Stripe/webhook state remains payment truth; provider assignment remains separate.
  */
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
@@ -47,7 +47,11 @@ export default function BookingConfirmation() {
   }, [bookingId, navigate]);
 
   useEffect(() => {
-    if (!bookingId || !booking || bookingHasCapturedPaymentTruth(booking)) return;
+    if (!bookingId || !booking) return;
+    const paymentCaptured = bookingHasCapturedPaymentTruth(booking);
+    const assignmentComplete = Boolean(booking.provider_id);
+    if (paymentCaptured && assignmentComplete) return;
+
     let mounted = true;
     const intervalId = window.setInterval(() => {
       void getBooking(bookingId).then((latest) => { if (mounted && latest) setBooking(latest); });
@@ -86,6 +90,8 @@ export default function BookingConfirmation() {
   }
 
   const paymentConfirmed = bookingHasCapturedPaymentTruth(booking);
+  const providerAssigned = Boolean(booking.provider_id);
+  const fullyScheduled = paymentConfirmed && providerAssigned;
 
   return (
     <div className="mx-auto min-h-screen max-w-[480px] bg-[#F7F8FB] px-5 py-10 text-[#0B1220]">
@@ -95,14 +101,26 @@ export default function BookingConfirmation() {
             <CheckCircle2 className="h-6 w-6" />
           </div>
         ) : null}
-        <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#667085]">{paymentConfirmed ? "Booked" : "Payment pending"}</p>
-        <h1 className="mt-2 text-2xl font-semibold tracking-[-0.025em]">{paymentConfirmed ? "Your cleaning is confirmed." : paymentCancelled ? "Your booking is saved." : "We're confirming payment."}</h1>
+        <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#667085]">
+          {fullyScheduled ? "Booked" : paymentConfirmed ? "Payment confirmed" : "Payment pending"}
+        </p>
+        <h1 className="mt-2 text-2xl font-semibold tracking-[-0.025em]">
+          {fullyScheduled
+            ? "Your cleaning is confirmed."
+            : paymentConfirmed
+              ? "Your booking is paid. We're confirming your CSP."
+              : paymentCancelled
+                ? "Your booking is saved."
+                : "We're confirming payment."}
+        </h1>
         <p className="mt-2 text-sm leading-6 text-[#667085]">
-          {paymentConfirmed
+          {fullyScheduled
             ? "We'll keep the visit, CSP, messages, and updates together in Cleanr."
-            : paymentCancelled
-              ? "Payment wasn't completed, so this visit is not confirmed yet."
-              : "Stripe is still processing. This page will update when payment is recorded."}
+            : paymentConfirmed
+              ? "Your visit is secured. New marketplace work becomes scheduled when a CSP accepts it; an existing relationship is reconciled to the CSP you already chose."
+              : paymentCancelled
+                ? "Payment wasn't completed, so this visit is not confirmed yet."
+                : "Stripe is still processing. This page will update when payment is recorded."}
         </p>
       </header>
 
@@ -110,6 +128,11 @@ export default function BookingConfirmation() {
         <div className="mb-5 border-y border-amber-200 bg-amber-50 py-3 text-xs leading-5 text-amber-900">
           <span className="font-semibold">Payment: {paymentCancelled ? "Canceled" : "Pending"}.</span>{" "}
           {paymentCancelled ? "Return to booking when you're ready to finish checkout." : "Don't create another booking while this payment is processing."}
+        </div>
+      ) : !providerAssigned ? (
+        <div className="mb-5 border-y border-blue-200 bg-blue-50 py-3 text-xs leading-5 text-blue-900">
+          <span className="font-semibold">CSP confirmation is pending.</span>{" "}
+          Your payment is recorded. We'll update this booking when the CSP is confirmed.
         </div>
       ) : null}
 
