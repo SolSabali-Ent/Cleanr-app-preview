@@ -63,12 +63,11 @@ function resolvesToLockedPath(value: unknown, lockedPath: string): boolean {
 export function AdminDeviceSurface() {
   const location = useLocation();
   const lockedPathRef = useRef(window.location.pathname);
-
-  if (window.self === window.top) {
-    return <Navigate to={`${inspectorPathFromDevice(location.pathname)}${location.search}`} replace />;
-  }
+  const embedded = window.self !== window.top;
 
   useEffect(() => {
+    if (!embedded) return undefined;
+
     const lockedPath = lockedPathRef.current;
     const originalPushState = window.history.pushState.bind(window.history);
     const originalReplaceState = window.history.replaceState.bind(window.history);
@@ -97,7 +96,7 @@ export function AdminDeviceSurface() {
       window.history.forward = originalForward as History["forward"];
       window.history.go = originalGo as History["go"];
     };
-  }, []);
+  }, [embedded]);
 
   const handleClickCapture = (event: MouseEvent<HTMLDivElement>) => {
     const target = event.target as HTMLElement | null;
@@ -109,6 +108,10 @@ export function AdminDeviceSurface() {
       event.stopPropagation();
     }
   };
+
+  if (!embedded) {
+    return <Navigate to={`${inspectorPathFromDevice(location.pathname)}${location.search}`} replace />;
+  }
 
   return (
     <div className="min-h-screen" onClickCapture={handleClickCapture}>
