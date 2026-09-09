@@ -13,10 +13,10 @@ import { traceProfileWriteStart, traceProfileWriteResult } from "@/lib/debug/pro
 const NEXT_STEP_PATH = "/csp/dashboard/verification";
 
 const TRANSPORT_OPTIONS: { value: string; label: string }[] = [
-  { value: "personal_vehicle", label: "Personal vehicle" },
+  { value: "personal_vehicle", label: "My own car" },
   { value: "rideshare", label: "Rideshare" },
-  { value: "public_transit", label: "Public transit" },
-  { value: "mixed", label: "Mixed" },
+  { value: "public_transit", label: "Bus or train" },
+  { value: "mixed", label: "A mix" },
   { value: "other", label: "Other" },
 ];
 
@@ -92,22 +92,22 @@ export default function TransportationReadinessScreen() {
     <div className="min-h-screen px-4 py-8" style={{ color: CSP_TEXT_PRIMARY }}>
       <header style={{ marginBottom: CSP_SECTION_GAP }}>
         <p className="mb-2 text-xs font-semibold uppercase tracking-wide" style={{ color: CSP_TEXT_SECONDARY }}>
-          Provider setup · Transportation
+          Provider setup · Getting to jobs
         </p>
-        <h1 className="text-2xl font-semibold">Transportation</h1>
+        <h1 className="text-2xl font-semibold">Getting to jobs</h1>
         <p className="text-sm mt-2" style={{ color: CSP_TEXT_SECONDARY }}>
-          Tell us how you typically get to jobs. Saving this step takes you directly to the final application review.
+          Tell us how you get to jobs. After you save, we&apos;ll take you to the last review.
         </p>
       </header>
 
       {mode === "completed" && (
         <div className="mb-4 rounded-xl border px-4 py-3 text-sm" style={{ borderColor: "rgba(52, 211, 153, 0.3)", backgroundColor: "rgba(52, 211, 153, 0.08)", color: "rgb(167, 243, 208)" }}>
-          Transportation readiness verified.
+          Your travel setup is done.
         </div>
       )}
       {mode === "submitted" && (
         <div className="mb-4 rounded-xl border px-4 py-3 text-sm" style={{ borderColor: "rgba(245, 158, 11, 0.3)", backgroundColor: "rgba(245, 158, 11, 0.08)", color: "rgb(253, 224, 71)" }}>
-          Transportation is already submitted. You can update your answers before continuing.
+          We saved your travel answers. You can change them before you move on.
         </div>
       )}
 
@@ -128,19 +128,19 @@ export default function TransportationReadinessScreen() {
 
         <label className="flex items-center gap-3 cursor-pointer" style={{ color: CSP_TEXT_PRIMARY }}>
           <input type="checkbox" checked={canTransportSupplies} onChange={(e) => setCanTransportSupplies(e.target.checked)} className="rounded border-white/20" />
-          <span className="text-sm">I can reliably transport my own cleaning supplies to jobs</span>
+          <span className="text-sm">I can bring my own cleaning supplies to jobs</span>
         </label>
 
         <label className="flex items-center gap-3 cursor-pointer" style={{ color: CSP_TEXT_PRIMARY }}>
           <input type="checkbox" checked={prefersLocalJobsOnly} onChange={(e) => setPrefersLocalJobsOnly(e.target.checked)} className="rounded border-white/20" />
-          <span className="text-sm">I prefer local jobs only</span>
+          <span className="text-sm">I only want jobs close to me</span>
         </label>
 
         <div>
           <label className="block text-sm font-medium mb-2" style={{ color: CSP_TEXT_SECONDARY }}>
-            Travel or parking constraints (optional)
+            Anything that can make travel or parking hard? (optional)
           </label>
-          <textarea value={travelConstraints} onChange={(e) => setTravelConstraints(e.target.value)} placeholder="e.g. parking limitations, accessibility needs" rows={3} maxLength={1000} className="w-full rounded-xl border bg-white/5 px-3 py-2.5 text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-white/20" style={{ borderColor: "rgba(248, 250, 252, 0.12)", color: CSP_TEXT_PRIMARY }} />
+          <textarea value={travelConstraints} onChange={(e) => setTravelConstraints(e.target.value)} placeholder="For example: hard parking, stairs, or places you cannot travel to" rows={3} maxLength={1000} className="w-full rounded-xl border bg-white/5 px-3 py-2.5 text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-white/20" style={{ borderColor: "rgba(248, 250, 252, 0.12)", color: CSP_TEXT_PRIMARY }} />
         </div>
       </div>
 
@@ -148,10 +148,10 @@ export default function TransportationReadinessScreen() {
 
       <div className="grid gap-3">
         <button type="button" onClick={handleSave} disabled={saving || !transportMode.trim()} className="w-full py-3 rounded-xl text-white text-sm font-semibold transition-opacity hover:opacity-90 disabled:opacity-60" style={{ backgroundColor: CSP_PRIMARY_BUTTON }}>
-          {saving ? "Saving..." : mode !== "not_started" ? "Save and review application" : "Save transportation and continue"}
+          {saving ? "Saving..." : mode !== "not_started" ? "Save and review" : "Save and continue"}
         </button>
         <button type="button" onClick={() => navigate("/csp/dashboard/application")} className="w-full py-3 rounded-xl text-sm font-medium border" style={{ borderColor: "rgba(248, 250, 252, 0.12)", color: CSP_TEXT_SECONDARY }}>
-          View application checklist
+          Back to setup steps
         </button>
       </div>
     </div>
