@@ -1,9 +1,9 @@
-// src/provider/ProviderOverview.tsx
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useProviderContext } from "./ProviderContext";
-import { CalendarDays, Heart, MessageCircleMore } from "lucide-react";
+import { CalendarDays, Heart, MessageCircleMore, UserRoundSearch } from "lucide-react";
 import { Button } from "../components/ui/Button";
+import { AppList, AppListRow, AppPageHeader, AppPanel } from "../components/shared/AppUi";
 import { providerDisplayName } from "./types";
 import { listBookingsForCustomer } from "../lib/bookingApi";
 import { getSignedProfilePhotoUrl } from "../lib/profilePhotoApi";
@@ -17,10 +17,7 @@ import { customerRouteForContext } from "../lib/contextualRoutes";
 
 function formatDateTime(value: string): string {
   try {
-    return new Date(value).toLocaleString(undefined, {
-      dateStyle: "medium",
-      timeStyle: "short",
-    });
+    return new Date(value).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
   } catch {
     return value;
   }
@@ -40,41 +37,20 @@ export function ProviderOverview() {
 
   useEffect(() => {
     let active = true;
-    async function loadBookings() {
-      try {
-        const data = await listBookingsForCustomer();
-        if (active) setBookings(data);
-      } catch {
-        if (active) setBookings([]);
-      }
-    }
-    void loadBookings();
-    return () => {
-      active = false;
-    };
+    listBookingsForCustomer()
+      .then((data) => { if (active) setBookings(data); })
+      .catch(() => { if (active) setBookings([]); });
+    return () => { active = false; };
   }, []);
 
   useEffect(() => {
     let active = true;
     setProviderPhotoUrl(null);
-
-    if (!selectedProvider?.profile_photo_path) {
-      return () => {
-        active = false;
-      };
-    }
-
+    if (!selectedProvider?.profile_photo_path) return () => { active = false; };
     void getSignedProfilePhotoUrl(selectedProvider.profile_photo_path)
-      .then((url) => {
-        if (active) setProviderPhotoUrl(url);
-      })
-      .catch(() => {
-        if (active) setProviderPhotoUrl(null);
-      });
-
-    return () => {
-      active = false;
-    };
+      .then((url) => { if (active) setProviderPhotoUrl(url); })
+      .catch(() => { if (active) setProviderPhotoUrl(null); });
+    return () => { active = false; };
   }, [selectedProvider?.id, selectedProvider?.profile_photo_path]);
 
   const relationshipBookings = useMemo(() => {
@@ -84,16 +60,9 @@ export function ProviderOverview() {
       .sort((a, b) => new Date(a.scheduled_start).getTime() - new Date(b.scheduled_start).getTime());
   }, [bookings, selectedProvider?.id]);
 
-  const nextCleaning = useMemo(
-    () => relationshipBookings.find((booking) => isCurrentCustomerUpcoming(booking)) ?? null,
-    [relationshipBookings]
-  );
-
-  const bookingHistoryCompletedTogether = relationshipBookings.filter((booking) =>
-    ["completed_by_provider", "confirmed"].includes(booking.status)
-  ).length;
+  const nextCleaning = useMemo(() => relationshipBookings.find((booking) => isCurrentCustomerUpcoming(booking)) ?? null, [relationshipBookings]);
+  const bookingHistoryCompletedTogether = relationshipBookings.filter((booking) => ["completed_by_provider", "confirmed"].includes(booking.status)).length;
   const completedTogether = durableRelationship?.completedServicesCount ?? bookingHistoryCompletedTogether;
-  const hasEstablishedHistory = Boolean(durableRelationship) || relationshipBookings.length > 0;
   const relationshipActive = durableRelationship?.status === "active";
   const relationshipPaused = durableRelationship?.status === "paused";
 
@@ -102,16 +71,10 @@ export function ProviderOverview() {
       setDurableRelationship(null);
       return;
     }
-
     let active = true;
     void getMyServiceRelationshipWithProvider(selectedProvider.id)
-      .then((relationship) => {
-        if (active) setDurableRelationship(relationship);
-      })
-      .catch(() => {
-        if (active) setDurableRelationship(null);
-      });
-
+      .then((relationship) => { if (active) setDurableRelationship(relationship); })
+      .catch(() => { if (active) setDurableRelationship(null); });
     return () => { active = false; };
   }, [selectedProvider?.id]);
 
@@ -119,13 +82,8 @@ export function ProviderOverview() {
     if (!selectedProvider?.id) return;
     setMessageLoading(true);
     try {
-      const withThisProvider = [...relationshipBookings]
-        .sort((a, b) => new Date(b.scheduled_start).getTime() - new Date(a.scheduled_start).getTime())[0];
-      if (withThisProvider) {
-        navigate(route(`/app/bookings/${withThisProvider.id}/message`));
-      } else {
-        navigate(route("/app/bookings"));
-      }
+      const latest = [...relationshipBookings].sort((a, b) => new Date(b.scheduled_start).getTime() - new Date(a.scheduled_start).getTime())[0];
+      navigate(latest ? route(`/app/bookings/${latest.id}/message`) : route("/app/bookings"));
     } finally {
       setMessageLoading(false);
     }
@@ -137,11 +95,7 @@ export function ProviderOverview() {
     setPreferenceBusy(true);
     setPreferenceError(null);
     try {
-      const updated = await setMyPreferredServiceProvider(
-        selectedProvider.id,
-        !durableRelationship.customerPreferred
-      );
-      setDurableRelationship(updated);
+      setDurableRelationship(await setMyPreferredServiceProvider(selectedProvider.id, !durableRelationship.customerPreferred));
     } catch {
       setPreferenceError("We couldn't update your CSP preference right now.");
     } finally {
@@ -152,19 +106,8 @@ export function ProviderOverview() {
   if (!selectedProvider) {
     return (
       <div className="text-[#0B1220]">
-        <h1 className="text-xl font-semibold mb-2">Your Cleanr connection</h1>
-        <p className="text-sm text-[#667085] mb-3">
-          No provider relationship is established yet. Browse CSPs or book a cleaning to get started.
-        </p>
-        <Button
-          onClick={() => navigate(route("/app/provider/list"))}
-          variant="primaryGreen"
-          size="lg"
-          fullWidth
-          className="mt-2"
-        >
-          Browse providers
-        </Button>
+        <AppPageHeader title="My CSP" description="When you build a service relationship, it will live here." />
+        <Button onClick={() => navigate(route("/app/provider/list"))} variant="primaryGreen" size="lg" fullWidth>Browse CSPs</Button>
       </div>
     );
   }
@@ -173,184 +116,83 @@ export function ProviderOverview() {
   const relationshipLabel = relationshipPaused
     ? "Paused relationship"
     : durableRelationship?.customerPreferred
-      ? "Your preferred CSP"
+      ? "Preferred CSP"
       : relationshipSource === "durable_relationship"
-        ? "Your established CSP"
-        : relationshipSource === "customer_selection"
-          ? "CSP you're viewing"
-          : relationshipSource === "booking_history"
-            ? "Your recent CSP"
-            : "CSP you're viewing";
+        ? "Established CSP"
+        : relationshipSource === "booking_history"
+          ? "Recent CSP"
+          : "CSP profile";
 
   return (
-    <div className="text-[#0B1220] pb-4">
-      <div className="mb-3 section">
-        <p className="text-xs uppercase tracking-[0.18em] text-[#166534] font-medium">{relationshipLabel}</p>
-        <h1 className="text-xl font-semibold mt-1">Your Cleanr connection</h1>
-      </div>
+    <div className="pb-4 text-[#0B1220]">
+      <AppPageHeader eyebrow={relationshipLabel} title={displayName} description={completedTogether > 0 ? `${completedTogether} completed cleaning${completedTogether === 1 ? "" : "s"} together.` : "Your service relationship and next visit."} />
 
-      <div className="provider-card flex gap-3 mb-3">
-        <div className="w-14 h-14 overflow-hidden rounded-full bg-[#F1F5F9] border border-[#E5E7EB] text-[#0B1220] flex-shrink-0 flex items-center justify-center text-base font-semibold">
-          {providerPhotoUrl ? (
-            <img
-              src={providerPhotoUrl}
-              alt={`${displayName} profile`}
-              className="h-full w-full object-cover"
-              onError={() => setProviderPhotoUrl(null)}
-            />
-          ) : (
-            displayName.charAt(0)
-          )}
-        </div>
-        <div className="flex-1">
-          <div className="flex items-start justify-between gap-2">
-            <div>
-              <p className="text-sm font-semibold">{displayName}</p>
-              {typeof selectedProvider.avg_rating === "number" && (selectedProvider.review_count ?? 0) > 0 ? (
-                <p className="text-xs text-[#667085] mt-0.5">
-                  ⭐ {selectedProvider.avg_rating.toFixed(1)} · {selectedProvider.review_count} reviews
-                </p>
-              ) : null}
-            </div>
-            <Button
-              onClick={() => navigate(route(`/app/provider/${selectedProvider.id}`))}
-              variant="ghost"
-              size="sm"
-              className="text-[11px] text-[#8DCC64] underline underline-offset-2 !px-0"
-            >
-              View details
-            </Button>
+      <AppPanel className="mb-5">
+        <div className="flex gap-3">
+          <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full border border-[#E5E7EB] bg-[#F1F5F9] text-lg font-semibold">
+            {providerPhotoUrl ? <img src={providerPhotoUrl} alt={`${displayName} profile`} className="h-full w-full object-cover" onError={() => setProviderPhotoUrl(null)} /> : displayName.charAt(0)}
           </div>
-          <div className="flex flex-wrap gap-2 mt-3">
-            {selectedProvider.background_checked ? <span className="provider-badge">Background Checked</span> : null}
-            {selectedProvider.insured ? <span className="provider-badge">Insured</span> : null}
-            {selectedProvider.platform_verified ? <span className="provider-badge">Platform Verified</span> : null}
-          </div>
-        </div>
-      </div>
-
-      <section className="provider-card mb-3">
-        <p className="text-xs font-semibold text-[#166534] mb-2">Your history together</p>
-        {hasEstablishedHistory ? (
-          <div className="space-y-1">
-            <p className="text-sm font-medium">
-              {completedTogether > 0
-                ? `${completedTogether} ${completedTogether === 1 ? "cleaning" : "cleanings"} completed together`
-                : "Your relationship is established"}
-            </p>
-            <p className="text-xs text-[#667085]">
-              {relationshipPaused
-                ? "Your shared history is preserved while this relationship is paused. New relationship-centered continuity stays suspended until the pause is resumed."
-                : completedTogether > 0
-                  ? durableRelationship
-                    ? "Cleanr preserves this relationship as durable continuity, so the connection does not restart from zero with every booking."
-                    : "Cleanr keeps your shared booking history connected while durable relationship continuity catches up."
-                  : "Cleanr keeps this connection available without treating either of you as locked in."}
-            </p>
-          </div>
-        ) : (
-          <p className="text-sm text-[#667085]">
-            You're viewing this CSP. Shared service history will appear here only after you actually book and work together.
-          </p>
-        )}
-      </section>
-
-      {durableRelationship ? (
-        <section className="provider-card mb-3">
-          <div className="flex items-start gap-3">
-            <Heart className="w-4 h-4 mt-0.5 text-[#8DCC64]" fill={durableRelationship.customerPreferred ? "#8DCC64" : "none"} />
-            <div className="flex-1">
-              <p className="text-sm font-semibold">
-                {durableRelationship.customerPreferred
-                  ? relationshipPaused ? "Preferred CSP · relationship paused" : "Preferred CSP"
-                  : relationshipPaused ? "Relationship paused" : "Make this my preferred CSP"}
-              </p>
-              <p className="text-xs text-[#667085] mt-1">
-                {relationshipPaused
-                  ? durableRelationship.customerPreferred
-                    ? "Your existing preference is preserved, but paused continuity is not used for new relationship-centered bookings. You can remove the preference now or manage the relationship to resume later."
-                    : "A paused relationship cannot be newly marked preferred. Resume the relationship first if you want this CSP to become your active continuity preference."
-                  : "Preference helps Cleanr preserve continuity when possible. It does not lock you in—you can choose someone else or change this anytime."}
-              </p>
+          <div className="min-w-0 flex-1">
+            <p className="text-base font-semibold">{displayName}</p>
+            {typeof selectedProvider.avg_rating === "number" && (selectedProvider.review_count ?? 0) > 0 ? (
+              <p className="mt-1 text-xs text-[#667085]">★ {selectedProvider.avg_rating.toFixed(1)} · {selectedProvider.review_count} reviews</p>
+            ) : null}
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {selectedProvider.background_checked ? <span className="provider-badge">Background checked</span> : null}
+              {selectedProvider.insured ? <span className="provider-badge">Insured</span> : null}
+              {selectedProvider.platform_verified ? <span className="provider-badge">Verified</span> : null}
             </div>
           </div>
-          {relationshipActive || durableRelationship.customerPreferred ? (
-            <Button
-              variant="secondary"
-              size="md"
-              fullWidth
-              className="mt-3"
-              loading={preferenceBusy}
-              disabled={preferenceBusy}
-              onClick={() => void handlePreferredProvider()}
-            >
-              {durableRelationship.customerPreferred ? "Remove preference" : "Prefer this CSP"}
-            </Button>
-          ) : (
-            <Button
-              variant="secondary"
-              size="md"
-              fullWidth
-              className="mt-3"
-              onClick={() => navigate(route("/app/relationships"))}
-            >
-              Manage paused relationship
-            </Button>
-          )}
-          {preferenceError ? <p className="text-xs text-red-600 mt-2">{preferenceError}</p> : null}
-        </section>
-      ) : null}
+        </div>
+        <button type="button" onClick={() => navigate(route(`/app/provider/${selectedProvider.id}`))} className="mt-4 text-xs font-semibold text-[#166534]">View full profile</button>
+      </AppPanel>
 
       {nextCleaning ? (
-        <section className="mb-3">
-          <p className="text-xs font-semibold text-[#166534] mb-1">Next cleaning together</p>
-          <button
-            type="button"
-            onClick={() => navigate(route(`/app/bookings/${nextCleaning.id}`))}
-            className="next-cleaning-card w-full text-left"
-          >
-            <p className="text-sm font-semibold">{customerFacingServiceLabel(nextCleaning.service_type)}</p>
-            <p className="text-xs text-[#667085] flex items-center gap-1 mt-1">
-              <CalendarDays className="w-3 h-3" />
-              {formatDateTime(nextCleaning.scheduled_start)}
-            </p>
+        <section className="mb-5">
+          <p className="mb-2 text-sm font-medium text-[#667085]">Next visit together</p>
+          <button type="button" onClick={() => navigate(route(`/app/bookings/${nextCleaning.id}`))} className="w-full text-left">
+            <AppPanel>
+              <p className="text-sm font-semibold">{customerFacingServiceLabel(nextCleaning.service_type)}</p>
+              <p className="mt-1 flex items-center gap-1.5 text-xs text-[#667085]"><CalendarDays className="h-3.5 w-3.5" />{formatDateTime(nextCleaning.scheduled_start)}</p>
+            </AppPanel>
           </button>
         </section>
       ) : null}
 
-      <section className="mt-3 button-stack section">
-        {relationshipActive && durableRelationship ? (
-          <Button
-            variant="primaryGreen"
-            size="lg"
-            fullWidth
-            onClick={() => navigate(`/book?relationship=${encodeURIComponent(durableRelationship.id)}`)}
-          >
-            Book another cleaning together
-          </Button>
-        ) : relationshipPaused ? (
-          <Button
-            variant="secondary"
-            size="lg"
-            fullWidth
-            onClick={() => navigate(route("/app/relationships"))}
-          >
-            Relationship paused · manage relationship
-          </Button>
-        ) : null}
-        <Button
-          variant="secondary"
-          size="lg"
-          fullWidth
-          leftIcon={<MessageCircleMore className="w-3 h-3 text-[#8DCC64]" />}
-          onClick={handleMessageProvider}
-          disabled={messageLoading || relationshipBookings.length === 0}
-        >
-          {messageLoading ? "Loading…" : "Message CSP"}
-        </Button>
-        <Button onClick={() => navigate(route("/app/provider/list"))} variant="secondary" size="lg" fullWidth>
-          Browse providers
-        </Button>
+      {durableRelationship ? (
+        <section className="mb-5">
+          <p className="mb-2 text-sm font-medium text-[#667085]">Relationship</p>
+          <AppList>
+            <AppListRow
+              title={relationshipPaused ? "Relationship paused" : durableRelationship.customerPreferred ? "Preferred CSP" : "Preference"}
+              description={relationshipPaused ? "Your history stays here. Resume when you want to continue together." : durableRelationship.customerPreferred ? "Cleanr will preserve continuity with this CSP when possible." : "Mark this CSP preferred if you want Cleanr to prioritize continuity."}
+              leading={<Heart className="h-4 w-4 text-[#8DCC64]" fill={durableRelationship.customerPreferred ? "#8DCC64" : "none"} />}
+              trailing={relationshipActive || durableRelationship.customerPreferred ? <button type="button" disabled={preferenceBusy} onClick={() => void handlePreferredProvider()} className="text-xs font-semibold text-[#166534] disabled:opacity-50">{durableRelationship.customerPreferred ? "Remove" : "Prefer"}</button> : undefined}
+              onClick={relationshipPaused && !durableRelationship.customerPreferred ? () => navigate(route("/app/relationships")) : undefined}
+            />
+          </AppList>
+          {preferenceError ? <p className="mt-2 text-xs text-red-600">{preferenceError}</p> : null}
+        </section>
+      ) : null}
+
+      <section>
+        <p className="mb-2 text-sm font-medium text-[#667085]">What next</p>
+        <div className="space-y-2">
+          {relationshipActive && durableRelationship ? (
+            <Button variant="primaryGreen" size="lg" fullWidth onClick={() => navigate(`/book?relationship=${encodeURIComponent(durableRelationship.id)}`)}>Book together again</Button>
+          ) : relationshipPaused ? (
+            <Button variant="secondary" size="lg" fullWidth onClick={() => navigate(route("/app/relationships"))}>Manage paused relationship</Button>
+          ) : null}
+          <AppList>
+            <AppListRow
+              title="Message CSP"
+              description={relationshipBookings.length > 0 ? "Continue the conversation from your service relationship." : "Messaging opens after you have a booking together."}
+              leading={<MessageCircleMore className="h-4 w-4 text-[#166534]" />}
+              onClick={relationshipBookings.length > 0 && !messageLoading ? () => void handleMessageProvider() : undefined}
+            />
+            <AppListRow divided title="Browse other CSPs" description="You can always choose someone else." leading={<UserRoundSearch className="h-4 w-4 text-[#667085]" />} onClick={() => navigate(route("/app/provider/list"))} />
+          </AppList>
+        </div>
       </section>
     </div>
   );
