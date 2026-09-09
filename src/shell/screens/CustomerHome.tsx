@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { CalendarDays, CalendarPlus, ChevronRight, MessageCircle, Zap } from "lucide-react";
+import { CalendarDays, CalendarPlus, MessageCircle, Zap } from "lucide-react";
 import { Button } from "../../components/ui/Button";
+import { AppList, AppListRow, AppPageHeader } from "../../components/shared/AppUi";
 import { supabase } from "../../lib/supabase";
 import { useProfile } from "../../lib/useProfile";
 import type { Booking } from "../../domain/booking";
@@ -155,90 +156,79 @@ export function CustomerHome() {
   const canMessage = Boolean(upcoming?.provider_id && isProviderCustomerMessagingOpen(upcoming?.status));
 
   return (
-    <div className="text-[#0B1220] pb-4">
-      <header className="mb-6 section">
-        <p className="text-xs font-medium text-[#166534]">{customerName ? `Hi, ${customerName}` : "Welcome back"}</p>
-        <h1 className="home-hero-title mt-1">{loading || upcoming ? "We've got you." : "Ready when you are."}</h1>
-        <p className="home-hero-sub mt-2 max-w-[34rem]">
-          {loading || upcoming ? "Your cleaning and the updates that matter are right here." : "Book when you need a hand. We'll keep everything organized from there."}
-        </p>
-      </header>
+    <div className="pb-4 text-[#0B1220]">
+      <AppPageHeader
+        eyebrow={customerName ? `Hi, ${customerName}` : undefined}
+        title={loading || upcoming ? "We've got you." : "Ready when you are."}
+        description={loading || upcoming ? "Your next important update is right here." : "Book when you need a hand. We'll keep the rest organized."}
+      />
 
-      <section className="mb-5 section">
+      <section className="mb-5">
         {loading ? (
-          <div className="provider-card p-5"><p className="text-sm text-[#667085]">Loading your home...</p></div>
+          <div className="border-y border-[#E4E7EC] py-6 text-sm text-[#667085]">Loading your home…</div>
         ) : upcoming && state ? (
           <div className="next-cleaning-card p-5">
-            <div className="flex items-start justify-between gap-4">
-              <div className="min-w-0">
-                <p className="section-label">{state.eyebrow}</p>
-                <h2 className="mt-2 text-lg font-semibold leading-6">{state.headline}</h2>
-                <p className="mt-1 text-sm leading-5 text-[#667085]">{state.note}</p>
-              </div>
-              <button type="button" onClick={() => navigate(`/app/bookings/${upcoming.id}`)} className="shrink-0 rounded-full border border-[#D0D5DD] bg-white p-2 text-[#667085]" aria-label="View cleaning details">
-                <ChevronRight className="h-4 w-4" />
-              </button>
-            </div>
+            <p className="section-label">{state.eyebrow}</p>
+            <h2 className="mt-2 text-xl font-semibold leading-6 tracking-[-0.02em]">{state.headline}</h2>
+            <p className="mt-1 text-sm leading-5 text-[#667085]">{state.note}</p>
 
-            <div className="mt-5 rounded-2xl bg-white/70 p-4">
+            <div className="mt-5 border-y border-[#DCEED7] py-4">
               <p className="text-base font-semibold">{customerFacingServiceLabel(upcoming.service_type)}</p>
-              <p className="mt-2 flex items-center gap-2 text-sm text-[#667085]"><CalendarDays className="h-4 w-4" />{dateLabel} · {timeLabel}</p>
-              {providerName ? <p className="mt-2 text-sm text-[#667085]">With {providerName}</p> : null}
+              <p className="mt-1 text-sm text-[#667085]">{dateLabel} · {timeLabel}</p>
+              {providerName ? <p className="mt-1 text-sm text-[#667085]">With {providerName}</p> : null}
             </div>
 
             <div className={`mt-4 grid gap-2 ${canMessage ? "grid-cols-2" : "grid-cols-1"}`}>
               <Button onClick={() => navigate(`/app/bookings/${upcoming.id}`)} variant="primaryGreen" size="md" fullWidth>{state.actionLabel}</Button>
-              {canMessage ? <Button onClick={() => navigate(`/app/bookings/${upcoming.id}/message`)} variant="secondary" size="md" fullWidth>{providerName ? `Message ${providerName}` : "Message cleaner"}</Button> : null}
+              {canMessage ? <Button onClick={() => navigate(`/app/bookings/${upcoming.id}/message`)} variant="secondary" size="md" fullWidth>{providerName ? `Message ${providerName}` : "Message CSP"}</Button> : null}
             </div>
           </div>
         ) : (
           <div className="next-cleaning-card p-5">
             <p className="section-label">No cleaning scheduled</p>
-            <h2 className="mt-2 text-lg font-semibold">Need a hand with the house?</h2>
-            <p className="mt-1 text-sm text-[#667085]">Choose a time that works for you. We'll take it from there.</p>
+            <h2 className="mt-2 text-xl font-semibold tracking-[-0.02em]">Need a hand with the house?</h2>
+            <p className="mt-1 text-sm text-[#667085]">Choose a time that works for you.</p>
             <Button onClick={() => navigate("/book")} variant="primaryGreen" size="lg" fullWidth className="mt-5">Book a cleaning</Button>
           </div>
         )}
       </section>
 
-      <section className="section">
-        <button
-          type="button"
-          onClick={() => navigate("/book?priority=urgent")}
-          className="mb-3 flex w-full items-center gap-3 rounded-2xl border border-[#F59E0B]/35 bg-[#FFFBEB] px-4 py-3 text-left"
-        >
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#FEF3C7] text-[#92400E]"><Zap className="h-5 w-5" /></div>
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
-              <p className="text-sm font-semibold text-[#78350F]">Need it sooner?</p>
-              <span className="rounded-full bg-[#FEF3C7] px-2 py-0.5 text-[10px] font-semibold text-[#92400E]">+{Math.round(priorityRate * 100)}%</span>
-            </div>
-            <p className="mt-0.5 text-xs text-[#92400E]">Check priority cleaning availability within {priorityHours} hours.</p>
-          </div>
-          <ChevronRight className="h-4 w-4 shrink-0 text-[#B45309]" />
-        </button>
-
-        <h2 className="mb-3 text-sm font-medium text-[#667085]">Anything else?</h2>
-        <div className="overflow-hidden rounded-2xl border border-[#E4E7EC] bg-white">
-          <button type="button" onClick={() => navigate("/book")} className="flex min-h-[72px] w-full items-center gap-3 px-4 py-4 text-left">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#8DCC64]/15 text-[#166534]"><CalendarPlus className="h-5 w-5" /></div>
-            <div className="min-w-0 flex-1"><p className="text-sm font-semibold">Book another cleaning</p><p className="mt-0.5 text-xs text-[#667085]">Pick a day that works for you.</p></div>
-            <ChevronRight className="h-4 w-4 shrink-0 text-[#98A2B3]" />
-          </button>
-          <div className="mx-4 border-t border-[#EAECF0]" />
-          <button type="button" onClick={() => navigate("/app/bookings")} className="flex min-h-[72px] w-full items-center gap-3 px-4 py-4 text-left">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#F2F4F7] text-[#475467]"><CalendarDays className="h-5 w-5" /></div>
-            <div className="min-w-0 flex-1"><p className="text-sm font-semibold">All bookings</p><p className="mt-0.5 text-xs text-[#667085]">Past and upcoming cleanings.</p></div>
-            <ChevronRight className="h-4 w-4 shrink-0 text-[#98A2B3]" />
-          </button>
+      <button
+        type="button"
+        onClick={() => navigate("/book?priority=urgent")}
+        className="mb-4 flex w-full items-center gap-3 border-y border-[#F59E0B]/30 bg-[#FFFBEB] px-1 py-3 text-left"
+      >
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#FEF3C7] text-[#92400E]"><Zap className="h-4 w-4" /></div>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold text-[#78350F]">Need it sooner?</p>
+          <p className="mt-0.5 text-xs text-[#92400E]">Priority availability within {priorityHours} hours · +{Math.round(priorityRate * 100)}%</p>
         </div>
+      </button>
 
+      <AppList>
+        <AppListRow
+          title="Book another cleaning"
+          description="Pick a day that works for you."
+          leading={<div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#8DCC64]/15 text-[#166534]"><CalendarPlus className="h-4 w-4" /></div>}
+          onClick={() => navigate("/book")}
+        />
+        <AppListRow
+          divided
+          title="All bookings"
+          description="Past and upcoming cleanings."
+          leading={<div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#F2F4F7] text-[#475467]"><CalendarDays className="h-4 w-4" /></div>}
+          onClick={() => navigate("/app/bookings")}
+        />
         {upcoming?.provider_id ? (
-          <button type="button" onClick={() => navigate("/app/provider")} className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-medium text-[#166534]">
-            <MessageCircle className="h-4 w-4" />{providerName ? `Your cleaner: ${providerName}` : "Your cleaner"}
-          </button>
+          <AppListRow
+            divided
+            title={providerName ? `My CSP · ${providerName}` : "My CSP"}
+            description="Relationship, history, and profile."
+            leading={<div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#F2F4F7] text-[#475467]"><MessageCircle className="h-4 w-4" /></div>}
+            onClick={() => navigate("/app/provider")}
+          />
         ) : null}
-      </section>
+      </AppList>
     </div>
   );
 }

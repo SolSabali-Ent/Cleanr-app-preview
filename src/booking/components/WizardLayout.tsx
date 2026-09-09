@@ -26,40 +26,38 @@ export function WizardLayout({
 
   return (
     <BookingShell>
-      <div className="booking-header">
-        <div className="flex items-center justify-between">
+      <div className="mb-5">
+        <div className="flex items-center justify-between gap-4">
           {showBack ? (
             <Button
               type="button"
               onClick={onBack}
               variant="ghost"
               size="sm"
-              className="booking-back !px-0"
+              className="booking-back !min-h-9 !px-0 text-[#475467]"
             >
               Back
             </Button>
           ) : (
             <span />
           )}
-          <div className="booking-step text-[12px] font-medium text-[#667085]">Step {stepIndex + 1} of {totalSteps}</div>
+          <p className="text-[11px] font-semibold tracking-[0.08em] text-[#98A2B3]">
+            {stepIndex + 1} of {totalSteps}
+          </p>
         </div>
-        <div className="booking-progress">
-          <div className="booking-progress-bar" style={{ width: `${progress}%` }} />
+        <div className="mt-2 h-1 overflow-hidden rounded-full bg-[#EAECF0]">
+          <div className="h-full rounded-full bg-[#0000FE] transition-[width] duration-200" style={{ width: `${progress}%` }} />
         </div>
       </div>
 
-      <div className="mb-5">
-        <p className="text-xs font-semibold tracking-[0.12em] text-slate-400 uppercase">
-          Book with Cleanr
-        </p>
-        <h1 className="mt-1 text-[22px] font-bold text-slate-900 leading-snug">{title}</h1>
-        {subtitle && <p className="mt-1 text-[13px] font-medium text-[#667085]">{subtitle}</p>}
-      </div>
+      <header className="mb-5">
+        <h1 className="text-[24px] font-semibold leading-[1.12] tracking-[-0.025em] text-[#0B1220]">{title}</h1>
+        {subtitle ? <p className="mt-2 text-[13px] leading-5 text-[#667085]">{subtitle}</p> : null}
+      </header>
 
       <div>{children}</div>
 
-      {bottomHint && <p className="mt-5 text-[12px] font-medium text-center text-[#667085]">{bottomHint}</p>}
+      {bottomHint ? <p className="mt-5 text-center text-[11px] font-medium text-[#98A2B3]">{bottomHint}</p> : null}
     </BookingShell>
   );
 }
-
