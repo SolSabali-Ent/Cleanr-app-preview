@@ -57,12 +57,13 @@ function rowToMarketplaceProvider(row: Record<string, unknown>): MarketplaceProv
   };
 }
 
-/** Public marketplace listing for transparent pre-booking discovery. */
+/** Public marketplace listing for CSPs who are both eligible and accepting new work. */
 export async function listMarketplaceProvidersPublic(limit = 12): Promise<MarketplaceProviderChoice[]> {
   const { data, error } = await supabase
     .from("provider_public_profiles")
     .select("id,full_name,preferred_name,profile_photo_path,provider_bio,years_experience,specialties,service_area_labels,avg_rating,review_count,repeat_household_count,background_checked,insured,platform_verified")
     .eq("marketplace_access", true)
+    .eq("accepts_new_marketplace_work", true)
     .order("review_count", { ascending: false })
     .order("avg_rating", { ascending: false })
     .order("full_name", { ascending: true })
@@ -94,8 +95,8 @@ export async function listMarketplaceProvidersForZip(
 }
 
 /**
- * Public-safe provider presence summary for customer-facing coverage messaging.
- * Uses provider_public_profiles only; does not expose private profile fields.
+ * Public-safe provider presence summary for customer-facing NEW-marketplace
+ * coverage messaging. Existing relationship continuity is intentionally separate.
  */
 export async function getProviderPresenceSummary(
   options: ProviderPresenceOptions = {}
@@ -114,7 +115,8 @@ export async function getProviderPresenceSummary(
   const { count, error: countError } = await supabase
     .from("provider_public_profiles")
     .select("id", { count: "exact", head: true })
-    .eq("marketplace_access", true);
+    .eq("marketplace_access", true)
+    .eq("accepts_new_marketplace_work", true);
 
   const activeProviderCount = countError ? null : (count ?? 0);
 
@@ -143,6 +145,7 @@ export async function getProviderPresenceSummary(
           "id, full_name, profile_photo_path, avg_rating, review_count, background_checked, insured, platform_verified"
         )
         .eq("marketplace_access", true)
+        .eq("accepts_new_marketplace_work", true)
         .order("review_count", { ascending: false })
         .order("full_name", { ascending: true })
         .limit(sampleLimit);

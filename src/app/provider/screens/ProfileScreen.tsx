@@ -23,6 +23,7 @@ import { traceProfileWriteStart, traceProfileWriteResult } from "@/lib/debug/pro
 
 type ProviderPreferences = {
   provider_id: string;
+  accepts_new_marketplace_work: boolean;
   accepts_recurring: boolean;
   accepts_premium: boolean;
   max_jobs_per_day: number;
@@ -34,6 +35,7 @@ type ProviderPreferences = {
 function defaultPreferences(providerId: string): ProviderPreferences {
   return {
     provider_id: providerId,
+    accepts_new_marketplace_work: true,
     accepts_recurring: true,
     accepts_premium: true,
     max_jobs_per_day: 3,
@@ -100,7 +102,12 @@ export default function ProfileScreen() {
       .maybeSingle();
 
     if (!error && data) {
-      const normalized = data as ProviderPreferences;
+      const row = data as Partial<ProviderPreferences> & { provider_id: string };
+      const normalized: ProviderPreferences = {
+        ...defaultPreferences(row.provider_id),
+        ...row,
+        accepts_new_marketplace_work: row.accepts_new_marketplace_work !== false,
+      };
       setPreferences(normalized);
       setDraftPreferences(normalized);
     } else {
@@ -152,7 +159,7 @@ export default function ProfileScreen() {
       : "Available after approval";
   const workSummary = preferencesLoading
     ? "Loading…"
-    : `${preferences?.accepts_recurring ? "Recurring on" : "Recurring off"} · ${preferences?.max_jobs_per_day ?? 3}/day`;
+    : `${preferences?.accepts_new_marketplace_work === false ? "New work paused" : "New work on"} · ${preferences?.accepts_recurring ? "Recurring on" : "Recurring off"} · ${preferences?.max_jobs_per_day ?? 3}/day`;
   const scheduleSummary = scheduleSummaryLoading
     ? "Loading…"
     : hasWeeklyAvailability
@@ -210,6 +217,7 @@ export default function ProfileScreen() {
     setPreferencesSaving(true);
     const { error } = await supabase.from("provider_preferences").upsert({
       provider_id: user.id,
+      accepts_new_marketplace_work: draftPreferences.accepts_new_marketplace_work,
       accepts_recurring: draftPreferences.accepts_recurring,
       accepts_premium: draftPreferences.accepts_premium,
       max_jobs_per_day: safeMaxJobs,
@@ -224,7 +232,7 @@ export default function ProfileScreen() {
 
     await loadPreferences();
     setWorkSettingsOpen(false);
-    setToast("Work settings updated");
+    setToast(draftPreferences.accepts_new_marketplace_work ? "New marketplace opportunities are on" : "New marketplace opportunities paused");
     window.setTimeout(() => setToast(null), 2200);
   }
 
@@ -320,6 +328,13 @@ export default function ProfileScreen() {
 
       <BottomSheet open={workSettingsOpen} onClose={() => setWorkSettingsOpen(false)} snap={sheetSnap} setSnap={setSheetSnap} title="Work preferences" subtitle="Choose the kinds and amount of work that fit your practice." tone="dark">
         <div className="space-y-5 px-6 pb-[calc(24px+env(safe-area-inset-bottom))] pt-6">
+          <div className="flex items-center justify-between border-b border-white/10 pb-4">
+            <div className="pr-4">
+              <p className="text-sm font-semibold text-white">New marketplace opportunities</p>
+              <p className="mt-1 text-xs leading-5 text-white/60">Turn off to stop receiving new marketplace work. Existing household relationships and booked visits stay intact.</p>
+            </div>
+            <Toggle checked={draftPreferences?.accepts_new_marketplace_work !== false} onChange={(val) => setDraftPreferences((prev) => prev ? { ...prev, accepts_new_marketplace_work: val } : prev)} disabled={preferencesSaving} tone="dark" />
+          </div>
           <div className="flex items-center justify-between border-b border-white/10 pb-4">
             <div className="pr-4"><p className="text-sm font-semibold text-white">Recurring clients</p><p className="mt-1 text-xs text-white/60">Allow repeat maintenance bookings.</p></div>
             <Toggle checked={Boolean(draftPreferences?.accepts_recurring)} onChange={(val) => setDraftPreferences((prev) => prev ? { ...prev, accepts_recurring: val } : prev)} disabled={preferencesSaving} tone="dark" />
