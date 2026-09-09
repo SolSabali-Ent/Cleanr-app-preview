@@ -131,7 +131,7 @@ export default function MilestonesScreen() {
   return (
     <div className="pb-24" style={{ color: CSP_TEXT_PRIMARY }}>
       <button type="button" onClick={() => navigate(CSP_GROWTH_ROUTES.home)} className="mb-5 flex items-center gap-2 text-sm" style={{ color: CSP_TEXT_SECONDARY }}>
-        <ArrowLeft size={16} /> Growth
+        <ArrowLeft size={16} /> North Star
       </button>
 
       <header className="mb-6">
@@ -145,7 +145,7 @@ export default function MilestonesScreen() {
         <div className="border-y border-white/10 py-5">
           <p className="text-sm font-medium">Set your North Star first.</p>
           <button type="button" onClick={() => navigate(CSP_GROWTH_ROUTES.home)} className="mt-3 text-sm font-semibold" style={{ color: CSP_PRIMARY_BUTTON }}>
-            Go to Growth
+            Go to North Star
           </button>
         </div>
       ) : (
