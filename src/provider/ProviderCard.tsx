@@ -52,7 +52,7 @@ export function ProviderCard({ provider, isSelected, onClick }: ProviderCardProp
 
         <div className="flex flex-wrap gap-1 mt-2">
           {provider.background_checked ? <span className="provider-badge">Background Checked</span> : null}
-          {provider.insured ? <span className="provider-badge">Insured</span> : null}
+          {provider.insured ? <span className="provider-badge">Provider insurance verified</span> : null}
           {provider.platform_verified ? <span className="provider-badge">Cleanr Verified</span> : null}
           {(provider.repeat_household_count ?? 0) > 0 ? <span className="provider-badge inline-flex items-center gap-1"><UsersRound className="h-3 w-3" /> {provider.repeat_household_count} repeat</span> : null}
         </div>

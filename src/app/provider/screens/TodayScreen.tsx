@@ -92,7 +92,7 @@ export default function TodayScreen() {
   const checklist = useMemo(() => {
     if (!displayProfile) return [];
     return [
-      { label: "Agreement", status: displayProfile.agreement_accepted_at ? "Verified" : "Not started" },
+      { label: "CSP terms", status: displayProfile.csp_terms_accepted_at ? "Verified" : "Not started" },
       { label: "Insurance (optional)", status: toDisplayStatus(displayProfile.insurance_status) },
       { label: "ID verification", status: toDisplayStatus(displayProfile.identity_status) },
       { label: "Background check", status: toDisplayStatus(displayProfile.background_check_status) },

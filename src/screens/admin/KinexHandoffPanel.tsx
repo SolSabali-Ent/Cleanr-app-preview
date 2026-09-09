@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
 import { KinexDrainAuditCard } from "./KinexDrainAuditCard";
 import { AdminDisputePanel } from "./AdminDisputePanel";
+import { AdminIncidentPanel } from "./AdminIncidentPanel";
 import {
   AdminNotice,
   AdminPanel,
@@ -134,6 +135,7 @@ export function KinexHandoffPanel() {
   return (
     <div className="space-y-6">
       <AdminDisputePanel />
+      <AdminIncidentPanel />
 
       <section>
         <AdminSectionHeader
