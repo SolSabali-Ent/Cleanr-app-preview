@@ -3,6 +3,7 @@ import { supabase } from "./supabase";
 export type CustomerDisputeIssueType =
   | "service_quality"
   | "damage"
+  | "injury"
   | "missing_item"
   | "billing"
   | "safety"

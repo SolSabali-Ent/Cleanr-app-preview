@@ -11,7 +11,8 @@ import { supabase } from "../../lib/supabase";
 
 const ISSUE_OPTIONS: Array<{ value: CustomerDisputeIssueType; label: string }> = [
   { value: "service_quality", label: "Service quality" },
-  { value: "damage", label: "Damage" },
+  { value: "damage", label: "Property damage" },
+  { value: "injury", label: "Injury" },
   { value: "missing_item", label: "Missing item" },
   { value: "billing", label: "Billing" },
   { value: "safety", label: "Safety concern" },
@@ -154,7 +155,7 @@ export function CustomerBookingIssuePanel() {
             value={description}
             onChange={(event) => setDescription(event.target.value)}
             maxLength={2000}
-            placeholder="Share the details Cleanr should know."
+            placeholder="Share what you observed and what was affected."
             className="min-h-[110px] w-full rounded-xl border border-[#D0D5DD] bg-white p-3 text-sm text-[#0B1220]"
           />
           <div className="mt-1 flex justify-between gap-3 text-[10px] text-[#667085]">
@@ -162,9 +163,9 @@ export function CustomerBookingIssuePanel() {
             <span>{description.length}/2000</span>
           </div>
 
-          {issueType === "safety" ? (
+          {issueType === "safety" || issueType === "injury" ? (
             <div className="mt-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2.5 text-xs leading-5 text-rose-800">
-              If anyone is in immediate danger, contact emergency services first. Submitting this form creates a Cleanr safety-review hold for the booking.
+              If anyone needs immediate medical or emergency help, contact emergency services first. Submitting this form creates a Cleanr review hold for the booking.
             </div>
           ) : null}
 
@@ -193,7 +194,7 @@ export function CustomerBookingIssuePanel() {
             {submitting ? "Placing visit on hold…" : <><CheckCircle2 size={16} /> Report issue & hold confirmation</>}
           </button>
           <p className="mt-2 text-[10px] leading-4 text-[#667085]">
-            Reporting an issue does not automatically decide fault or outcome. It preserves the review window so Cleanr can investigate.
+            Reporting an issue does not automatically decide fault, insurance coverage, or outcome. It preserves the review window so Cleanr can investigate.
           </p>
         </div>
       ) : null}
