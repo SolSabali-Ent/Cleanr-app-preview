@@ -62,7 +62,7 @@ export default function ApplicationHubScreen() {
         label: "Profile photo",
         status: profile?.profile_photo_path?.trim() ? "Verified" : "Not started",
         path: "/csp/dashboard/profile",
-        note: "Required before marketplace activation",
+        note: "Required for provider setup",
       },
       {
         label: "CSP terms",
@@ -139,9 +139,9 @@ export default function ApplicationHubScreen() {
     <div className="min-h-screen px-4 py-8" style={{ color: CSP_TEXT_PRIMARY }}>
       <header style={{ marginBottom: CSP_SECTION_GAP }}>
         <p className="text-xs font-semibold uppercase tracking-[0.16em]" style={{ color: CSP_TEXT_SECONDARY }}>
-          Provider activation
+          Provider setup
         </p>
-        <h1 className="mt-2 text-2xl font-semibold">Finish your application</h1>
+        <h1 className="mt-2 text-2xl font-semibold">Finish your setup</h1>
         <p className="mt-2 text-sm" style={{ color: CSP_TEXT_SECONDARY }}>
           {completedRequired} of {requiredItems.length} required steps complete.
         </p>
@@ -154,7 +154,7 @@ export default function ApplicationHubScreen() {
             <div>
               <p className="text-lg font-semibold">{nextItem.label}</p>
               <p className="mt-1 text-sm" style={{ color: CSP_TEXT_SECONDARY }}>
-                {nextItem.status === "Submitted" ? "Submitted and waiting for review." : nextItem.status === "In progress" ? "Continue where you left off." : "Complete this to keep your application moving."}
+                {nextItem.status === "Submitted" ? "Submitted and waiting for review." : nextItem.status === "In progress" ? "Continue where you left off." : "Complete this to keep your setup moving."}
               </p>
             </div>
             <span className={`shrink-0 rounded-full border px-2 py-0.5 text-xs font-medium ${chipClasses(nextItem.status)}`}>{nextItem.status}</span>
@@ -165,7 +165,7 @@ export default function ApplicationHubScreen() {
             className="mt-4 w-full rounded-xl py-3 text-sm font-semibold text-white"
             style={{ backgroundColor: CSP_PRIMARY_BUTTON }}
           >
-            {nextItem.status === "Submitted" ? "Review step" : "Continue application"}
+            {nextItem.status === "Submitted" ? "Review step" : "Continue setup"}
           </button>
         </section>
       ) : (
@@ -176,7 +176,7 @@ export default function ApplicationHubScreen() {
       )}
 
       <section style={{ marginBottom: CSP_SECTION_GAP }}>
-        <p className="mb-2 text-xs font-semibold uppercase tracking-wide" style={{ color: CSP_TEXT_SECONDARY }}>Application steps</p>
+        <p className="mb-2 text-xs font-semibold uppercase tracking-wide" style={{ color: CSP_TEXT_SECONDARY }}>Setup steps</p>
         <div className="overflow-hidden rounded-2xl border" style={{ backgroundColor: CSP_SURFACE, borderColor: "rgba(248, 250, 252, 0.08)" }}>
           {checklist.map((item, index) => (
             <button
