@@ -71,7 +71,7 @@ function BookingRow({
     disputed: "bg-rose-100 text-rose-700",
   };
 
-  const statusLabel = forceNeedsRescheduling ? "Needs rescheduling" : toCustomerBookingStatusLabel(booking.status);
+  const statusLabel = forceNeedsRescheduling ? "Needs attention" : toCustomerBookingStatusLabel(booking.status);
   const statusClass = forceNeedsRescheduling ? "bg-amber-100 text-amber-800" : statusStyles[booking.status] ?? "bg-slate-100 text-slate-700";
 
   return (
@@ -101,23 +101,18 @@ function RecurringPlanCard({
   plan,
   currentBooking,
   busy,
-  resolutionBusy,
   onUpdate,
-  onResolveMissed,
 }: {
   plan: RecurringCleaningPlan;
   currentBooking: Booking | null;
   busy: boolean;
-  resolutionBusy: boolean;
   onUpdate: (planId: string, action: "pause" | "resume" | "end") => Promise<void>;
-  onResolveMissed: (bookingId: string) => Promise<void>;
 }) {
   const navigate = useNavigate();
   const cleanerName = firstName(plan.preferredProviderName);
   const paused = plan.status === "paused";
   const missedCurrentVisit = Boolean(currentBooking && isMissedAcceptedVisit(currentBooking));
   const hasScheduledVisit = Boolean(plan.currentBookingId && currentBooking && !missedCurrentVisit);
-  const targetStart = missedCurrentVisit && currentBooking ? currentBooking.scheduled_start : plan.nextExpectedAt;
 
   return (
     <div className="mb-3 rounded-2xl border border-[#CFE8C3] bg-[#F7FBF4] p-4">
@@ -134,34 +129,27 @@ function RecurringPlanCard({
         </div>
       </div>
 
-      <div className={`mt-4 border-y py-3 ${missedCurrentVisit ? "border-amber-200" : "border-[#DCEED7]"}`}>
-        <p className={`text-[10px] font-semibold uppercase tracking-wide ${missedCurrentVisit ? "text-amber-700" : "text-[#667085]"}`}>
-          {missedCurrentVisit ? "Needs attention" : hasScheduledVisit ? "Next visit" : paused ? "After you resume" : "Next expected"}
+      {!missedCurrentVisit ? (
+        <div className="mt-4 border-y border-[#DCEED7] py-3">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-[#667085]">
+            {hasScheduledVisit ? "Next visit" : paused ? "After you resume" : "Next expected"}
+          </p>
+          <p className="mt-1 text-sm font-semibold">{formatDate(plan.nextExpectedAt)} · {formatTime(plan.nextExpectedAt)}</p>
+          {!hasScheduledVisit ? <p className="mt-1 text-xs text-[#667085]">Expected cadence, not a confirmed booking yet.</p> : null}
+        </div>
+      ) : (
+        <p className="mt-4 border-y border-[#DCEED7] py-3 text-xs leading-5 text-[#667085]">
+          Your recurring plan stays active while the missed visit above is resolved.
         </p>
-        <p className="mt-1 text-sm font-semibold">{formatDate(targetStart)} · {formatTime(targetStart)}</p>
-        {!hasScheduledVisit && !missedCurrentVisit ? <p className="mt-1 text-xs text-[#667085]">Expected cadence, not a confirmed booking yet.</p> : null}
-      </div>
+      )}
 
-      {plan.currentBookingId ? (
+      {plan.currentBookingId && !missedCurrentVisit ? (
         <button type="button" onClick={() => navigate(`/app/bookings/${plan.currentBookingId}`)} className="mt-3 flex w-full items-center justify-between py-2 text-left">
           <div>
-            <p className="text-sm font-semibold">{missedCurrentVisit ? "Choose what happens next" : "Open next visit"}</p>
-            <p className="mt-0.5 text-xs text-[#667085]">{missedCurrentVisit ? "Reschedule or close this occurrence." : "View details or manage the visit."}</p>
+            <p className="text-sm font-semibold">Open next visit</p>
+            <p className="mt-0.5 text-xs text-[#667085]">View details or manage the visit.</p>
           </div>
           <ChevronRight className="h-4 w-4 text-[#667085]" />
-        </button>
-      ) : null}
-
-      {missedCurrentVisit && currentBooking ? (
-        <button
-          type="button"
-          disabled={resolutionBusy}
-          onClick={() => {
-            if (window.confirm("Skip this missed visit and keep your recurring cleaning active? This will not mark the visit completed or automatically change payment/refund status.")) void onResolveMissed(currentBooking.id);
-          }}
-          className="mt-1 w-full py-2 text-xs font-semibold text-[#667085] disabled:opacity-50"
-        >
-          {resolutionBusy ? "Updating…" : "Don’t reschedule this visit"}
         </button>
       ) : null}
 
@@ -194,6 +182,7 @@ function RecurringPlanCard({
 type BookingTab = "upcoming" | "history";
 
 export function CustomerBookings() {
+  const navigate = useNavigate();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [plans, setPlans] = useState<RecurringCleaningPlan[]>([]);
   const [resolvedMissedIds, setResolvedMissedIds] = useState<Set<string>>(new Set());
@@ -281,7 +270,6 @@ export function CustomerBookings() {
   const bookingById = new Map(bookings.map((booking) => [booking.id, booking] as const));
   const recurringBookingIds = new Set(plans.flatMap((plan) => (plan.currentBookingId ? [plan.currentBookingId] : [])));
   const standaloneUpcoming = upcoming.filter((booking) => !recurringBookingIds.has(booking.id));
-  const standaloneMissed = missed.filter((booking) => !recurringBookingIds.has(booking.id));
   const nextBooking = standaloneUpcoming[0] ?? null;
   const laterBookings = standaloneUpcoming.slice(1);
   const visibleLater = showAllUpcoming ? laterBookings : [];
@@ -294,26 +282,35 @@ export function CustomerBookings() {
 
       {resolutionNotice ? <div className="mb-4 border-y border-emerald-200 bg-emerald-50 py-3 text-xs leading-5 text-emerald-800">{resolutionNotice}</div> : null}
 
-      {standaloneMissed.length > 0 ? (
+      {missed.length > 0 ? (
         <section className="mb-5 border-y border-amber-200 bg-amber-50 py-4">
-          <p className="text-sm font-semibold text-amber-950">{standaloneMissed.length} visit{standaloneMissed.length === 1 ? "" : "s"} need attention</p>
-          <p className="mt-1 text-xs leading-5 text-amber-800">Reschedule or close the missed occurrence.</p>
-          <div className="mt-3 space-y-2">
-            {standaloneMissed.map((booking) => (
-              <div key={booking.id}>
+          <p className="text-sm font-semibold text-amber-950">{missed.length} visit{missed.length === 1 ? "" : "s"} {missed.length === 1 ? "needs" : "need"} attention</p>
+          <p className="mt-1 text-xs leading-5 text-amber-800">Choose what happens to each missed visit.</p>
+          <div className="mt-3 space-y-3">
+            {missed.map((booking) => (
+              <div key={booking.id} className="rounded-2xl border border-amber-200 bg-white">
                 <AppList>
                   <BookingRow booking={booking} hasUnreadMessages={unreadBookingIds.has(booking.id)} compact forceNeedsRescheduling />
                 </AppList>
-                <button
-                  type="button"
-                  disabled={resolutionBusyId === booking.id}
-                  onClick={() => {
-                    if (window.confirm("Don’t reschedule this missed visit? This closes the scheduling warning without marking service complete or changing payment/refund status.")) void handleResolveMissed(booking.id);
-                  }}
-                  className="mt-1 w-full py-2 text-xs font-semibold text-amber-800 disabled:opacity-50"
-                >
-                  {resolutionBusyId === booking.id ? "Updating…" : "Don’t reschedule"}
-                </button>
+                <div className="grid grid-cols-2 border-t border-amber-100">
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/app/bookings/${booking.id}`)}
+                    className="min-h-11 border-r border-amber-100 px-3 text-xs font-semibold text-[#0B1220]"
+                  >
+                    Reschedule visit
+                  </button>
+                  <button
+                    type="button"
+                    disabled={resolutionBusyId === booking.id}
+                    onClick={() => {
+                      if (window.confirm("Skip this missed visit and keep any recurring plan active? This closes the scheduling warning without marking service complete or automatically changing payment/refund status.")) void handleResolveMissed(booking.id);
+                    }}
+                    className="min-h-11 px-3 text-xs font-semibold text-amber-800 disabled:opacity-50"
+                  >
+                    {resolutionBusyId === booking.id ? "Updating…" : "Skip this visit"}
+                  </button>
+                </div>
               </div>
             ))}
           </div>
@@ -340,9 +337,7 @@ export function CustomerBookings() {
                   plan={plan}
                   currentBooking={plan.currentBookingId ? bookingById.get(plan.currentBookingId) ?? null : null}
                   busy={planBusyId === plan.id}
-                  resolutionBusy={Boolean(plan.currentBookingId && resolutionBusyId === plan.currentBookingId)}
                   onUpdate={handlePlanUpdate}
-                  onResolveMissed={handleResolveMissed}
                 />
               ))}
               {plans.length > 1 ? (
