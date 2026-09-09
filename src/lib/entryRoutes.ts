@@ -1,11 +1,11 @@
 /** Customer booking entry (public book flow). */
 export const CUSTOMER_ENTRY_PATH = "/book";
 
-/** General CSP provider signup / application entry. */
-export const CSP_ENTRY_PATH = "/csp/signup";
-
-/** Founding Circle provider acquisition / relationship-first entry. */
+/** Current public provider acquisition entry during the Founding Circle release. */
 export const FOUNDING_CIRCLE_ENTRY_PATH = "/csp/founding-circle";
+
+/** Account-creation endpoint reached from the provider acquisition flow. */
+export const PROVIDER_SIGNUP_PATH = "/csp/signup";
 
 /** Shared customer sign-in. */
 export const LOGIN_PATH = "/signin";
