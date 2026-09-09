@@ -32,12 +32,7 @@ export default function ProviderVerificationScreen() {
   const [confirmedReady, setConfirmedReady] = useState(false);
 
   if (loading) {
-    traceCspFlow("verification", {
-      branch: "verification.loading",
-      reason: "flow_loading",
-      pathname: VERIFICATION_PATH,
-      uid,
-    });
+    traceCspFlow("verification", { branch: "verification.loading", reason: "flow_loading", pathname: VERIFICATION_PATH, uid });
     return <CspNeutralLoading />;
   }
   if (!uid) return <Navigate to="/csp/login" replace />;
@@ -88,7 +83,6 @@ export default function ProviderVerificationScreen() {
 
   async function submitVerification() {
     if (!confirmedReady) return;
-
     setSaving(true);
     setError(null);
     const traceRpc = await traceProfileWriteStart({
@@ -131,20 +125,26 @@ export default function ProviderVerificationScreen() {
 
   return (
     <div className="min-h-screen px-4 py-8" style={{ color: CSP_TEXT_PRIMARY }}>
-      <p className="mb-2 text-xs font-semibold uppercase tracking-wide" style={{ color: CSP_TEXT_SECONDARY }}>
-        Provider setup · Final review
-      </p>
-      <h1 className="text-2xl font-semibold">Review and submit your application</h1>
-      <p className="text-sm mt-2" style={{ color: CSP_TEXT_SECONDARY }}>
-        Your required setup is complete. Confirm that your information is accurate, then send the application to Cleanr for review.
-      </p>
-      {error ? <p className="text-sm text-red-300 mt-3">{error}</p> : null}
-      <label className="mt-6 flex items-start gap-3 text-sm" style={{ color: CSP_TEXT_SECONDARY }}>
-        <input type="checkbox" checked={confirmedReady} onChange={(e) => setConfirmedReady(e.target.checked)} className="mt-0.5" />
-        <span>I confirm this information is accurate and ready for Cleanr review.</span>
+      <header className="mb-7">
+        <p className="text-xs font-semibold uppercase tracking-[0.16em]" style={{ color: CSP_TEXT_SECONDARY }}>Final review</p>
+        <h1 className="mt-2 text-2xl font-semibold">Submit your application</h1>
+        <p className="mt-2 text-sm" style={{ color: CSP_TEXT_SECONDARY }}>Your provider setup is ready to send to Cleanr for review.</p>
+      </header>
+
+      <section className="border-y border-white/10 py-5">
+        <p className="text-sm font-semibold">Before submitting</p>
+        <p className="mt-1 text-sm leading-6" style={{ color: CSP_TEXT_SECONDARY }}>Review the information you provided and confirm that it is accurate. After submission, review outcomes may take time and some checks are completed by Cleanr or its partners.</p>
+      </section>
+
+      {error ? <p className="mt-4 text-sm text-red-300">{error}</p> : null}
+
+      <label className="mt-6 flex cursor-pointer items-start gap-3 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm">
+        <input type="checkbox" checked={confirmedReady} onChange={(e) => setConfirmedReady(e.target.checked)} className="mt-0.5 accent-[#0A84FF]" />
+        <span>I confirm my information is accurate and ready for review.</span>
       </label>
-      <button type="button" disabled={saving || !confirmedReady} onClick={() => void submitVerification()} className="mt-5 w-full py-3 rounded-xl text-white text-sm font-semibold disabled:opacity-60" style={{ backgroundColor: CSP_PRIMARY_BUTTON }}>
-        {saving ? "Submitting..." : "Submit application for review"}
+
+      <button type="button" disabled={saving || !confirmedReady} onClick={() => void submitVerification()} className="mt-5 w-full rounded-xl py-3 text-sm font-semibold text-white disabled:opacity-60" style={{ backgroundColor: CSP_PRIMARY_BUTTON }}>
+        {saving ? "Submitting…" : "Submit application"}
       </button>
     </div>
   );

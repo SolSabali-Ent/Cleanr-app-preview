@@ -1,18 +1,19 @@
+import { ChevronRight } from "lucide-react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { useCspFlowProfile } from "@/hooks/useCspFlowProfile";
 import { mergeFlowProfileWithHandoffs } from "@/lib/cspFlowHandoff";
 import { traceCspFlow } from "@/lib/cspFlowTrace";
-import { CSP_SECTION_GAP, CSP_SURFACE, CSP_TEXT_PRIMARY, CSP_TEXT_SECONDARY } from "@/theme/cspTheme";
+import { CSP_PRIMARY_BUTTON, CSP_SECTION_GAP, CSP_SURFACE, CSP_TEXT_PRIMARY, CSP_TEXT_SECONDARY } from "@/theme/cspTheme";
 import { CspNeutralLoading } from "../components/CspNeutralLoading";
 
 const APPLICATION_STATUS_PATH = "/csp/dashboard/application-status";
 const APPLICATION_PATH = "/csp/dashboard/application";
 const VERIFICATION_PATH = "/csp/dashboard/verification";
 const DASHBOARD_PATH = "/csp/dashboard";
-const CSP_PRIMARY_BUTTON =
-  "inline-flex items-center justify-center rounded-xl bg-[#0A84FF] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#006EDC] focus:outline-none focus:ring-2 focus:ring-[#0A84FF] focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60";
 
 type DisplayState = "Complete" | "Submitted" | "Needs action" | "Not started" | "Under review" | "Pending approval";
+
+type StatusItem = { label: string; status: DisplayState; path?: string };
 
 function normalize(value: string | null | undefined): string {
   return (value ?? "").trim().toLowerCase();
@@ -47,15 +48,6 @@ function chipClasses(status: DisplayState): string {
   return "bg-white/10 text-slate-300 border-white/10";
 }
 
-function StatusRow({ label, status }: { label: string; status: DisplayState }) {
-  return (
-    <div className="flex items-center justify-between gap-4">
-      <span className="text-sm" style={{ color: CSP_TEXT_PRIMARY }}>{label}</span>
-      <span className={`shrink-0 rounded-full border px-2 py-0.5 text-xs font-medium ${chipClasses(status)}`}>{status}</span>
-    </div>
-  );
-}
-
 export default function ApplicationStatusScreen() {
   const navigate = useNavigate();
   const { uid, loading, profileFlow } = useCspFlowProfile();
@@ -70,15 +62,21 @@ export default function ApplicationStatusScreen() {
   const rejectedLike = appStatusNorm === "rejected" || appStatusNorm === "needs_review";
   const notStartedLike = appStatusNorm === "" || appStatusNorm === "not_started" || appStatusNorm === "draft";
 
-  const termsStatus: DisplayState = profile.csp_terms_accepted_at ? "Complete" : "Not started";
-  const identityStatus = identityToDisplay(profile.identity_status, profile.identity_document_path);
-  const backgroundStatus = statusToDisplay(profile.background_check_status);
-  const screeningStatus = statusToDisplay(profile.screening_status);
-  const transportationStatus = statusToDisplay(profile.travel_readiness_status);
-  const applicationStatus = applicationToDisplay(profile.application_status);
-  const missingPersonOwnedSteps = [termsStatus, identityStatus, backgroundStatus, screeningStatus, transportationStatus].some(
-    (status) => status === "Not started" || status === "Needs action"
-  );
+  const items: StatusItem[] = [
+    { label: "CSP terms", status: profile.csp_terms_accepted_at ? "Complete" : "Not started", path: "/csp/dashboard/terms" },
+    { label: "Identity verification", status: identityToDisplay(profile.identity_status, profile.identity_document_path), path: "/csp/dashboard/application/identity" },
+    { label: "Background check", status: statusToDisplay(profile.background_check_status), path: "/csp/dashboard/application/background" },
+    { label: "Screening", status: statusToDisplay(profile.screening_status), path: "/csp/dashboard/application/screening" },
+    { label: "Transportation", status: statusToDisplay(profile.travel_readiness_status), path: "/csp/dashboard/application/transportation" },
+    { label: "Application", status: applicationToDisplay(profile.application_status) },
+    { label: "Marketplace access", status: "Pending approval" },
+  ];
+
+  const personOwnedItems = items.slice(0, 5);
+  const nextActionItem = personOwnedItems.find((item) => item.status === "Needs action")
+    ?? personOwnedItems.find((item) => item.status === "Not started")
+    ?? null;
+  const missingPersonOwnedSteps = Boolean(nextActionItem);
   const needsAction = rejectedLike || missingPersonOwnedSteps;
 
   traceCspFlow("application-status", {
@@ -98,7 +96,6 @@ export default function ApplicationStatusScreen() {
   });
 
   if (approvedLike) return <Navigate to={DASHBOARD_PATH} replace />;
-
   if (notStartedLike && !missingPersonOwnedSteps) return <Navigate to={VERIFICATION_PATH} replace />;
 
   traceCspFlow("application-status", {
@@ -124,43 +121,57 @@ export default function ApplicationStatusScreen() {
   return (
     <div className="min-h-screen px-4 py-8" style={{ color: CSP_TEXT_PRIMARY }}>
       <header style={{ marginBottom: CSP_SECTION_GAP }}>
-        <h1 className="text-2xl font-semibold">{needsAction ? "Application setup needs attention" : "Application under review"}</h1>
+        <p className="text-xs font-semibold uppercase tracking-[0.16em]" style={{ color: CSP_TEXT_SECONDARY }}>Application status</p>
+        <h1 className="mt-2 text-2xl font-semibold">{needsAction ? "One more thing needs attention" : "Your application is under review"}</h1>
         <p className="mt-2 text-sm" style={{ color: CSP_TEXT_SECONDARY }}>
           {needsAction
-            ? "Your application has review activity, but one or more setup steps still need your input. Complete those steps so Cleanr can review the full application."
-            : "Your required setup has been submitted. Cleanr is reviewing the application and will update this status when a decision is recorded."}
+            ? nextActionItem ? `${nextActionItem.label} still needs your input.` : "Cleanr left a review note that needs your attention."
+            : "Everything you own is submitted. There is nothing you need to do right now."}
         </p>
       </header>
 
       {profile.rejection_reason ? (
-        <section className="mb-6 rounded-2xl border p-4" style={{ backgroundColor: CSP_SURFACE, borderColor: "rgba(251, 113, 133, 0.28)" }}>
+        <section className="mb-6 border-y border-rose-400/20 py-4">
           <p className="text-sm font-semibold text-rose-200">Review note</p>
           <p className="mt-2 text-sm" style={{ color: CSP_TEXT_SECONDARY }}>{profile.rejection_reason}</p>
         </section>
       ) : null}
 
-      <section className="mb-6 space-y-3 rounded-2xl border p-4" style={{ backgroundColor: CSP_SURFACE, borderColor: "rgba(248, 250, 252, 0.08)" }}>
-        <StatusRow label="CSP terms" status={termsStatus} />
-        <StatusRow label="Identity verification" status={identityStatus} />
-        <StatusRow label="Background check" status={backgroundStatus} />
-        <StatusRow label="Screening" status={screeningStatus} />
-        <StatusRow label="Transportation readiness" status={transportationStatus} />
-        <StatusRow label="Application" status={applicationStatus} />
-        <StatusRow label="Marketplace access" status="Pending approval" />
-      </section>
-
       {needsAction ? (
-        <div className="space-y-3">
-          <button type="button" onClick={() => navigate(APPLICATION_PATH)} className={`w-full ${CSP_PRIMARY_BUTTON}`}>Open application checklist</button>
-          <p className="text-sm" style={{ color: CSP_TEXT_SECONDARY }}>
-            Cleanr review does not replace steps you still own. Submitted items can remain pending while you finish the rest.
-          </p>
+        <section className="mb-6 border-b border-white/10 pb-6">
+          {nextActionItem ? (
+            <>
+              <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: CSP_TEXT_SECONDARY }}>Next step</p>
+              <div className="mt-2 flex items-center justify-between gap-3">
+                <p className="text-lg font-semibold">{nextActionItem.label}</p>
+                <span className={`rounded-full border px-2 py-0.5 text-xs font-medium ${chipClasses(nextActionItem.status)}`}>{nextActionItem.status}</span>
+              </div>
+              <button type="button" onClick={() => navigate(nextActionItem.path ?? APPLICATION_PATH)} className="mt-4 w-full rounded-xl py-3 text-sm font-semibold text-white" style={{ backgroundColor: CSP_PRIMARY_BUTTON }}>Continue application</button>
+            </>
+          ) : (
+            <button type="button" onClick={() => navigate(APPLICATION_PATH)} className="w-full rounded-xl py-3 text-sm font-semibold text-white" style={{ backgroundColor: CSP_PRIMARY_BUTTON }}>Open application</button>
+          )}
+        </section>
+      ) : null}
+
+      <section style={{ marginBottom: CSP_SECTION_GAP }}>
+        <p className="mb-2 text-xs font-semibold uppercase tracking-wide" style={{ color: CSP_TEXT_SECONDARY }}>Progress</p>
+        <div className="overflow-hidden rounded-2xl border" style={{ backgroundColor: CSP_SURFACE, borderColor: "rgba(248, 250, 252, 0.08)" }}>
+          {items.map((item, index) => (
+            <button
+              key={item.label}
+              type="button"
+              disabled={!item.path}
+              onClick={() => item.path && navigate(item.path)}
+              className={`flex w-full items-center gap-3 px-4 py-4 text-left disabled:cursor-default ${index > 0 ? "border-t border-white/10" : ""}`}
+            >
+              <span className="min-w-0 flex-1 text-sm">{item.label}</span>
+              <span className={`shrink-0 rounded-full border px-2 py-0.5 text-xs font-medium ${chipClasses(item.status)}`}>{item.status}</span>
+              {item.path ? <ChevronRight className="h-4 w-4 shrink-0" style={{ color: CSP_TEXT_SECONDARY }} /> : null}
+            </button>
+          ))}
         </div>
-      ) : (
-        <p className="text-sm" style={{ color: CSP_TEXT_SECONDARY }}>
-          No provider-owned setup action is required right now. Verification outcomes and the application decision are completed by Cleanr or its review partners.
-        </p>
-      )}
+      </section>
     </div>
   );
 }

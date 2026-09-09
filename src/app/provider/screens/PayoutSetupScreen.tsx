@@ -30,9 +30,6 @@ export default function PayoutSetupScreen() {
 
   useEffect(() => {
     if (!isReturn || !profile || stripeReturnSyncStartedRef.current) return;
-
-    // The Stripe return is a one-shot transition. Guard it immediately so profile refreshes,
-    // provider-context rerenders, or changing hook identities cannot fire the sync repeatedly.
     stripeReturnSyncStartedRef.current = true;
     let mounted = true;
     setSyncing(true);
@@ -44,11 +41,7 @@ export default function PayoutSetupScreen() {
         if (!mounted) return;
         await refresh();
         if (!mounted) return;
-
-        if (!res.ready) {
-          setMessage("We’re still processing your payout details. This may take a moment.");
-        }
-
+        if (!res.ready) setMessage("Stripe is still processing your payout details.");
         navigate("/csp/dashboard/application/payout-setup", { replace: true });
       })
       .catch((e) => {
@@ -69,10 +62,8 @@ export default function PayoutSetupScreen() {
     try {
       const { url } = await getStripeConnectLink();
       window.location.href = url;
-      return;
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not start payout setup.");
-    } finally {
       setLoading(false);
     }
   }
@@ -80,66 +71,60 @@ export default function PayoutSetupScreen() {
   return (
     <div className="min-h-screen px-4 py-8" style={{ color: CSP_TEXT_PRIMARY }}>
       <header style={{ marginBottom: CSP_SECTION_GAP }}>
-        <h1 className="text-2xl font-semibold">Payout Setup</h1>
-        <p className="text-sm mt-2" style={{ color: CSP_TEXT_SECONDARY }}>
-          Connect with Stripe to receive payouts for completed jobs. Payout readiness and marketplace access are tracked separately.
+        <p className="text-xs font-semibold uppercase tracking-[0.16em]" style={{ color: CSP_TEXT_SECONDARY }}>Payouts</p>
+        <h1 className="mt-2 text-2xl font-semibold">{ready ? "Payouts are connected" : "Connect your payouts"}</h1>
+        <p className="mt-2 text-sm" style={{ color: CSP_TEXT_SECONDARY }}>
+          {ready
+            ? active
+              ? "Your Stripe account is ready to receive Cleanr payouts."
+              : "Your Stripe account is ready. Marketplace access is a separate activation step."
+            : "Connect a Stripe account so Cleanr can send earnings from completed work."}
         </p>
       </header>
 
-      {ready && (
-        <div
-          className="mb-6 rounded-xl border px-4 py-3 text-sm"
-          style={{ borderColor: "rgba(52, 211, 153, 0.3)", backgroundColor: "rgba(52, 211, 153, 0.08)", color: "rgb(167, 243, 208)" }}
-        >
-          {active
-            ? "Payout setup complete. Your provider account is active."
-            : "Payout setup complete. Marketplace access is still restricted."}
+      <section className="mb-6 border-y border-white/10 py-5">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <p className="text-sm font-medium">Stripe payout status</p>
+            <p className="mt-1 text-xs" style={{ color: CSP_TEXT_SECONDARY }}>{ready ? "Bank and payout details verified" : syncing ? "Checking your Stripe account" : "Not connected yet"}</p>
+          </div>
+          <span className={`rounded-full border px-2.5 py-1 text-xs font-medium ${ready ? "border-emerald-400/30 bg-emerald-500/15 text-emerald-300" : syncing ? "border-amber-400/30 bg-amber-500/15 text-amber-200" : "border-white/10 bg-white/5 text-slate-300"}`}>
+            {ready ? "Ready" : syncing ? "Checking" : "Action needed"}
+          </span>
         </div>
-      )}
+      </section>
 
-      {isReturn && syncing && !ready && (
-        <p className="text-sm mb-4" style={{ color: CSP_TEXT_SECONDARY }}>
-          Syncing your payout status…
-        </p>
-      )}
-      {!ready && message && <p className="text-sm mb-4 text-emerald-300">{message}</p>}
-      {error && <p className="text-sm mb-4 text-red-300">{error}</p>}
+      {message ? <p className="mb-4 text-sm text-emerald-300">{message}</p> : null}
+      {error ? <p className="mb-4 text-sm text-red-300">{error}</p> : null}
 
-      {!ready && (
-        <div className="space-y-4" style={{ marginBottom: CSP_SECTION_GAP }}>
-          <p className="text-sm" style={{ color: CSP_TEXT_SECONDARY }}>
-            You’ll complete a short Stripe onboarding flow to connect your bank account. For an approved, unrestricted provider, successful payout setup can complete initial marketplace activation.
-          </p>
+      {!ready ? (
+        <>
           <button
             type="button"
             onClick={handleConnect}
-            disabled={loading}
-            className="w-full py-3 rounded-xl text-white text-sm font-semibold transition-opacity hover:opacity-90 disabled:opacity-60"
+            disabled={loading || syncing}
+            className="w-full rounded-xl py-3 text-sm font-semibold text-white transition-opacity disabled:opacity-60"
             style={{ backgroundColor: CSP_PRIMARY_BUTTON }}
           >
-            {loading ? "Opening…" : "Connect with Stripe"}
+            {loading ? "Opening Stripe…" : syncing ? "Checking status…" : "Connect with Stripe"}
           </button>
-        </div>
+          <details className="mt-4 border-t border-white/10 pt-4">
+            <summary className="cursor-pointer text-xs font-semibold" style={{ color: CSP_TEXT_SECONDARY }}>How payout setup works</summary>
+            <p className="mt-2 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>Stripe collects and verifies the bank and identity details needed for payouts. Cleanr tracks payout readiness separately from marketplace access.</p>
+          </details>
+        </>
+      ) : (
+        <button type="button" onClick={() => navigate("/csp/dashboard/earnings")} className="w-full rounded-xl py-3 text-sm font-semibold text-white" style={{ backgroundColor: CSP_PRIMARY_BUTTON }}>View earnings</button>
       )}
 
-      <div className="grid gap-3">
-        <button
-          type="button"
-          onClick={() => navigate("/csp/dashboard/application-status")}
-          className="w-full py-3 rounded-xl text-sm font-medium border"
-          style={{ borderColor: "rgba(248, 250, 252, 0.12)", color: CSP_TEXT_SECONDARY }}
-        >
-          Back to Application Status
-        </button>
-        <button
-          type="button"
-          onClick={() => navigate("/csp/dashboard/application")}
-          className="w-full py-3 rounded-xl text-sm font-medium border"
-          style={{ borderColor: "rgba(248, 250, 252, 0.12)", color: CSP_TEXT_SECONDARY }}
-        >
-          Back to Checklist
-        </button>
-      </div>
+      <button
+        type="button"
+        onClick={() => navigate("/csp/dashboard/application")}
+        className="mt-3 w-full py-3 text-sm font-medium"
+        style={{ color: CSP_TEXT_SECONDARY }}
+      >
+        Back to application
+      </button>
     </div>
   );
 }

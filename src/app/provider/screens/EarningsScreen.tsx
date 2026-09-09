@@ -10,9 +10,8 @@ import {
   type ProviderEarningsBookingRow,
 } from "@/lib/providerEarningsApi";
 import {
-  CSP_SURFACE,
-  CSP_CARD_PADDING,
   CSP_SECTION_GAP,
+  CSP_SURFACE,
   CSP_TEXT_PRIMARY,
   CSP_TEXT_SECONDARY,
 } from "@/theme/cspTheme";
@@ -36,10 +35,7 @@ function serviceLabel(serviceType: string): string {
 
 function formatScheduled(iso: string): string {
   try {
-    return new Date(iso).toLocaleString(undefined, {
-      dateStyle: "medium",
-      timeStyle: "short",
-    });
+    return new Date(iso).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
   } catch {
     return iso;
   }
@@ -49,19 +45,13 @@ function earningsSubtitle(row: ProviderEarningsBookingRow): string {
   const zip = row.zip_code?.trim();
   if (zip) return `ZIP ${zip}`;
   const addr = row.address;
-  if (typeof addr === "string" && addr.trim()) {
-    const t = addr.trim();
-    return t.length > 36 ? `${t.slice(0, 33)}…` : t;
-  }
+  if (typeof addr === "string" && addr.trim()) return addr.trim();
   if (addr && typeof addr === "object") {
     const o = addr as Record<string, unknown>;
     const z = (o.zip ?? o.zip_code) as string | undefined;
     if (z && String(z).trim()) return `ZIP ${String(z).trim()}`;
     const line = o.address ?? o.line1;
-    if (typeof line === "string" && line.trim()) {
-      const t = line.trim();
-      return t.length > 36 ? `${t.slice(0, 33)}…` : t;
-    }
+    if (typeof line === "string" && line.trim()) return line.trim();
   }
   const suffix = row.id.replace(/-/g, "").slice(-8);
   return `Booking …${suffix}`;
@@ -73,69 +63,27 @@ function feePolicyCopy(row: ProviderEarningsBookingRow): string | null {
   }
   if (!row.platform_fee_policy || row.platform_fee_rate_applied == null) return null;
   const rate = `${(row.platform_fee_rate_applied * 100).toFixed(2).replace(/\.00$/, "")}%`;
-  if (row.platform_fee_policy === "provider_brought_relationship") {
-    return `${rate} Cleanr fee · existing relationship you brought to Cleanr`;
-  }
-  if (row.platform_fee_policy === "priority_surcharge_100pct_provider") {
-    return `${rate} Cleanr fee on base clean only · priority surcharge is 100% yours`;
-  }
-  if (row.platform_fee_policy === "provider_brought_relationship_plus_priority_surcharge_100pct_provider") {
-    return `${rate} Cleanr fee on base clean only · existing relationship rate · priority surcharge is 100% yours`;
-  }
-  if (row.platform_fee_policy === "default") {
-    return `${rate} Cleanr platform fee`;
-  }
-  return `${rate} Cleanr fee · ${row.platform_fee_policy.replaceAll("_", " ")}`;
+  if (row.platform_fee_policy === "provider_brought_relationship") return `${rate} Cleanr fee · existing relationship you brought to Cleanr`;
+  if (row.platform_fee_policy === "priority_surcharge_100pct_provider") return `${rate} Cleanr fee on base clean only · priority surcharge is 100% yours`;
+  if (row.platform_fee_policy === "provider_brought_relationship_plus_priority_surcharge_100pct_provider") return `${rate} Cleanr fee on base clean only · existing relationship rate · priority surcharge is 100% yours`;
+  if (row.platform_fee_policy === "default") return `${rate} Cleanr platform fee`;
+  return `${rate} Cleanr fee`;
 }
 
 function payoutStatus(row: ProviderEarningsBookingRow, variant: "pending" | "paid") {
   if (variant === "paid") {
-    return {
-      chip: "Paid",
-      detail: isLateCancellationCompensation(row)
-        ? "Cancellation compensation was sent through Stripe."
-        : row.payout_released_at
-          ? "Stripe transfer recorded"
-          : "Payout released",
-    };
+    return { chip: "Paid", detail: isLateCancellationCompensation(row) ? "Cancellation compensation sent through Stripe." : row.payout_released_at ? "Stripe transfer recorded." : "Payout released." };
   }
   if (isLateCancellationCompensation(row)) {
-    if (row.payout_approved_at) {
-      return {
-        chip: "Compensation approved",
-        detail: "Cleanr approved your late-cancellation compensation. Stripe transfer is the remaining step.",
-      };
-    }
-    return {
-      chip: "Cancellation compensation",
-      detail: "The customer cancelled inside 24 hours. This reserved-time compensation is waiting on payout approval.",
-    };
+    if (row.payout_approved_at) return { chip: "Approved", detail: "Compensation is approved and waiting on Stripe transfer." };
+    return { chip: "Pending", detail: "Late-cancellation compensation is waiting on payout approval." };
   }
-  if (row.status === "completed_by_provider") {
-    return {
-      chip: "Waiting on customer",
-      detail: "Your service is complete. Customer confirmation is the next payout milestone.",
-    };
-  }
-  if (row.payout_approved_at) {
-    return {
-      chip: "Payout approved",
-      detail: "Cleanr approved this payout. Stripe transfer is the remaining release step.",
-    };
-  }
-  return {
-    chip: "Pending payout",
-    detail: "Service is confirmed and waiting on payout approval.",
-  };
+  if (row.status === "completed_by_provider") return { chip: "Waiting on customer", detail: "Service is complete. Customer confirmation is the next payout milestone." };
+  if (row.payout_approved_at) return { chip: "Approved", detail: "Payout is approved and waiting on Stripe transfer." };
+  return { chip: "Pending", detail: "Service is confirmed and waiting on payout approval." };
 }
 
-function EarningsRow({
-  row,
-  variant,
-}: {
-  row: ProviderEarningsBookingRow;
-  variant: "pending" | "paid";
-}) {
+function EarningsRow({ row, variant }: { row: ProviderEarningsBookingRow; variant: "pending" | "paid" }) {
   const cents = providerEarningCentsFromRow(row);
   const payout = payoutStatus(row, variant);
   const feeCopy = feePolicyCopy(row);
@@ -143,78 +91,28 @@ function EarningsRow({
   const lateCancellation = isLateCancellationCompensation(row);
 
   return (
-    <div
-      className="rounded-2xl border flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"
-      style={{
-        backgroundColor: CSP_SURFACE,
-        padding: CSP_CARD_PADDING,
-        borderColor: "rgba(248, 250, 252, 0.08)",
-      }}
-    >
-      <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-2">
-          <p className="font-medium" style={{ color: CSP_TEXT_PRIMARY }}>
-            {lateCancellation ? "Late cancellation compensation" : serviceLabel(row.service_type)}
-          </p>
-          {!lateCancellation && row.service_priority === "urgent" ? (
-            <span className="rounded-full border border-amber-300/30 bg-amber-300/10 px-2 py-0.5 text-xs font-medium text-amber-200">
-              Priority
-            </span>
-          ) : null}
-          <span
-            className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-xs font-medium shrink-0"
-            style={{ color: CSP_TEXT_SECONDARY }}
-          >
-            {payout.chip}
-          </span>
+    <div className="border-b border-white/10 py-4 last:border-b-0">
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-sm font-medium">{lateCancellation ? "Late cancellation compensation" : serviceLabel(row.service_type)}</p>
+            <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] font-medium" style={{ color: CSP_TEXT_SECONDARY }}>{payout.chip}</span>
+          </div>
+          <p className="mt-1 text-xs" style={{ color: CSP_TEXT_SECONDARY }}>{formatScheduled(row.scheduled_start)} · {earningsSubtitle(row)}</p>
+          <p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>{payout.detail}</p>
         </div>
-        <p className="text-sm mt-0.5" style={{ color: CSP_TEXT_SECONDARY }}>
-          {formatScheduled(row.scheduled_start)}
-        </p>
-        <p className="text-xs mt-1 font-mono opacity-80" style={{ color: CSP_TEXT_SECONDARY }}>
-          {earningsSubtitle(row)}
-        </p>
-        <p className="mt-2 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>
-          {payout.detail}
-        </p>
-        {!lateCancellation && priorityCents > 0 ? (
-          <p className="mt-1 text-xs font-medium leading-5 text-amber-200">
-            Priority compensation: {formatUsdFromCents(priorityCents)} · 100% yours
-          </p>
-        ) : null}
-        {feeCopy ? (
-          <p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>
-            {feeCopy}
-          </p>
-        ) : null}
+        <p className="shrink-0 text-base font-semibold">{formatUsdFromCents(cents)}</p>
       </div>
-      <div className="text-left sm:text-right shrink-0">
-        <p className="text-xs" style={{ color: CSP_TEXT_SECONDARY }}>
-          {variant === "paid" ? "Paid" : lateCancellation ? "Expected compensation" : "Expected payout"}
-        </p>
-        <p className="font-semibold text-lg" style={{ color: CSP_TEXT_PRIMARY }}>
-          {formatUsdFromCents(cents)}
-        </p>
-      </div>
-    </div>
-  );
-}
 
-function PracticeSignal({ label, value }: { label: string; value: number }) {
-  return (
-    <div
-      className="rounded-2xl border p-4"
-      style={{
-        backgroundColor: CSP_SURFACE,
-        borderColor: "rgba(248, 250, 252, 0.08)",
-      }}
-    >
-      <p className="text-2xl font-semibold" style={{ color: CSP_TEXT_PRIMARY }}>
-        {value}
-      </p>
-      <p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>
-        {label}
-      </p>
+      {(feeCopy || (!lateCancellation && priorityCents > 0)) ? (
+        <details className="mt-2">
+          <summary className="cursor-pointer text-[11px] font-medium" style={{ color: CSP_TEXT_SECONDARY }}>Earning details</summary>
+          <div className="mt-2 space-y-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>
+            {!lateCancellation && priorityCents > 0 ? <p>Priority compensation: {formatUsdFromCents(priorityCents)} · 100% yours</p> : null}
+            {feeCopy ? <p>{feeCopy}</p> : null}
+          </div>
+        </details>
+      ) : null}
     </div>
   );
 }
@@ -235,8 +133,7 @@ export default function EarningsScreen() {
     setLoading(true);
     setError(null);
     try {
-      const data = await listProviderEarningsBookings();
-      setRows(data);
+      setRows(await listProviderEarningsBookings());
     } catch {
       setError("load_failed");
       setRows([]);
@@ -250,174 +147,73 @@ export default function EarningsScreen() {
     void load();
   }, [sessionLoading, load]);
 
-  const { pending, paid } = useMemo(() => {
-    const pendingList = rows.filter(isProviderPendingEarning);
-    const paidList = rows.filter(isProviderPaidEarning);
-    return { pending: pendingList, paid: paidList };
-  }, [rows]);
+  const { pending, paid } = useMemo(() => ({
+    pending: rows.filter(isProviderPendingEarning),
+    paid: rows.filter(isProviderPaidEarning),
+  }), [rows]);
 
-  const practice = useMemo(
-    () =>
-      buildServicePracticeSnapshot(
-        rows.map((row) => ({
-          status: row.status,
-          customerId: row.customer_id,
-          scheduledStart: row.scheduled_start,
-        }))
-      ),
-    [rows]
-  );
+  const practice = useMemo(() => buildServicePracticeSnapshot(rows.map((row) => ({ status: row.status, customerId: row.customer_id, scheduledStart: row.scheduled_start }))), [rows]);
+  const pendingTotalCents = useMemo(() => pending.reduce((sum, row) => sum + providerEarningCentsFromRow(row), 0), [pending]);
+  const paidTotalCents = useMemo(() => paid.reduce((sum, row) => sum + providerEarningCentsFromRow(row), 0), [paid]);
 
-  const pendingTotalCents = useMemo(
-    () => pending.reduce((s, r) => s + providerEarningCentsFromRow(r), 0),
-    [pending]
-  );
-  const paidTotalCents = useMemo(
-    () => paid.reduce((s, r) => s + providerEarningCentsFromRow(r), 0),
-    [paid]
-  );
-
-  if (sessionLoading || loading) {
-    return (
-      <div className="relative" style={{ color: CSP_TEXT_PRIMARY }}>
-        <header style={{ marginBottom: CSP_SECTION_GAP }}>
-          <h1 className="text-2xl font-semibold">Earnings</h1>
-          <p className="text-sm mt-2" style={{ color: CSP_TEXT_SECONDARY }}>
-            Loading earnings…
-          </p>
-        </header>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="relative" style={{ color: CSP_TEXT_PRIMARY }}>
-        <header style={{ marginBottom: CSP_SECTION_GAP }}>
-          <h1 className="text-2xl font-semibold">Earnings</h1>
-          <p className="text-sm mt-2 text-amber-200/90">Earnings could not be loaded.</p>
-        </header>
-      </div>
-    );
-  }
+  if (sessionLoading || loading) return <div style={{ color: CSP_TEXT_PRIMARY }}><h1 className="text-2xl font-semibold">Earnings</h1><p className="mt-2 text-sm" style={{ color: CSP_TEXT_SECONDARY }}>Loading earnings…</p></div>;
+  if (error) return <div style={{ color: CSP_TEXT_PRIMARY }}><h1 className="text-2xl font-semibold">Earnings</h1><p className="mt-2 text-sm text-amber-200/90">Earnings could not be loaded.</p></div>;
 
   return (
     <div className="relative" style={{ color: CSP_TEXT_PRIMARY }}>
       <header style={{ marginBottom: CSP_SECTION_GAP }}>
         <h1 className="text-2xl font-semibold">Earnings</h1>
-        <p className="text-sm mt-2" style={{ color: CSP_TEXT_SECONDARY }}>
-          Track completed work, payout status, and the relationship continuity making your service practice more dependable.
-        </p>
+        <p className="mt-2 text-sm" style={{ color: CSP_TEXT_SECONDARY }}>What is pending, what has been paid, and the work behind it.</p>
       </header>
 
-      <section style={{ marginBottom: CSP_SECTION_GAP }}>
-        <div className="mb-3">
-          <h2 className="text-sm font-medium" style={{ color: CSP_TEXT_PRIMARY }}>
-            Your service practice
-          </h2>
-          <p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>
-            Stability is not a score. It becomes visible when confirmed service turns into repeat household relationships and future visits are already on the schedule.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <PracticeSignal label="confirmed services" value={practice.confirmedServicesCount} />
-          <PracticeSignal label="households with confirmed service" value={practice.confirmedHouseholdsCount} />
-          <PracticeSignal label="repeat households" value={practice.repeatHouseholdsCount} />
-          <PracticeSignal label="returning households already scheduled" value={practice.returningHouseholdsScheduledCount} />
-        </div>
-
-        <div
-          className="mt-3 rounded-2xl border p-4 text-xs leading-5"
-          style={{
-            backgroundColor: CSP_SURFACE,
-            borderColor: "rgba(248, 250, 252, 0.08)",
-            color: CSP_TEXT_SECONDARY,
-          }}
-        >
-          {practice.confirmedServicesCount === 0
-            ? "As customers confirm completed service, Cleanr can show how your household relationships are becoming a more durable service base."
-            : practice.repeatHouseholdsCount === 0
-              ? "Confirmed work is building your service history. When a household returns, that continuity will appear here without changing marketplace ranking or access."
-              : `${practice.repeatServicesCount} confirmed service${practice.repeatServicesCount === 1 ? "" : "s"} happened after a household's first confirmed visit. Repeat work can create steadier income without requiring your North Star to be anything other than a strong cleaning practice.`}
+      <section className="mb-7 border-y border-white/10 py-5">
+        <div className="grid grid-cols-2 gap-6">
+          <div>
+            <p className="text-xs" style={{ color: CSP_TEXT_SECONDARY }}>Pending</p>
+            <p className="mt-1 text-2xl font-semibold">{formatUsdFromCents(pendingTotalCents)}</p>
+            <p className="mt-1 text-[11px]" style={{ color: CSP_TEXT_SECONDARY }}>{pending.length} earning{pending.length === 1 ? "" : "s"}</p>
+          </div>
+          <div>
+            <p className="text-xs" style={{ color: CSP_TEXT_SECONDARY }}>Paid</p>
+            <p className="mt-1 text-2xl font-semibold">{formatUsdFromCents(paidTotalCents)}</p>
+            <p className="mt-1 text-[11px]" style={{ color: CSP_TEXT_SECONDARY }}>{paid.length} payout{paid.length === 1 ? "" : "s"}</p>
+          </div>
         </div>
       </section>
 
       <section style={{ marginBottom: CSP_SECTION_GAP }}>
-        <h2 className="text-sm font-medium mb-3" style={{ color: CSP_TEXT_SECONDARY }}>
-          Pending
-        </h2>
+        <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide" style={{ color: CSP_TEXT_SECONDARY }}>Pending</h2>
         {pending.length === 0 ? (
-          <div
-            className="rounded-2xl border py-6 text-center text-sm"
-            style={{
-              backgroundColor: CSP_SURFACE,
-              borderColor: "rgba(248, 250, 252, 0.08)",
-              color: CSP_TEXT_SECONDARY,
-            }}
-          >
-            No pending earnings yet.
-          </div>
+          <p className="py-4 text-sm" style={{ color: CSP_TEXT_SECONDARY }}>No pending earnings.</p>
         ) : (
-          <>
-            <div
-              className="rounded-2xl border p-4 mb-3"
-              style={{
-                backgroundColor: CSP_SURFACE,
-                borderColor: "rgba(248, 250, 252, 0.08)",
-              }}
-            >
-              <p className="text-sm" style={{ color: CSP_TEXT_SECONDARY }}>
-                Pending total
-              </p>
-              <p className="text-xl font-semibold mt-0.5">{formatUsdFromCents(pendingTotalCents)}</p>
-            </div>
-            <div className="flex flex-col gap-3">
-              {pending.map((row) => (
-                <EarningsRow key={row.id} row={row} variant="pending" />
-              ))}
-            </div>
-          </>
+          <div className="rounded-2xl border px-4" style={{ backgroundColor: CSP_SURFACE, borderColor: "rgba(248,250,252,.08)" }}>
+            {pending.map((row) => <EarningsRow key={row.id} row={row} variant="pending" />)}
+          </div>
         )}
       </section>
 
       <section style={{ marginBottom: CSP_SECTION_GAP }}>
-        <h2 className="text-sm font-medium mb-3" style={{ color: CSP_TEXT_SECONDARY }}>
-          Paid
-        </h2>
+        <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide" style={{ color: CSP_TEXT_SECONDARY }}>Paid</h2>
         {paid.length === 0 ? (
-          <div
-            className="rounded-2xl border py-6 text-center text-sm"
-            style={{
-              backgroundColor: CSP_SURFACE,
-              borderColor: "rgba(248, 250, 252, 0.08)",
-              color: CSP_TEXT_SECONDARY,
-            }}
-          >
-            No paid payouts yet.
-          </div>
+          <p className="py-4 text-sm" style={{ color: CSP_TEXT_SECONDARY }}>No paid payouts yet.</p>
         ) : (
-          <>
-            <div
-              className="rounded-2xl border p-4 mb-3"
-              style={{
-                backgroundColor: CSP_SURFACE,
-                borderColor: "rgba(248, 250, 252, 0.08)",
-              }}
-            >
-              <p className="text-sm" style={{ color: CSP_TEXT_SECONDARY }}>
-                Paid total
-              </p>
-              <p className="text-xl font-semibold mt-0.5">{formatUsdFromCents(paidTotalCents)}</p>
-            </div>
-            <div className="flex flex-col gap-3">
-              {paid.map((row) => (
-                <EarningsRow key={row.id} row={row} variant="paid" />
-              ))}
-            </div>
-          </>
+          <div className="rounded-2xl border px-4" style={{ backgroundColor: CSP_SURFACE, borderColor: "rgba(248,250,252,.08)" }}>
+            {paid.map((row) => <EarningsRow key={row.id} row={row} variant="paid" />)}
+          </div>
         )}
       </section>
+
+      {(practice.confirmedServicesCount > 0 || practice.repeatHouseholdsCount > 0) ? (
+        <details className="border-t border-white/10 pt-4">
+          <summary className="cursor-pointer text-sm font-medium">Your service practice</summary>
+          <div className="mt-3 grid grid-cols-2 gap-x-6 gap-y-4 text-sm">
+            <div><p className="text-xl font-semibold">{practice.confirmedServicesCount}</p><p className="mt-1 text-xs" style={{ color: CSP_TEXT_SECONDARY }}>confirmed services</p></div>
+            <div><p className="text-xl font-semibold">{practice.repeatHouseholdsCount}</p><p className="mt-1 text-xs" style={{ color: CSP_TEXT_SECONDARY }}>repeat households</p></div>
+            <div><p className="text-xl font-semibold">{practice.confirmedHouseholdsCount}</p><p className="mt-1 text-xs" style={{ color: CSP_TEXT_SECONDARY }}>households served</p></div>
+            <div><p className="text-xl font-semibold">{practice.returningHouseholdsScheduledCount}</p><p className="mt-1 text-xs" style={{ color: CSP_TEXT_SECONDARY }}>returning households scheduled</p></div>
+          </div>
+        </details>
+      ) : null}
     </div>
   );
 }

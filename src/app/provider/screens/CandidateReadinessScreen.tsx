@@ -59,60 +59,23 @@ export default function CandidateReadinessScreen() {
   const [error, setError] = useState<string | null>(null);
 
   if (flowLoading || !uid) {
-    traceCspFlow("candidate-readiness", {
-      branch: "candidate.loading",
-      reason: flowLoading ? "flow_profile_loading" : "missing_uid",
-      pathname: CANDIDATE_PATH,
-      uid: uid ?? null,
-    });
+    traceCspFlow("candidate-readiness", { branch: "candidate.loading", reason: flowLoading ? "flow_profile_loading" : "missing_uid", pathname: CANDIDATE_PATH, uid: uid ?? null });
     return <CspNeutralLoading />;
   }
 
   if (!profileFlow || profileFlow.id !== uid) {
-    traceCspFlow("candidate-readiness", {
-      branch: "candidate.loading",
-      reason: "profile_missing",
-      pathname: CANDIDATE_PATH,
-      uid,
-    });
+    traceCspFlow("candidate-readiness", { branch: "candidate.loading", reason: "profile_missing", pathname: CANDIDATE_PATH, uid });
     return (
       <div className="min-h-screen px-4 py-8" style={{ color: CSP_TEXT_PRIMARY }}>
-        <p className="text-sm" style={{ color: CSP_TEXT_SECONDARY }}>
-          We couldn&apos;t load your provider profile. You&apos;re still signed in — try again, or contact support if
-          this keeps happening.
-        </p>
-        <button
-          type="button"
-          className="mt-4 w-full py-3 rounded-xl text-white text-sm font-semibold"
-          style={{ backgroundColor: CSP_PRIMARY_BUTTON }}
-          onClick={() => void refreshFlowProfile()}
-        >
-          Retry
-        </button>
-        <button
-          type="button"
-          className="mt-3 w-full py-3 rounded-xl text-sm font-medium border"
-          style={{ borderColor: "rgba(248, 250, 252, 0.12)", color: CSP_TEXT_SECONDARY }}
-          onClick={() => navigate("/csp/login", { replace: true })}
-        >
-          Back to sign in
-        </button>
+        <p className="text-sm" style={{ color: CSP_TEXT_SECONDARY }}>We couldn&apos;t load your provider profile. You&apos;re still signed in.</p>
+        <button type="button" className="mt-4 w-full rounded-xl py-3 text-sm font-semibold text-white" style={{ backgroundColor: CSP_PRIMARY_BUTTON }} onClick={() => void refreshFlowProfile()}>Retry</button>
+        <button type="button" className="mt-3 w-full rounded-xl border py-3 text-sm font-medium" style={{ borderColor: "rgba(248, 250, 252, 0.12)", color: CSP_TEXT_SECONDARY }} onClick={() => navigate("/csp/login", { replace: true })}>Back to sign in</button>
       </div>
     );
   }
 
   const profile = profileFlow;
-  if (profile.role !== "csp") {
-    traceCspFlow("candidate-readiness", {
-      branch: "candidate.redirect.login",
-      reason: "not_csp",
-      pathname: CANDIDATE_PATH,
-      uid,
-      profileId: profile.id,
-      target: "/csp/login",
-    });
-    return <Navigate to="/csp/login" replace />;
-  }
+  if (profile.role !== "csp") return <Navigate to="/csp/login" replace />;
 
   const handoffBefore = hasProviderInterestHandoff(uid);
   const flowForDecision = mergeFlowProfileWithHandoffs(profile, uid);
@@ -120,27 +83,9 @@ export default function CandidateReadinessScreen() {
 
   if (forwardTarget && forwardTarget !== CANDIDATE_PATH) {
     const dbInterest = hasProviderInterestSubmitted(profile);
-    if (forwardTarget === "/csp/dashboard/onboarding" && dbInterest) {
-      setProviderInterestHandoff(profile.id);
-      traceCspFlow("candidate-readiness", {
-        branch: "candidate.set-handoff.interest-exists",
-        reason: "interest_from_db_before_onboarding_redirect",
-        pathname: CANDIDATE_PATH,
-        uid: profile.id,
-        profileId: profile.id,
-        provider_interest_submitted_at: profile.provider_interest_submitted_at ?? null,
-        handoffBefore,
-        handoffAfter: hasProviderInterestHandoff(profile.id),
-        computedInterestSubmitted: hasProviderInterestSubmitted(flowForDecision),
-        target: forwardTarget,
-      });
-    }
-    const redirectBranch =
-      forwardTarget === "/csp/dashboard/onboarding"
-        ? "candidate.redirect.onboarding"
-        : "candidate.redirect.forward";
+    if (forwardTarget === "/csp/dashboard/onboarding" && dbInterest) setProviderInterestHandoff(profile.id);
     traceCspFlow("candidate-readiness", {
-      branch: redirectBranch,
+      branch: forwardTarget === "/csp/dashboard/onboarding" ? "candidate.redirect.onboarding" : "candidate.redirect.forward",
       reason: "flow_target",
       pathname: CANDIDATE_PATH,
       uid: profile.id,
@@ -161,257 +106,104 @@ export default function CandidateReadinessScreen() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    if (!bucket) {
-      setError("Please select how long you have been cleaning professionally.");
-      return;
-    }
-    if (hasEquipment === null) {
-      setError("Please answer whether you have your own equipment and supplies.");
-      return;
-    }
-    if (hasTransport === null) {
-      setError("Please answer whether you have reliable transportation.");
-      return;
-    }
-    if (!existingClients) {
-      setError("Please tell us whether you already serve residential households, or choose prefer not to say.");
-      return;
-    }
+    if (!bucket) return setError("Select how long you have been cleaning professionally.");
+    if (hasEquipment === null) return setError("Tell us whether you have your own equipment and supplies.");
+    if (hasTransport === null) return setError("Tell us whether you have reliable transportation.");
+    if (!existingClients) return setError("Tell us whether you already serve residential households, or choose prefer not to say.");
 
     const providerId = profile.id;
     setSaving(true);
-    const rpcPayload = {
-      p_experience_bucket: bucket,
-      p_has_own_equipment: hasEquipment,
-      p_has_reliable_transportation: hasTransport,
-      p_scope: "residential",
-    };
+    const rpcPayload = { p_experience_bucket: bucket, p_has_own_equipment: hasEquipment, p_has_reliable_transportation: hasTransport, p_scope: "residential" };
     const traceRpc = await traceProfileWriteStart({
       source: "CandidateReadinessScreen.submitInterest:submit_provider_readiness",
       operation: "rpc",
       targetId: providerId,
       payload: rpcPayload,
       pathname: CANDIDATE_PATH,
-      cspFlowState: {
-        provider_interest_submitted_at: profile.provider_interest_submitted_at,
-        is_onboarded: profile.is_onboarded,
-        application_status: profile.application_status,
-      },
+      cspFlowState: { provider_interest_submitted_at: profile.provider_interest_submitted_at, is_onboarded: profile.is_onboarded, application_status: profile.application_status },
     });
     const submitResult = await supabase.rpc("submit_provider_readiness", rpcPayload);
     traceProfileWriteResult(traceRpc, submitResult);
+    if (submitResult.error) { setError(submitResult.error.message); setSaving(false); return; }
 
-    if (submitResult.error) {
-      setError(submitResult.error.message);
-      setSaving(false);
-      return;
-    }
-
-    const signalResult = await supabase.rpc("set_my_existing_client_readiness_signal", {
-      p_existing_client_household_bucket: existingClients,
-    });
-    if (signalResult.error) {
-      setError("Your readiness was saved, but we could not save the existing-client signal. Please try submitting once more.");
-      setSaving(false);
-      return;
-    }
+    const signalResult = await supabase.rpc("set_my_existing_client_readiness_signal", { p_existing_client_household_bucket: existingClients });
+    if (signalResult.error) { setError("Your readiness was saved, but we could not save the existing-client signal. Please try again."); setSaving(false); return; }
 
     const result = (submitResult.data ?? {}) as ReadinessSubmissionResult;
     const submittedAt = result.submitted_at ?? new Date().toISOString();
-
-    traceCspFlow("candidate-readiness", {
-      branch: "candidate.write.interest",
-      reason: "readiness_rpc_success",
-      pathname: CANDIDATE_PATH,
-      uid: providerId,
-      profileId: providerId,
-      provider_interest_submitted_at: submittedAt,
-      provider_review_band: result.provider_review_band ?? null,
-      existing_client_household_bucket: existingClients,
-    });
+    traceCspFlow("candidate-readiness", { branch: "candidate.write.interest", reason: "readiness_rpc_success", pathname: CANDIDATE_PATH, uid: providerId, profileId: providerId, provider_interest_submitted_at: submittedAt, provider_review_band: result.provider_review_band ?? null, existing_client_household_bucket: existingClients });
 
     const submitHandoffBefore = hasProviderInterestHandoff(providerId);
     setProviderInterestHandoff(providerId);
-    traceCspFlow("candidate-readiness", {
-      branch: "candidate.set-handoff.interest-after-submit",
-      reason: "submit_success",
-      pathname: CANDIDATE_PATH,
-      uid: providerId,
-      profileId: providerId,
-      provider_interest_submitted_at: submittedAt,
-      handoffBefore: submitHandoffBefore,
-      handoffAfter: hasProviderInterestHandoff(providerId),
-      target: "/csp/dashboard/onboarding",
-    });
-
     await refreshFlowProfile();
     setSaving(false);
-    traceCspFlow("candidate-readiness", {
-      branch: "candidate.submit.navigate-onboarding",
-      reason: "submit_success",
-      pathname: CANDIDATE_PATH,
-      uid: providerId,
-      profileId: providerId,
-      provider_interest_submitted_at: submittedAt,
-      handoffBefore: submitHandoffBefore,
-      handoffAfter: hasProviderInterestHandoff(providerId),
-      target: "/csp/dashboard/onboarding",
-    });
+    traceCspFlow("candidate-readiness", { branch: "candidate.submit.navigate-onboarding", reason: "submit_success", pathname: CANDIDATE_PATH, uid: providerId, profileId: providerId, provider_interest_submitted_at: submittedAt, handoffBefore: submitHandoffBefore, handoffAfter: hasProviderInterestHandoff(providerId), target: "/csp/dashboard/onboarding" });
     navigate("/csp/dashboard/onboarding", { replace: true });
   }
 
-  traceCspFlow("candidate-readiness", {
-    branch: "candidate.render.form",
-    reason: "eligible",
-    pathname: CANDIDATE_PATH,
-    uid,
-    profileId: profile.id,
-    provider_interest_submitted_at: profile.provider_interest_submitted_at ?? null,
-    handoffBefore: hasProviderInterestHandoff(uid),
-    handoffAfter: hasProviderInterestHandoff(uid),
-    computedInterestSubmitted: false,
-    interestSubmitted: false,
-    is_onboarded: profile.is_onboarded,
-    waiver_accepted_at: profile.waiver_accepted_at,
-    identity_status: profile.identity_status,
-    readiness_status: profile.readiness_status,
-    application_status: profile.application_status,
-    application_submitted_at: profile.application_submitted_at,
-    application_approved_at: profile.application_approved_at ?? null,
-    marketplace_access: profile.marketplace_access,
-    target: null,
-  });
+  traceCspFlow("candidate-readiness", { branch: "candidate.render.form", reason: "eligible", pathname: CANDIDATE_PATH, uid, profileId: profile.id, provider_interest_submitted_at: profile.provider_interest_submitted_at ?? null, handoffBefore: hasProviderInterestHandoff(uid), handoffAfter: hasProviderInterestHandoff(uid), computedInterestSubmitted: false, interestSubmitted: false, is_onboarded: profile.is_onboarded, waiver_accepted_at: profile.waiver_accepted_at, identity_status: profile.identity_status, readiness_status: profile.readiness_status, application_status: profile.application_status, application_submitted_at: profile.application_submitted_at, application_approved_at: profile.application_approved_at ?? null, marketplace_access: profile.marketplace_access, target: null });
+
+  const choiceClass = (active: boolean) => `flex min-h-12 w-full cursor-pointer items-center gap-3 px-4 py-3 text-sm ${active ? "bg-white/10" : "bg-transparent"}`;
+
   return (
     <div className="min-h-screen px-4 py-8" style={{ color: CSP_TEXT_PRIMARY }}>
       <header style={{ marginBottom: CSP_SECTION_GAP }}>
-        <h1 className="text-2xl font-semibold">Residential provider interest</h1>
-        <p className="text-sm mt-2" style={{ color: CSP_TEXT_SECONDARY }}>
-          Cleanr is building a residential cleaning provider pipeline in Metro Atlanta. Your answers help us understand
-          your current practice and readiness. This is not a job application outcome — we may reach out on a rolling basis.
-        </p>
+        <p className="text-xs font-semibold uppercase tracking-[0.16em]" style={{ color: CSP_TEXT_SECONDARY }}>Provider interest</p>
+        <h1 className="mt-2 text-2xl font-semibold">Tell us about your practice</h1>
+        <p className="mt-2 text-sm" style={{ color: CSP_TEXT_SECONDARY }}>A few quick questions help Cleanr understand how you work today and what setup you may need next.</p>
       </header>
 
-      <section
-        className="rounded-2xl border p-4 mb-6 text-sm space-y-2"
-        style={{ backgroundColor: CSP_SURFACE, borderColor: "rgba(248, 250, 252, 0.08)", color: CSP_TEXT_SECONDARY }}
-      >
-        <p className="font-medium" style={{ color: CSP_TEXT_PRIMARY }}>
-          Please read
+      <details className="mb-6 border-y border-white/10 py-3">
+        <summary className="cursor-pointer text-xs font-semibold" style={{ color: CSP_TEXT_SECONDARY }}>Before you submit</summary>
+        <p className="mt-2 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>
+          This is for residential provider opportunities in Metro Atlanta. Submitting interest does not guarantee immediate activation, screening, jobs, or earnings. Existing clients help us understand your current practice but do not improve approval eligibility.
         </p>
-        <ul className="list-disc list-inside space-y-1">
-          <li>Opportunities we are preparing for are residential cleaning only.</li>
-          <li>Submitting this form does not guarantee immediate activation on Cleanr.</li>
-          <li>It does not guarantee immediate background screening or a background check order.</li>
-          <li>It does not guarantee job placement or earnings.</li>
-          <li>Existing clients help us understand your current practice; they do not improve your approval score or marketplace eligibility.</li>
-        </ul>
-      </section>
+      </details>
 
-      <form onSubmit={(e) => void handleSubmit(e)} className="space-y-6">
-        <div>
-          <p className="text-sm font-medium mb-2" style={{ color: CSP_TEXT_SECONDARY }}>
-            How long have you been cleaning professionally?
-          </p>
-          <div className="space-y-2">
-            {CLEANING_EXPERIENCE_BUCKETS.map((b) => (
-              <label key={b} className="flex items-center gap-3 cursor-pointer" style={{ color: CSP_TEXT_PRIMARY }}>
-                <input
-                  type="radio"
-                  name="experience"
-                  value={b}
-                  checked={bucket === b}
-                  onChange={() => setBucket(b)}
-                />
+      <form onSubmit={(e) => void handleSubmit(e)} className="space-y-7">
+        <section>
+          <p className="mb-2 text-sm font-medium">How long have you been cleaning professionally?</p>
+          <div className="overflow-hidden rounded-2xl border border-white/10" style={{ backgroundColor: CSP_SURFACE }}>
+            {CLEANING_EXPERIENCE_BUCKETS.map((b, index) => (
+              <label key={b} className={`${choiceClass(bucket === b)} ${index > 0 ? "border-t border-white/10" : ""}`}>
+                <input type="radio" name="experience" value={b} checked={bucket === b} onChange={() => setBucket(b)} className="accent-[#0A84FF]" />
                 <span>{EXPERIENCE_LABELS[b]}</span>
               </label>
             ))}
           </div>
-        </div>
+        </section>
 
-        <div>
-          <p className="text-sm font-medium mb-2" style={{ color: CSP_TEXT_SECONDARY }}>
-            Do you have your own cleaning equipment and supplies?
-          </p>
-          <div className="flex gap-4">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="radio"
-                name="equipment"
-                checked={hasEquipment === true}
-                onChange={() => setHasEquipment(true)}
-              />
-              <span>Yes</span>
-            </label>
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="radio"
-                name="equipment"
-                checked={hasEquipment === false}
-                onChange={() => setHasEquipment(false)}
-              />
-              <span>No</span>
-            </label>
+        <section>
+          <p className="mb-2 text-sm font-medium">Do you have your own equipment and supplies?</p>
+          <div className="grid grid-cols-2 overflow-hidden rounded-2xl border border-white/10" style={{ backgroundColor: CSP_SURFACE }}>
+            {[true, false].map((value, index) => <label key={String(value)} className={`${choiceClass(hasEquipment === value)} ${index > 0 ? "border-l border-white/10" : ""}`}><input type="radio" name="equipment" checked={hasEquipment === value} onChange={() => setHasEquipment(value)} className="accent-[#0A84FF]" /><span>{value ? "Yes" : "No"}</span></label>)}
           </div>
-        </div>
+        </section>
 
-        <div>
-          <p className="text-sm font-medium mb-2" style={{ color: CSP_TEXT_SECONDARY }}>
-            Do you have reliable transportation to get to jobs?
-          </p>
-          <div className="flex gap-4">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="radio"
-                name="transport"
-                checked={hasTransport === true}
-                onChange={() => setHasTransport(true)}
-              />
-              <span>Yes</span>
-            </label>
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="radio"
-                name="transport"
-                checked={hasTransport === false}
-                onChange={() => setHasTransport(false)}
-              />
-              <span>No</span>
-            </label>
+        <section>
+          <p className="mb-2 text-sm font-medium">Do you have reliable transportation?</p>
+          <div className="grid grid-cols-2 overflow-hidden rounded-2xl border border-white/10" style={{ backgroundColor: CSP_SURFACE }}>
+            {[true, false].map((value, index) => <label key={String(value)} className={`${choiceClass(hasTransport === value)} ${index > 0 ? "border-l border-white/10" : ""}`}><input type="radio" name="transport" checked={hasTransport === value} onChange={() => setHasTransport(value)} className="accent-[#0A84FF]" /><span>{value ? "Yes" : "No"}</span></label>)}
           </div>
-        </div>
+        </section>
 
-        <div>
-          <p className="text-sm font-medium mb-1" style={{ color: CSP_TEXT_SECONDARY }}>
-            Do you already clean regularly for residential households outside Cleanr?
-          </p>
-          <p className="mb-3 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>
-            This helps us understand the practice you already built and whether Cleanr can support continuity for those relationships. It does not change your provider approval score.
-          </p>
-          <div className="space-y-2">
-            {(Object.keys(EXISTING_CLIENT_LABELS) as ExistingClientHouseholdBucket[]).map((value) => (
-              <label key={value} className="flex items-center gap-3 cursor-pointer" style={{ color: CSP_TEXT_PRIMARY }}>
-                <input
-                  type="radio"
-                  name="existing-clients"
-                  value={value}
-                  checked={existingClients === value}
-                  onChange={() => setExistingClients(value)}
-                />
+        <section>
+          <p className="text-sm font-medium">Do you already serve residential households outside Cleanr?</p>
+          <p className="mb-2 mt-1 text-xs" style={{ color: CSP_TEXT_SECONDARY }}>This helps us understand the practice you already built.</p>
+          <div className="overflow-hidden rounded-2xl border border-white/10" style={{ backgroundColor: CSP_SURFACE }}>
+            {(Object.keys(EXISTING_CLIENT_LABELS) as ExistingClientHouseholdBucket[]).map((value, index) => (
+              <label key={value} className={`${choiceClass(existingClients === value)} ${index > 0 ? "border-t border-white/10" : ""}`}>
+                <input type="radio" name="existing-clients" value={value} checked={existingClients === value} onChange={() => setExistingClients(value)} className="accent-[#0A84FF]" />
                 <span>{EXISTING_CLIENT_LABELS[value]}</span>
               </label>
             ))}
           </div>
-        </div>
+        </section>
 
         {error ? <p className="text-sm text-red-300">{error}</p> : null}
 
-        <button
-          type="submit"
-          disabled={saving}
-          className="w-full py-3 rounded-xl text-white text-sm font-semibold transition-opacity hover:opacity-90 disabled:opacity-60"
-          style={{ backgroundColor: CSP_PRIMARY_BUTTON }}
-        >
-          {saving ? "Saving…" : "Join the candidate pool"}
+        <button type="submit" disabled={saving} className="w-full rounded-xl py-3 text-sm font-semibold text-white disabled:opacity-60" style={{ backgroundColor: CSP_PRIMARY_BUTTON }}>
+          {saving ? "Saving…" : "Continue to provider setup"}
         </button>
       </form>
     </div>
