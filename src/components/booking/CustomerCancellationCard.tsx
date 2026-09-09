@@ -21,7 +21,7 @@ type BookingState = {
   scheduled_start: string;
 };
 
-export function CustomerCancellationCard({ bookingId }: { bookingId: string }) {
+export function CustomerCancellationCard({ bookingId, embedded = false }: { bookingId: string; embedded?: boolean }) {
   const [eligible, setEligible] = useState(false);
   const [open, setOpen] = useState(false);
   const [quote, setQuote] = useState<BookingCancellationQuote | null>(null);
@@ -86,7 +86,7 @@ export function CustomerCancellationCard({ bookingId }: { bookingId: string }) {
 
   if (done) {
     return (
-      <section className="mb-3 border-t border-[#E5E7EB] pt-4">
+      <section className={embedded ? "pt-4" : "mb-3 border-t border-[#E5E7EB] pt-4"}>
         <p className="text-sm font-semibold text-[#0B1220]">Visit cancelled</p>
         <p className="mt-1 text-xs leading-5 text-[#667085]">
           {done === "refund_pending"
@@ -102,28 +102,29 @@ export function CustomerCancellationCard({ bookingId }: { bookingId: string }) {
   if (!eligible) return null;
 
   return (
-    <section className="mb-3 border-t border-[#E5E7EB] pt-4">
+    <section className={embedded ? "border-t border-[#E5E7EB] pt-4" : "mb-3 border-t border-[#E5E7EB] pt-4"}>
       {!open ? (
-        <button
-          type="button"
-          onClick={() => void openCancellation()}
-          className="text-sm font-medium text-[#B42318]"
-        >
-          Cancel visit
-        </button>
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <p className="text-sm font-semibold text-[#0B1220]">Cancel visit</p>
+            <p className="mt-1 text-xs text-[#667085]">See the exact cancellation terms before confirming.</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => void openCancellation()}
+            className="shrink-0 text-sm font-semibold text-[#B42318]"
+          >
+            Review
+          </button>
+        </div>
       ) : (
-        <div className="rounded-2xl border border-[#E5E7EB] bg-white p-4">
+        <div>
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="text-sm font-semibold text-[#0B1220]">Cancel this visit?</p>
-              <p className="mt-1 text-xs text-[#667085]">Review the exact cancellation terms before confirming.</p>
+              <p className="mt-1 text-xs text-[#667085]">Review the exact terms before confirming.</p>
             </div>
-            <button
-              type="button"
-              onClick={() => setOpen(false)}
-              className="rounded-lg p-1 text-[#667085]"
-              aria-label="Keep visit"
-            >
+            <button type="button" onClick={() => setOpen(false)} className="rounded-lg p-1 text-[#667085]" aria-label="Keep visit">
               <X className="h-4 w-4" />
             </button>
           </div>
@@ -169,12 +170,7 @@ export function CustomerCancellationCard({ bookingId }: { bookingId: string }) {
                       ? `Cancel visit · ${money(quote.cancellation_fee_cents)} fee`
                       : "Cancel visit for free"}
                 </button>
-                <button
-                  type="button"
-                  disabled={confirming}
-                  onClick={() => setOpen(false)}
-                  className="min-h-10 rounded-xl px-4 py-2 text-sm font-semibold text-[#475467] disabled:opacity-50"
-                >
+                <button type="button" disabled={confirming} onClick={() => setOpen(false)} className="min-h-10 rounded-xl px-4 py-2 text-sm font-semibold text-[#475467] disabled:opacity-50">
                   Keep visit
                 </button>
               </div>

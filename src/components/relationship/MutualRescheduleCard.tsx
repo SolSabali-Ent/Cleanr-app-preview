@@ -37,10 +37,12 @@ export function MutualRescheduleCard({
   bookingId,
   audience,
   onScheduleChanged,
+  embedded = false,
 }: {
   bookingId: string;
   audience: "customer" | "provider";
   onScheduleChanged?: () => void | Promise<void>;
+  embedded?: boolean;
 }) {
   const [booking, setBooking] = useState<Booking | null>(null);
   const [request, setRequest] = useState<BookingRescheduleRequest | null>(null);
@@ -111,7 +113,7 @@ export function MutualRescheduleCard({
       setFormOpen(false);
       setProposedLocal("");
       setNote("");
-      setNotice(`Sent to ${otherParty} for approval. The current appointment has not changed.`);
+      setNotice(`Sent to ${otherParty}. The visit moves only after approval.`);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Could not send the new time.";
       if (message.includes("missed_visit_scheduling_closed")) {
@@ -138,12 +140,12 @@ export function MutualRescheduleCard({
       if (response === "accept") {
         const refreshed = await getBooking(bookingId);
         setBooking(refreshed);
-        setNotice("New time confirmed. This visit moved; the recurring cadence did not change.");
+        setNotice("New time confirmed. Your recurring cadence did not change.");
         await onScheduleChanged?.();
       } else if (response === "decline") {
-        setNotice("That time was declined. The visit still needs a mutually agreed future time.");
+        setNotice("That time was declined. The current visit time has not changed.");
       } else {
-        setNotice("Reschedule request cancelled. The visit schedule has not changed.");
+        setNotice("Request cancelled. The current visit time has not changed.");
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not update the reschedule request.");
@@ -156,20 +158,19 @@ export function MutualRescheduleCard({
   if (isOfflinePreviewMode || !isParticipant || !canReschedule) return null;
 
   return (
-    <section className="bg-white border border-slate-200 rounded-2xl p-4 mb-3 shadow-md text-slate-900">
+    <section className={embedded ? "text-slate-900" : "mb-3 rounded-2xl border border-slate-200 bg-white p-4 text-slate-900 shadow-md"}>
       <div className="flex items-start gap-3">
-        <CalendarClock className="h-5 w-5 text-[#8DCC64] mt-0.5" />
-        <div className="flex-1">
-          <p className="text-xs font-semibold text-slate-500">{missedVisit ? "Repair this schedule" : "Reschedule together"}</p>
-          <p className="mt-1 text-sm font-semibold">{missedVisit ? "This visit date passed. Choose a new time together." : "Life changes. The appointment only moves when both sides agree."}</p>
+        <CalendarClock className="mt-0.5 h-5 w-5 shrink-0 text-[#8DCC64]" />
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold">{missedVisit ? "Choose a new time" : "Reschedule visit"}</p>
           <p className="mt-1 text-xs leading-5 text-slate-600">
-            Either the household or CSP can suggest another future time. Cleanr changes the visit only after the other person accepts.
+            Suggest another time. The visit changes only after {audience === "provider" ? "the household" : "your CSP"} accepts.
           </p>
         </div>
       </div>
 
-      <div className={`mt-3 rounded-xl border p-3 ${missedVisit ? "border-amber-200 bg-amber-50" : "border-slate-200 bg-slate-50"}`}>
-        <p className={`text-[11px] font-semibold uppercase tracking-wide ${missedVisit ? "text-amber-700" : "text-slate-500"}`}>{missedVisit ? "Missed scheduled date" : "Current visit"}</p>
+      <div className={`mt-3 border-y py-3 ${missedVisit ? "border-amber-200" : "border-slate-200"}`}>
+        <p className={`text-[10px] font-semibold uppercase tracking-wide ${missedVisit ? "text-amber-700" : "text-slate-500"}`}>{missedVisit ? "Missed scheduled time" : "Current time"}</p>
         <p className="mt-1 text-sm font-semibold text-slate-900">{formatDateTime(booking.scheduled_start)}</p>
       </div>
 
@@ -180,7 +181,7 @@ export function MutualRescheduleCard({
         <div className="mt-4 rounded-xl border border-blue-200 bg-blue-50 p-3">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-blue-700">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-blue-700">
                 {isRequester ? "Waiting for approval" : "New time suggested"}
               </p>
               <p className="mt-1 text-sm font-semibold text-slate-900">{formatDateTime(request.proposedStart)}</p>
@@ -196,7 +197,7 @@ export function MutualRescheduleCard({
               <button type="button" disabled={busy} onClick={() => void respond("accept")} className="w-full rounded-xl bg-[#8DCC64] px-3 py-2.5 text-xs font-semibold text-slate-950 disabled:opacity-50">Accept new time</button>
               <div className="grid grid-cols-2 gap-2">
                 <button type="button" disabled={busy} onClick={() => void respond("decline")} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 disabled:opacity-50">Decline</button>
-                <button type="button" disabled={busy} onClick={() => { setFormOpen(true); setNotice("Suggesting a different time replaces the pending suggestion. The visit changes only after acceptance."); }} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 disabled:opacity-50">Suggest another</button>
+                <button type="button" disabled={busy} onClick={() => { setFormOpen(true); setNotice("Suggesting another time replaces the pending suggestion."); }} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 disabled:opacity-50">Suggest another</button>
               </div>
             </div>
           )}
@@ -208,14 +209,14 @@ export function MutualRescheduleCard({
       ) : null}
 
       {formOpen ? (
-        <div className="mt-4 space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+        <div className="mt-4 space-y-3 border-t border-slate-200 pt-4">
           <label className="block">
-            <span className="mb-1 block text-xs font-medium text-slate-600">Suggested date & time</span>
+            <span className="mb-1 block text-xs font-medium text-slate-600">New date & time</span>
             <input type="datetime-local" min={toLocalInputMin()} value={proposedLocal} onChange={(event) => setProposedLocal(event.target.value)} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm text-slate-900" />
           </label>
           <label className="block">
-            <span className="mb-1 block text-xs font-medium text-slate-600">Optional note</span>
-            <textarea value={note} maxLength={500} rows={2} onChange={(event) => setNote(event.target.value)} placeholder={audience === "provider" ? "Only what the household needs to understand the change." : "Only what your CSP needs to understand the change."} className="w-full resize-none rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm text-slate-900" />
+            <span className="mb-1 block text-xs font-medium text-slate-600">Note (optional)</span>
+            <textarea value={note} maxLength={500} rows={2} onChange={(event) => setNote(event.target.value)} placeholder="Add context if it helps" className="w-full resize-none rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm text-slate-900" />
           </label>
           <div className="grid grid-cols-2 gap-2">
             <button type="button" onClick={() => { setFormOpen(false); setProposedLocal(""); setNote(""); }} className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-semibold text-slate-800">Never mind</button>
@@ -224,7 +225,10 @@ export function MutualRescheduleCard({
         </div>
       ) : null}
 
-      <p className="mt-3 text-[11px] leading-4 text-slate-500">This changes one visit only. Recurring cadence stays intact unless both sides explicitly change the recurring plan later.</p>
+      <details className="mt-3">
+        <summary className="cursor-pointer list-none text-[11px] text-slate-500">Recurring cleaning</summary>
+        <p className="mt-1 text-[11px] leading-4 text-slate-500">This changes one visit only. Your recurring cadence stays the same.</p>
+      </details>
     </section>
   );
 }
