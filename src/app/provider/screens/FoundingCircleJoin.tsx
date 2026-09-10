@@ -57,8 +57,8 @@ export default function FoundingCircleJoin() {
       </header>
 
       <section className="px-5 pb-16 pt-14 sm:px-8 sm:pb-20 sm:pt-20">
-        <div className="mx-auto grid max-w-6xl gap-12 lg:grid-cols-[1.28fr_0.72fr] lg:items-end lg:gap-20">
-          <div>
+        <div className="mx-auto grid max-w-6xl gap-8 lg:grid-cols-[1.05fr_0.75fr] lg:gap-x-16 lg:gap-y-8">
+          <div className="lg:col-start-1 lg:row-start-1">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#0000FE]">Founding Circle · Metro Atlanta</p>
             <h1 className="mt-5 max-w-[13ch] text-4xl font-bold leading-[1.02] tracking-[-0.035em] sm:text-5xl lg:text-[64px]">
               Bring the relationships you already built.
@@ -66,7 +66,22 @@ export default function FoundingCircleJoin() {
             <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-600 sm:text-xl">
               Keep serving the households who already trust you. Cleanr helps with scheduling, payments, backup help, and support around the relationship.
             </p>
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
+          </div>
+
+          <figure className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 shadow-sm lg:col-start-2 lg:row-span-2 lg:row-start-1">
+            <img
+              src="/media/cleanr%20founding%20circle%201600x2000.png"
+              alt="A Cleanr provider arriving at a customer's home"
+              width={1600}
+              height={2000}
+              loading="eager"
+              decoding="async"
+              className="aspect-[4/5] h-full w-full object-cover"
+            />
+          </figure>
+
+          <div className="lg:col-start-1 lg:row-start-2">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
               <button
                 type="button"
                 onClick={startSetup}
@@ -79,7 +94,7 @@ export default function FoundingCircleJoin() {
             </div>
           </div>
 
-          <aside className="border-t border-slate-200 pt-6 lg:border-l lg:border-t-0 lg:pl-10 lg:pt-0">
+          <aside className="border-t border-slate-200 pt-6 lg:col-start-1 lg:row-start-3">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Pilot fee</p>
             <p className="mt-3 text-5xl font-semibold tracking-[-0.04em] text-[#0B1220]">{rateLabel}</p>
             <p className="mt-3 max-w-sm text-sm leading-6 text-slate-600">
