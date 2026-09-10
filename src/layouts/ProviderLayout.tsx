@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useLayoutEffect, useRef } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import BottomNav from "../app/provider/navigation/BottomNav";
 import { providerTheme } from "../theme/providerTheme";
@@ -14,7 +14,7 @@ import { useStableSessionProfile } from "../hooks/useStableSessionProfile";
  * with the URL, so we AND them to avoid bell flash when entering gated steps.
  */
 function ProviderLayoutInner() {
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
   const { showDashboardChrome } = useCspDashboardChrome();
   const { displayProfile } = useStableSessionProfile();
   const applicationStatus = (displayProfile?.application_status ?? "").toLowerCase();
@@ -27,6 +27,22 @@ function ProviderLayoutInner() {
   const showChrome =
     (showDashboardChrome || isApprovedPendingProvider) && !pathnameIsGatedPreactivation(pathname);
   const providerShellRef = useRef<HTMLDivElement>(null);
+
+  // Mobile Safari/Chrome can restore the prior document position after React Router
+  // changes a nested CSP route. Reset immediately and once more after layout so every
+  // provider screen begins at the top instead of inheriting the previous page's scroll.
+  useLayoutEffect(() => {
+    const resetToTop = () => {
+      window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+      if (document.scrollingElement) document.scrollingElement.scrollTop = 0;
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+    };
+
+    resetToTop();
+    const frame = window.requestAnimationFrame(resetToTop);
+    return () => window.cancelAnimationFrame(frame);
+  }, [pathname, search]);
 
   return (
     <div
