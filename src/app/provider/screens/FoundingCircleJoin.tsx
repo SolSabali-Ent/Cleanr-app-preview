@@ -59,12 +59,15 @@ export default function FoundingCircleJoin() {
       <section className="px-5 pb-16 pt-14 sm:px-8 sm:pb-20 sm:pt-20">
         <div className="mx-auto grid max-w-6xl gap-8 lg:grid-cols-[1.05fr_0.75fr] lg:gap-x-16 lg:gap-y-8">
           <div className="lg:col-start-1 lg:row-start-1">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#0000FE]">Founding Circle · Metro Atlanta</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#0000FE]">Founding Circle · Metro Atlanta</p>
+              <span className="rounded-full bg-[#FFF3CD] px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-[#8A4B08]">First cohort forming now</span>
+            </div>
             <h1 className="mt-5 max-w-[13ch] text-4xl font-bold leading-[1.02] tracking-[-0.035em] sm:text-5xl lg:text-[64px]">
               Bring the relationships you already built.
             </h1>
             <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-600 sm:text-xl">
-              Keep serving the households who already trust you. Cleanr helps with scheduling, payments, backup help, and support around the relationship.
+              Keep serving the households who already trust you. Join the first group helping shape how Cleanr supports scheduling, payments, backup help, and the relationships behind the work.
             </p>
           </div>
 
@@ -81,24 +84,29 @@ export default function FoundingCircleJoin() {
           </figure>
 
           <div className="lg:col-start-1 lg:row-start-2">
+            <div className="mb-4 rounded-xl border border-[#F4D35E] bg-[#FFF9E8] px-4 py-3">
+              <p className="text-sm font-semibold text-[#5A3208]">We&apos;re starting with 5 Metro Atlanta providers.</p>
+              <p className="mt-1 text-xs leading-5 text-[#7A4A12]">Small on purpose. When the first cohort is full, enrollment pauses while we work closely with the group.</p>
+            </div>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
               <button
                 type="button"
                 onClick={startSetup}
                 className="inline-flex min-h-13 items-center justify-center gap-2 rounded-xl bg-[#0000FE] px-7 py-4 text-base font-semibold text-white transition hover:opacity-95 active:scale-[0.99]"
               >
-                Start provider setup
+                Claim a Founding Circle spot
                 <ArrowRight className="h-4 w-4" />
               </button>
               <span className="text-sm text-slate-500">Existing clients are helpful, not required.</span>
             </div>
+            <p className="mt-3 text-xs font-medium text-slate-500">Enrollment pauses when the first cohort is full.</p>
           </div>
 
           <aside className="border-t border-slate-200 pt-6 lg:col-start-1 lg:row-start-3">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Pilot fee</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Founding Circle pilot rate</p>
             <p className="mt-3 text-5xl font-semibold tracking-[-0.04em] text-[#0B1220]">{rateLabel}</p>
             <p className="mt-3 max-w-sm text-sm leading-6 text-slate-600">
-              {ratePercent == null
+              Join during the founding pilot to access the current pilot fee while we test the model with the first cohort. {ratePercent == null
                 ? "If you bring a client you already serve, Cleanr uses the current Founding Circle fee."
                 : `If you bring a client you already serve, Cleanr currently uses a ${ratePercent}% fee on paid bookings.`}
               {" "}The customer still pays the normal service price.
@@ -166,14 +174,17 @@ export default function FoundingCircleJoin() {
               Existing households simply help us test this part of Cleanr sooner. They do not raise your score and are not required for approval.
             </p>
           </div>
-          <button
-            type="button"
-            onClick={startSetup}
-            className="inline-flex min-h-13 w-full items-center justify-center gap-2 rounded-xl bg-[#0000FE] px-7 py-4 text-base font-semibold text-white transition hover:opacity-95 active:scale-[0.99] sm:w-auto"
-          >
-            Start Founding Circle setup
-            <ArrowRight className="h-4 w-4" />
-          </button>
+          <div className="w-full sm:w-auto">
+            <button
+              type="button"
+              onClick={startSetup}
+              className="inline-flex min-h-13 w-full items-center justify-center gap-2 rounded-xl bg-[#0000FE] px-7 py-4 text-base font-semibold text-white transition hover:opacity-95 active:scale-[0.99] sm:w-auto"
+            >
+              Claim a Founding Circle spot
+              <ArrowRight className="h-4 w-4" />
+            </button>
+            <p className="mt-2 text-center text-xs text-slate-500">First cohort: 5 Metro Atlanta providers.</p>
+          </div>
         </div>
         <p className="mx-auto mt-8 max-w-6xl text-xs text-slate-400">Residential pilot · Metro Atlanta · independent providers</p>
       </section>
