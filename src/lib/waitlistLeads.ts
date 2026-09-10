@@ -44,21 +44,17 @@ export async function createWaitlistLead(input: CreateWaitlistLeadInput): Promis
     throw new Error("Please enter a valid email address.");
   }
 
-  const { error } = await supabase.from("customer_waitlist_leads").upsert(
-    {
-      zip,
-      email,
-      name: input.name?.trim() || null,
-      phone: input.phone?.trim() || null,
-      source: input.source,
-      activation_reason: input.activationReason,
-      serviceable: input.serviceable,
-      active_provider_count:
-        typeof input.activeProviderCount === "number" ? Math.max(0, Math.round(input.activeProviderCount)) : null,
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: "email,zip,source", ignoreDuplicates: false }
-  );
+  const { error } = await supabase.rpc("record_customer_waitlist_lead", {
+    p_zip: zip,
+    p_email: email,
+    p_name: input.name?.trim() || null,
+    p_phone: input.phone?.trim() || null,
+    p_source: input.source,
+    p_activation_reason: input.activationReason,
+    p_serviceable: input.serviceable,
+    p_active_provider_count:
+      typeof input.activeProviderCount === "number" ? Math.max(0, Math.round(input.activeProviderCount)) : null,
+  });
 
   if (error) {
     throw new Error("Unable to save early access request.");
