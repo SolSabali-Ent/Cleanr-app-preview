@@ -50,7 +50,7 @@ const navGroups: NavGroup[] = [
     label: "Operate",
     items: [
       { to: "/admin/ops", label: "Operations", icon: Gauge },
-      { to: "/admin/missed-visit-payments", label: "Missed payments", icon: Banknote },
+      { to: "/admin/missed-visit-payments", label: "Booking exceptions", icon: Banknote },
       { to: "/admin/relationship-recovery", label: "Recovery", icon: Activity },
       { to: "/admin/message-safety", label: "Message safety", icon: MessageSquareWarning },
     ],
