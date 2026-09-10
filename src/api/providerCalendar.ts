@@ -26,15 +26,11 @@ type RecurringCalendarRow = {
   status: "active" | "paused" | "ended";
 };
 
-function confirmationWindowDays(cadence: RecurringCalendarRow["cadence"]): number {
-  if (cadence === "monthly") return 14;
-  if (cadence === "bi-weekly") return 7;
-  return 7;
-}
-
 function recurringExpectationStatus(plan: RecurringCalendarRow): string {
+  if (plan.cadence === "weekly") return "waiting_confirmation";
+  const windowDays = plan.cadence === "monthly" ? 14 : 7;
   const expectedAt = new Date(plan.next_expected_at).getTime();
-  const opensAt = expectedAt - confirmationWindowDays(plan.cadence) * 24 * 60 * 60 * 1000;
+  const opensAt = expectedAt - windowDays * 24 * 60 * 60 * 1000;
   return Date.now() >= opensAt ? "waiting_confirmation" : "expected";
 }
 
