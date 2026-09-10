@@ -1,4 +1,4 @@
-import { Outlet, useLocation } from "react-router-dom";
+import { Link, Outlet, useLocation } from "react-router-dom";
 import { CustomerBottomNav } from "../shell/CustomerBottomNav";
 import { ProviderContextProvider } from "../provider/ProviderContext";
 import { customerTheme } from "../theme/customerTheme";
@@ -31,11 +31,13 @@ export function CustomerLayout() {
             borderColor: "rgba(14, 18, 36, 0.08)",
           }}
         >
-          <img
-            src="/media/Cleanr_wordmark_black.png"
-            alt="Cleanr"
-            className="h-8 w-auto max-w-[160px] object-contain object-left"
-          />
+          <Link to="/" aria-label="Back to Cleanr home" className="inline-flex items-center">
+            <img
+              src="/media/Cleanr_wordmark_black.png"
+              alt="Cleanr"
+              className="h-8 w-auto max-w-[160px] object-contain object-left"
+            />
+          </Link>
           <NotificationsSlot variant="customer" />
         </header>
       ) : null}
