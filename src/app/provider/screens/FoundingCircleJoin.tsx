@@ -68,15 +68,15 @@ export default function FoundingCircleJoin() {
             </p>
           </div>
 
-          <figure className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 shadow-sm lg:col-start-2 lg:row-span-2 lg:row-start-1">
+          <figure className="w-full overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 shadow-sm lg:col-start-2 lg:row-span-2 lg:row-start-1">
             <img
-              src="/media/cleanr%20founding%20circle%201600x2000.png"
+              src="/media/cleanr%20founding%20circle%201600x2000.png?v=20260910"
               alt="A Cleanr provider arriving at a customer's home"
               width={1600}
               height={2000}
               loading="eager"
               decoding="async"
-              className="aspect-[4/5] h-full w-full object-cover"
+              className="block aspect-[4/5] h-auto w-full object-cover"
             />
           </figure>
 
