@@ -7,6 +7,8 @@ import {
   listMarketplaceProvidersPublic,
   type MarketplaceProviderChoice,
 } from "../../lib/providerPresence";
+import { getCustomerActivationStatus, type CustomerActivationStatus } from "../../lib/customerActivation";
+import { createWaitlistLead } from "../../lib/waitlistLeads";
 import { getSignedProfilePhotoUrl } from "../../lib/profilePhotoApi";
 import { persistPublicProviderBookingIntent } from "../../lib/publicBookingIntent";
 
@@ -45,7 +47,7 @@ function TrustSignals({ provider }: { provider: MarketplaceProviderChoice }) {
     <div className="flex flex-wrap gap-2">
       {provider.background_checked ? <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-800">Background Checked</span> : null}
       {provider.insured ? <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-800">Insured</span> : null}
-      {provider.platform_verified ? <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-800">Platform Verified</span> : null}
+      {provider.platform_verified ? <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-800">Verified by Cleanr</span> : null}
     </div>
   );
 }
@@ -56,7 +58,11 @@ export function PublicProviderShowcase() {
   const [loading, setLoading] = useState(true);
   const [zip, setZip] = useState("");
   const [activeZip, setActiveZip] = useState<string | null>(null);
+  const [activation, setActivation] = useState<CustomerActivationStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [waitlistEmail, setWaitlistEmail] = useState("");
+  const [waitlistBusy, setWaitlistBusy] = useState(false);
+  const [waitlistMessage, setWaitlistMessage] = useState<string | null>(null);
   const [profile, setProfile] = useState<MarketplaceProviderChoice | null>(null);
   const [directoryOpen, setDirectoryOpen] = useState(false);
   const [directoryProviders, setDirectoryProviders] = useState<MarketplaceProviderChoice[]>([]);
@@ -94,15 +100,38 @@ export function PublicProviderShowcase() {
       setError("Enter a 5-digit ZIP code.");
       return;
     }
+
     setLoading(true);
     setError(null);
+    setWaitlistMessage(null);
+    setActivation(null);
+    setActiveZip(normalized);
+
     try {
+      const status = await getCustomerActivationStatus(normalized);
+      setActivation(status);
+
+      if (status.reason === "unsupported_zip") {
+        setProviders([]);
+        return;
+      }
+
+      if (status.reason === "unknown") {
+        setProviders([]);
+        setError("We couldn't check this ZIP right now. Please try again.");
+        return;
+      }
+
       const rows = await listMarketplaceProvidersForZip(normalized, 12);
       setProviders(rows);
-      setActiveZip(normalized);
-      if (rows.length === 0) setError("No marketplace CSPs currently cover this ZIP. You can still start a booking and let Cleanr check availability.");
+      if (rows.length === 0) {
+        setError(status.serviceable
+          ? `Cleanr serves ${normalized}, but no CSP is available there right now.`
+          : `Cleanr does not serve ${normalized} yet.`);
+      }
     } catch {
-      setError("We couldn't load CSPs for that ZIP right now.");
+      setProviders([]);
+      setError("We couldn't check this ZIP right now. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -111,7 +140,10 @@ export function PublicProviderShowcase() {
   const clearZip = async () => {
     setZip("");
     setActiveZip(null);
+    setActivation(null);
     setError(null);
+    setWaitlistEmail("");
+    setWaitlistMessage(null);
     setLoading(true);
     try {
       setProviders(await listMarketplaceProvidersPublic(6));
@@ -119,6 +151,28 @@ export function PublicProviderShowcase() {
       setProviders([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const requestArea = async () => {
+    if (!activeZip || !activation || waitlistBusy) return;
+    setWaitlistBusy(true);
+    setWaitlistMessage(null);
+    try {
+      await createWaitlistLead({
+        zip: activeZip,
+        email: waitlistEmail,
+        source: "provider_presence",
+        activationReason: activation.reason === "unsupported_zip" ? "unsupported_zip" : "provider_supply_building",
+        serviceable: activation.serviceable,
+        activeProviderCount: activation.activeProviderCount,
+      });
+      setWaitlistMessage(`Thanks. We saved your request for ${activeZip}.`);
+      setWaitlistEmail("");
+    } catch (err) {
+      setWaitlistMessage(err instanceof Error ? err.message : "We couldn't save your request. Please try again.");
+    } finally {
+      setWaitlistBusy(false);
     }
   };
 
@@ -170,6 +224,9 @@ export function PublicProviderShowcase() {
     });
   }, [directoryProviders, directorySearch]);
 
+  const showAreaRequest = Boolean(activeZip && activation && !activation.bookingEnabled && activation.reason !== "unknown");
+  const canStartBooking = !activeZip || activation?.bookingEnabled === true;
+
   return (
     <>
       <section className="bg-white px-6 py-16 sm:py-20">
@@ -177,7 +234,7 @@ export function PublicProviderShowcase() {
           <div className="max-w-3xl">
             <p className="text-sm font-semibold uppercase tracking-wide text-[#0000FE]">How Cleanr works</p>
             <h2 className="mt-3 text-3xl font-bold tracking-tight text-[#0B1220] sm:text-4xl">From “I need a clean” to booked in a few clear steps.</h2>
-            <p className="mt-4 text-lg leading-relaxed text-[#667085]">Choose the person if that matters to you. Let Cleanr handle the rest of the booking infrastructure around the visit.</p>
+            <p className="mt-4 text-lg leading-relaxed text-[#667085]">Choose the person if that matters to you. Let Cleanr handle the details around the visit.</p>
           </div>
 
           <div className="mt-12 grid border-y border-slate-200 md:grid-cols-3">
@@ -215,7 +272,7 @@ export function PublicProviderShowcase() {
                 inputMode="numeric"
                 maxLength={5}
                 value={zip}
-                onChange={(event) => { setZip(event.target.value.replace(/\D/g, "").slice(0, 5)); setError(null); }}
+                onChange={(event) => { setZip(event.target.value.replace(/\D/g, "").slice(0, 5)); setError(null); setWaitlistMessage(null); }}
                 onKeyDown={(event) => { if (event.key === "Enter") void submitZip(); }}
                 placeholder="Enter ZIP to see who serves your area"
                 className="min-h-12 w-full rounded-xl border border-slate-200 bg-white py-3 pl-12 pr-4 text-base text-[#0B1220] outline-none focus:border-[#0000FE] focus:ring-2 focus:ring-[#0000FE]/10"
@@ -223,12 +280,42 @@ export function PublicProviderShowcase() {
             </div>
             <button type="button" onClick={() => void submitZip()} className="min-h-12 rounded-xl bg-[#0000FE] px-6 font-semibold text-white">See CSPs</button>
           </div>
-          {activeZip ? (
+
+          {activeZip && activation?.reason === "unsupported_zip" ? (
+            <div className="mx-auto mt-5 max-w-xl rounded-2xl border border-amber-200 bg-amber-50 p-5 text-center">
+              <h3 className="text-lg font-semibold text-[#0B1220]">We don&apos;t serve {activeZip} yet.</h3>
+              <p className="mt-2 text-sm leading-6 text-[#667085]">Want Cleanr in your area? Add your email. Your request helps us see where people want us next.</p>
+            </div>
+          ) : activeZip && activation?.serviceable ? (
             <div className="mt-3 text-center text-sm text-[#667085]">
-              Showing top CSPs that plausibly serve {activeZip}. <button type="button" onClick={() => void clearZip()} className="font-semibold text-[#0000FE] underline">Show all areas</button>
+              {providers.length > 0 ? `Showing CSPs who serve ${activeZip}.` : `Checking Cleanr coverage for ${activeZip}.`} <button type="button" onClick={() => void clearZip()} className="font-semibold text-[#0000FE] underline">Show all areas</button>
             </div>
           ) : null}
+
           {error ? <p className="mx-auto mt-3 max-w-xl text-center text-sm text-amber-700">{error}</p> : null}
+
+          {showAreaRequest ? (
+            <div className="mx-auto mt-4 max-w-xl rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+              {activation?.reason !== "unsupported_zip" ? (
+                <p className="mb-3 text-center text-sm text-[#667085]">We serve this area, but we need more CSP coverage. Tell us you&apos;re waiting.</p>
+              ) : null}
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <input
+                  type="email"
+                  autoComplete="email"
+                  value={waitlistEmail}
+                  onChange={(event) => { setWaitlistEmail(event.target.value); setWaitlistMessage(null); }}
+                  placeholder="Email address"
+                  className="min-h-12 flex-1 rounded-xl border border-slate-200 px-4 text-base text-[#0B1220] outline-none focus:border-[#0000FE] focus:ring-2 focus:ring-[#0000FE]/10"
+                />
+                <button type="button" disabled={waitlistBusy || !waitlistEmail.trim()} onClick={() => void requestArea()} className="min-h-12 rounded-xl bg-[#0000FE] px-5 font-semibold text-white disabled:opacity-50">
+                  {waitlistBusy ? "Saving…" : "Request my ZIP"}
+                </button>
+              </div>
+              {waitlistMessage ? <p className="mt-3 text-center text-sm text-[#166534]">{waitlistMessage}</p> : null}
+              <button type="button" onClick={() => void clearZip()} className="mt-3 w-full text-sm font-semibold text-[#0000FE] underline">Check another ZIP</button>
+            </div>
+          ) : null}
 
           {loading ? <p className="mt-10 text-center text-sm text-[#667085]">Loading Cleanr CSPs…</p> : null}
 
@@ -245,7 +332,7 @@ export function PublicProviderShowcase() {
                         <p className="mt-1 text-sm text-[#667085]">
                           {provider.avg_rating !== null && provider.review_count > 0
                             ? <span className="inline-flex items-center gap-1"><Star className="h-4 w-4 text-[#8DCC64]" />{provider.avg_rating.toFixed(1)} · {provider.review_count} reviews</span>
-                            : "New to marketplace"}
+                            : "New to Cleanr"}
                         </p>
                         {provider.years_experience !== null ? <p className="mt-1 text-sm text-[#667085]">{provider.years_experience} years experience</p> : null}
                       </div>
@@ -275,11 +362,13 @@ export function PublicProviderShowcase() {
             </div>
           ) : null}
 
-          <div className="mt-8 text-center">
-            <button type="button" onClick={() => navigate("/book")} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-6 font-semibold text-[#0B1220]">
-              No preference? Let Cleanr match me <ArrowRight className="h-4 w-4" />
-            </button>
-          </div>
+          {canStartBooking ? (
+            <div className="mt-8 text-center">
+              <button type="button" onClick={() => navigate("/book")} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-6 font-semibold text-[#0B1220]">
+                No preference? Let Cleanr match me <ArrowRight className="h-4 w-4" />
+              </button>
+            </div>
+          ) : null}
         </div>
       </section>
 
@@ -291,7 +380,7 @@ export function PublicProviderShowcase() {
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-wider text-[#166534]">{activeZip ? `CSPs serving ${activeZip}` : "Cleanr CSP directory"}</p>
                   <h2 className="mt-1 text-2xl font-bold text-[#0B1220]">Choose someone who feels like a fit</h2>
-                  <p className="mt-2 max-w-2xl text-sm leading-6 text-[#667085]">Browse the full marketplace list here without stretching the homepage. Exact address and date/time eligibility is still confirmed before payment.</p>
+                  <p className="mt-2 max-w-2xl text-sm leading-6 text-[#667085]">Browse the full list here. We still check the exact address and date before payment.</p>
                 </div>
                 <button type="button" onClick={() => setDirectoryOpen(false)} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-slate-200" aria-label="Close CSP directory"><X className="h-5 w-5" /></button>
               </div>
@@ -324,7 +413,7 @@ export function PublicProviderShowcase() {
                           <p className="mt-1 text-sm text-[#667085]">
                             {provider.avg_rating !== null && provider.review_count > 0
                               ? <span className="inline-flex items-center gap-1"><Star className="h-4 w-4 text-[#8DCC64]" />{provider.avg_rating.toFixed(1)} · {provider.review_count} reviews</span>
-                              : "New to marketplace"}
+                              : "New to Cleanr"}
                           </p>
                           {provider.years_experience !== null ? <p className="mt-1 text-sm text-[#667085]">{provider.years_experience} years experience</p> : null}
                         </div>
@@ -357,7 +446,7 @@ export function PublicProviderShowcase() {
               <p className="mt-1 text-sm text-[#667085]">
                 {profile.avg_rating !== null && profile.review_count > 0
                   ? `${profile.avg_rating.toFixed(1)} · ${profile.review_count} reviews`
-                  : "New to Cleanr marketplace"}
+                  : "New to Cleanr"}
               </p>
               <div className="mt-4"><TrustSignals provider={profile} /></div>
             </div>
@@ -367,14 +456,14 @@ export function PublicProviderShowcase() {
               {profile.years_experience !== null ? <p><span className="font-semibold text-[#0B1220]">Experience:</span> {profile.years_experience} years</p> : null}
               {profile.specialties.length > 0 ? <p><span className="font-semibold text-[#0B1220]">Strengths:</span> {profile.specialties.slice(0, 6).join(", ")}</p> : null}
               {profile.service_area_labels.length > 0 ? <p><span className="font-semibold text-[#0B1220]">Areas served:</span> {profile.service_area_labels.slice(0, 6).join(", ")}</p> : null}
-              {profile.repeat_household_count > 0 ? <p><span className="font-semibold text-[#0B1220]">Continuity:</span> {profile.repeat_household_count} repeat household{profile.repeat_household_count === 1 ? "" : "s"}</p> : null}
-              <div className="flex items-start gap-2 rounded-xl bg-[#F3FAF1] p-3 text-[#166534]"><ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" /><span>Choosing a CSP is a request. Cleanr confirms the exact address, service fit, and date/time before payment begins.</span></div>
+              {profile.repeat_household_count > 0 ? <p><span className="font-semibold text-[#0B1220]">Repeat homes:</span> {profile.repeat_household_count} household{profile.repeat_household_count === 1 ? "" : "s"}</p> : null}
+              <div className="flex items-start gap-2 rounded-xl bg-[#F3FAF1] p-3 text-[#166534]"><ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" /><span>Choosing a CSP is a request. Cleanr checks the exact address, service, and date before payment.</span></div>
             </div>
 
             <button type="button" onClick={() => startBookingWith(profile)} className="mt-6 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#0000FE] px-5 font-semibold text-white">
               Book with {displayName(profile)} <ArrowRight className="h-4 w-4" />
             </button>
-            <p className="mt-3 text-center text-xs text-[#667085]">We'll keep your CSP choice while you build the booking. Sign in or create an account only when it's needed to continue to secure payment.</p>
+            <p className="mt-3 text-center text-xs text-[#667085]">We'll keep your CSP choice while you build the booking. Sign in or create an account only when needed for payment.</p>
           </div>
         </div>,
         document.body,

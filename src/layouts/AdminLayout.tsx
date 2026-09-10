@@ -1,4 +1,4 @@
-import { useState, type ComponentType } from "react";
+import { useEffect, useState, type ComponentType } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import {
   Activity,
@@ -22,6 +22,7 @@ import { adminTheme } from "../theme/adminTheme";
 import { providerTheme } from "../theme/providerTheme";
 import { LANDING_LOGO_HERO_SRC } from "../lib/brand";
 import { signOutCleanr } from "../lib/authSession";
+import { supabase } from "../lib/supabase";
 
 type NavItem = {
   to: string;
@@ -32,6 +33,16 @@ type NavItem = {
 type NavGroup = {
   label: string;
   items: NavItem[];
+};
+
+type ZipDemandRow = {
+  zip: string;
+  request_count: number;
+  unique_people: number;
+  latest_request_at: string | null;
+  unsupported_count: number;
+  supply_building_count: number;
+  market_not_active_count: number;
 };
 
 const navGroups: NavGroup[] = [
@@ -78,10 +89,26 @@ const navGroups: NavGroup[] = [
   },
 ];
 
+function demandLabel(row: ZipDemandRow): string {
+  if (row.unsupported_count > 0) return "Not served yet";
+  if (row.supply_building_count > 0) return "Needs CSP coverage";
+  return "Waiting";
+}
+
 function AdminSidebar() {
   const navigate = useNavigate();
   const [signingOut, setSigningOut] = useState(false);
   const [signOutError, setSignOutError] = useState<string | null>(null);
+  const [zipDemand, setZipDemand] = useState<ZipDemandRow[]>([]);
+
+  useEffect(() => {
+    let active = true;
+    void supabase.rpc("get_admin_waitlist_zip_demand").then(({ data, error }) => {
+      if (!active || error) return;
+      setZipDemand(((data ?? []) as ZipDemandRow[]).slice(0, 5));
+    });
+    return () => { active = false; };
+  }, []);
 
   const handleSignOut = async () => {
     if (signingOut) return;
@@ -145,6 +172,28 @@ function AdminSidebar() {
               </div>
             </div>
           ))}
+
+          {zipDemand.length > 0 ? (
+            <div className="rounded-xl border border-white/10 bg-white/[0.04] p-3">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/45">Area requests</p>
+                <Map className="h-3.5 w-3.5 text-white/35" aria-hidden />
+              </div>
+              <p className="mt-1 text-[11px] leading-4 text-white/45">Where people are asking Cleanr to grow.</p>
+              <div className="mt-2 space-y-1.5">
+                {zipDemand.map((row) => (
+                  <div key={row.zip} className="rounded-lg bg-white/[0.05] px-2.5 py-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-semibold text-white">{row.zip}</span>
+                      <span className="text-[10px] font-semibold text-[#8DCC64]">{row.unique_people} {row.unique_people === 1 ? "person" : "people"}</span>
+                    </div>
+                    <p className="mt-0.5 text-[10px] text-white/45">{demandLabel(row)}</p>
+                  </div>
+                ))}
+              </div>
+              <NavLink to="/admin/collective-demand" className="mt-2 inline-flex text-[11px] font-semibold text-white/70 hover:text-white">Open demand →</NavLink>
+            </div>
+          ) : null}
         </div>
       </nav>
 
