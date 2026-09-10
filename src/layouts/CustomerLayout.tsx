@@ -1,4 +1,4 @@
-import { Link, Outlet, useLocation } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
 import { CustomerBottomNav } from "../shell/CustomerBottomNav";
 import { ProviderContextProvider } from "../provider/ProviderContext";
 import { customerTheme } from "../theme/customerTheme";
@@ -18,6 +18,10 @@ export function CustomerLayout() {
     location.pathname.startsWith("/admin/full-app/customer") ||
     location.pathname.startsWith("/admin/device/customer");
 
+  const goToPublicSite = () => {
+    window.location.assign("/");
+  };
+
   return (
     <div
       className={`customer-app min-h-screen ${isCustomerApp ? "customer-app-green" : ""}`}
@@ -31,13 +35,19 @@ export function CustomerLayout() {
             borderColor: "rgba(14, 18, 36, 0.08)",
           }}
         >
-          <Link to="/" aria-label="Back to Cleanr home" className="inline-flex items-center">
+          <button
+            type="button"
+            onClick={goToPublicSite}
+            aria-label="Back to Cleanr home"
+            className="inline-flex min-h-11 min-w-11 touch-manipulation items-center justify-start bg-transparent p-0 text-left"
+          >
             <img
               src="/media/Cleanr_wordmark_black.png"
               alt="Cleanr"
-              className="h-8 w-auto max-w-[160px] object-contain object-left"
+              draggable={false}
+              className="pointer-events-none h-8 w-auto max-w-[160px] select-none object-contain object-left"
             />
-          </Link>
+          </button>
           <NotificationsSlot variant="customer" />
         </header>
       ) : null}
