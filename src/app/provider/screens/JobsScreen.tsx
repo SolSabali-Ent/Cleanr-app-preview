@@ -35,8 +35,15 @@ function formatDistance(meters: number | null | undefined): string {
   return `${miles.toFixed(1)} mi`;
 }
 
-function providerStatusLabel(booking: Booking): string {
-  if (isMissedAcceptedVisit(booking)) return "Needs rescheduling";
+function displayProviderAddress(address: string): string {
+  const clean = address.trim();
+  if (/^ZIP\s+\d{5}/i.test(clean)) return `Address unavailable · ${clean}`;
+  return clean || "Address unavailable";
+}
+
+function providerStatusLabel(booking: Booking, missedResolution: string | null): string {
+  if (missedResolution) return "Missed · Closed";
+  if (isMissedAcceptedVisit(booking)) return "Missed · Needs resolution";
   if (booking.status === "accepted") return "Scheduled";
   if (booking.status === "in_progress") return "In progress";
   if (booking.status === "completed_by_provider") return "Awaiting confirmation";
@@ -48,6 +55,8 @@ function providerStatusLabel(booking: Booking): string {
 type BookingFinancial = {
   price_cents: number;
   platform_fee_cents: number | null;
+  missed_visit_resolution: string | null;
+  missed_visit_resolution_due_at: string | null;
 };
 
 type Tab = "available" | "active" | "completed";
@@ -69,15 +78,20 @@ function MyJobRow({ booking, financial, hasUnreadMessages, divided = false }: { 
   const navigate = useNavigate();
   const grossCents = financial?.price_cents ?? booking.price_cents ?? 0;
   const earningCents = Math.max(0, grossCents - (financial?.platform_fee_cents ?? 0));
+  const missedResolution = financial?.missed_visit_resolution ?? null;
+  const missedOpen = isMissedAcceptedVisit(booking) && !missedResolution;
   return (
     <AppListRow
       tone="provider"
       divided={divided}
-      title={booking.address}
+      title={displayProviderAddress(booking.address)}
       description={
         <div>
           <p>{formatDate(booking.scheduled_start)} · {formatTime(booking.scheduled_start)}</p>
-          <p className="mt-0.5">{providerStatusLabel(booking)} · Expected ${(earningCents / 100).toFixed(0)}</p>
+          <p className="mt-0.5">{providerStatusLabel(booking, missedResolution)} · Expected ${(earningCents / 100).toFixed(0)}</p>
+          {missedOpen && financial?.missed_visit_resolution_due_at ? (
+            <p className="mt-0.5 text-[10px] text-amber-100/70">Resolve by {formatDate(financial.missed_visit_resolution_due_at)} · {formatTime(financial.missed_visit_resolution_due_at)}</p>
+          ) : null}
         </div>
       }
       trailing={
@@ -126,7 +140,7 @@ export default function JobsScreen() {
     async function loadFinancialsAndResolution() {
       const { data, error: financialError } = await supabase
         .from("bookings")
-        .select("id, price_cents, platform_fee_cents, missed_visit_resolution")
+        .select("id, price_cents, platform_fee_cents, missed_visit_resolution, missed_visit_resolution_due_at")
         .eq("provider_id", providerId);
       if (financialError) throw financialError;
       const next: Record<string, BookingFinancial> = {};
@@ -136,6 +150,8 @@ export default function JobsScreen() {
         next[id] = {
           price_cents: Number(row.price_cents ?? 0),
           platform_fee_cents: row.platform_fee_cents == null ? null : Number(row.platform_fee_cents),
+          missed_visit_resolution: row.missed_visit_resolution ? String(row.missed_visit_resolution) : null,
+          missed_visit_resolution_due_at: row.missed_visit_resolution_due_at ? String(row.missed_visit_resolution_due_at) : null,
         };
         if (row.missed_visit_resolution) resolved.add(id);
       }
@@ -150,7 +166,7 @@ export default function JobsScreen() {
       Promise.all([listMyJobsAsProvider(), loadFinancialsAndResolution()])
         .then(([my]) => {
           setMyJobs(my);
-          if (my.some((booking) => isCurrentProviderWork(booking) || isMissedAcceptedVisit(booking))) setTab("active");
+          if (my.some((booking) => isCurrentProviderWork(booking) || (isMissedAcceptedVisit(booking) && !resolvedMissedIds.has(booking.id)))) setTab("active");
         })
         .catch((err) => {
           setMyJobs([]);
@@ -180,7 +196,7 @@ export default function JobsScreen() {
 
   const active = myJobs.filter((booking) => isCurrentProviderWork(booking));
   const missed = myJobs.filter((booking) => isMissedAcceptedVisit(booking) && !resolvedMissedIds.has(booking.id));
-  const completed = myJobs.filter((booking) => booking.status === "completed_by_provider" || booking.status === "confirmed");
+  const completed = myJobs.filter((booking) => booking.status === "completed_by_provider" || booking.status === "confirmed" || resolvedMissedIds.has(booking.id));
 
   async function openOpportunity(id: string) {
     setOpportunityOpen(true);
@@ -241,8 +257,8 @@ export default function JobsScreen() {
 
       {missed.length > 0 ? (
         <section className="mb-5 border-y border-amber-400/25 bg-amber-950/20 py-4">
-          <p className="text-sm font-semibold text-amber-200">{missed.length} visit{missed.length === 1 ? "" : "s"} need attention</p>
-          <p className="mt-1 text-xs leading-5 text-amber-100/75">Open the visit to agree on a new future time with the household.</p>
+          <p className="text-sm font-semibold text-amber-200">{missed.length} missed visit{missed.length === 1 ? "" : "s"} need resolution</p>
+          <p className="mt-1 text-xs leading-5 text-amber-100/75">Open the visit to suggest a new future time. If it is not resolved within the recovery window, Cleanr closes the scheduling issue without marking service complete.</p>
           <div className="mt-3">
             <AppList tone="provider">
               {missed.map((booking, index) => (
@@ -260,7 +276,7 @@ export default function JobsScreen() {
         items={[
           { value: "available", label: "Available", count: marketplaceEnabled && acceptingNewMarketplaceWork ? available.length : undefined },
           { value: "active", label: "Active", count: active.length },
-          { value: "completed", label: "Completed", count: completed.length },
+          { value: "completed", label: "History", count: completed.length },
         ]}
       />
 
@@ -268,7 +284,7 @@ export default function JobsScreen() {
         !marketplaceEnabled ? (
           <div className="border-y border-white/10 py-5">
             <p className="text-sm font-semibold">New Cleanr opportunities aren't available yet</p>
-            <p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>Existing household bookings still appear under Active and Completed.</p>
+            <p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>Existing household bookings still appear under Active and History.</p>
             <button type="button" onClick={() => navigate("/csp/dashboard/existing-clients")} className="mt-3 text-xs font-semibold" style={{ color: CSP_PRIMARY_BUTTON }}>Bring an existing client</button>
           </div>
         ) : !acceptingNewMarketplaceWork ? (
@@ -301,7 +317,7 @@ export default function JobsScreen() {
 
       {tab === "completed" ? (
         completed.length === 0 ? (
-          <AppEmptyState tone="provider" title="No completed jobs yet" />
+          <AppEmptyState tone="provider" title="No job history yet" />
         ) : (
           <AppList tone="provider">
             {completed.map((booking, index) => <MyJobRow key={booking.id} booking={booking} financial={financials[booking.id] ?? null} hasUnreadMessages={unreadBookingIds.has(booking.id)} divided={index > 0} />)}
