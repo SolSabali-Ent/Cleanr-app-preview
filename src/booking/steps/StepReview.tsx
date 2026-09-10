@@ -7,7 +7,7 @@ import { setMyBookingServiceRelationshipContext } from "../../lib/bookingRelatio
 import { setMyBookingRequestedProvider } from "../../lib/bookingRequestedProviderApi";
 import { recordBookingProgressEvent, serviceOptionKeyFromBookingService } from "../../lib/bookingProgress";
 import { emitBookingAbandoned } from "../../lib/kinex/events";
-import { customerFacingServiceLabel } from "../../lib/serviceCatalog";
+import { customerFacingServiceLabel, persistedServiceLabelForCreateBooking } from "../../lib/serviceCatalog";
 import { getMyCustomerValueSummary } from "../../lib/customerAffiliateApi";
 import {
   acceptCheckoutLegalDocuments,
@@ -19,8 +19,24 @@ import { supabase } from "../../lib/supabase";
 
 interface StepReviewProps { onBack: () => void; }
 
+type MatchingRecurringPlan = {
+  plan_id: string;
+  status: string;
+  service_type: string;
+  cadence: string;
+  address_label: string;
+  address_display: string;
+};
+
 function money(cents: number) {
   return new Intl.NumberFormat(undefined, { style: "currency", currency: "USD" }).format(cents / 100);
+}
+
+function cadenceLabel(cadence: string): string {
+  if (cadence === "weekly") return "weekly";
+  if (cadence === "bi-weekly") return "every 2 weeks";
+  if (cadence === "monthly") return "monthly";
+  return cadence;
 }
 
 async function checkoutErrorMessage(err: unknown): Promise<string> {
@@ -57,6 +73,7 @@ export function StepReview({ onBack }: StepReviewProps) {
   const { state } = useBooking();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [matchingRecurringPlan, setMatchingRecurringPlan] = useState<MatchingRecurringPlan | null>(null);
   const [priorityRate, setPriorityRate] = useState(0.25);
   const [valueSummary, setValueSummary] = useState({ cleanrCreditBalanceCents: 0, acquisitionCreditCents: 0 });
   const [legalDocuments, setLegalDocuments] = useState<CheckoutLegalDocument[]>([]);
@@ -85,7 +102,7 @@ export function StepReview({ onBack }: StepReviewProps) {
     return () => { active = false; };
   }, []);
 
-  const handleConfirm = async () => {
+  const handleConfirm = async (bookAsOneTime = false) => {
     setSubmitError(null);
     setIsSubmitting(true);
     try {
@@ -101,6 +118,33 @@ export function StepReview({ onBack }: StepReviewProps) {
         return;
       }
 
+      const recurringCadence = state.frequency === "weekly" || state.frequency === "bi-weekly" || state.frequency === "monthly"
+        ? state.frequency
+        : null;
+
+      if (!bookAsOneTime && recurringCadence && state.serviceAddress.verified) {
+        const { data: existingPlan, error: duplicateCheckError } = await supabase.rpc("get_my_matching_recurring_plan", {
+          p_service_type: persistedServiceLabelForCreateBooking(state.serviceType),
+          p_address: {
+            address: state.serviceAddress.formatted,
+            street: state.serviceAddress.street,
+            unit: state.serviceAddress.unit || null,
+            city: state.serviceAddress.city,
+            state: state.serviceAddress.state,
+            zip_code: state.serviceAddress.zip,
+          },
+          p_cadence: recurringCadence,
+        });
+
+        if (!duplicateCheckError) {
+          const row = Array.isArray(existingPlan) ? existingPlan[0] : existingPlan;
+          if (row?.plan_id) {
+            setMatchingRecurringPlan(row as MatchingRecurringPlan);
+            return;
+          }
+        }
+      }
+
       if (legalDocuments.length > 0) {
         if (!legalAccepted) {
           setSubmitError("Review and accept the required terms before continuing to payment.");
@@ -109,7 +153,8 @@ export function StepReview({ onBack }: StepReviewProps) {
         await acceptCheckoutLegalDocuments(legalDocuments);
       }
 
-      const bookingId = await createVerifiedBooking(state);
+      const bookingState = bookAsOneTime ? { ...state, frequency: "one-time" as const } : state;
+      const bookingId = await createVerifiedBooking(bookingState);
       if (serviceRelationshipId) await setMyBookingServiceRelationshipContext(bookingId, serviceRelationshipId);
       else if (state.requestedProviderId) await setMyBookingRequestedProvider(bookingId, state.requestedProviderId);
 
@@ -117,13 +162,16 @@ export function StepReview({ onBack }: StepReviewProps) {
       const providerMetadata = state.requestedProviderId && !serviceRelationshipId
         ? { requested_provider_id: state.requestedProviderId, provider_selection: "customer_selection" }
         : {};
+      const recurringMetadata = bookAsOneTime && matchingRecurringPlan
+        ? { duplicate_recurring_prevented: true, existing_recurring_plan_id: matchingRecurringPlan.plan_id, booked_as: "one-time" }
+        : {};
       void recordBookingProgressEvent({
         eventType: "booking_created_payment_not_started",
         currentStep: "review",
         bookingId,
         zip: state.zipcode ?? null,
         serviceOptionKey: serviceOptionKeyFromBookingService(state.serviceType),
-        metadata: { ...priorityMetadata, ...providerMetadata, ...(serviceRelationshipId ? { relationship_context: "customer_selected_existing_relationship" } : {}) },
+        metadata: { ...priorityMetadata, ...providerMetadata, ...recurringMetadata, ...(serviceRelationshipId ? { relationship_context: "customer_selected_existing_relationship" } : {}) },
       });
       void recordBookingProgressEvent({
         eventType: "checkout_started_payment_not_completed",
@@ -131,7 +179,7 @@ export function StepReview({ onBack }: StepReviewProps) {
         bookingId,
         zip: state.zipcode ?? null,
         serviceOptionKey: serviceOptionKeyFromBookingService(state.serviceType),
-        metadata: { transport: "stripe_checkout_redirect", location_precision: "verified_street_address", ...priorityMetadata, ...providerMetadata, ...(serviceRelationshipId ? { relationship_context: "customer_selected_existing_relationship" } : {}) },
+        metadata: { transport: "stripe_checkout_redirect", location_precision: "verified_street_address", ...priorityMetadata, ...providerMetadata, ...recurringMetadata, ...(serviceRelationshipId ? { relationship_context: "customer_selected_existing_relationship" } : {}) },
       });
 
       const { url } = await createBookingCheckoutSession(bookingId);
@@ -230,11 +278,30 @@ export function StepReview({ onBack }: StepReviewProps) {
         </section>
       ) : null}
 
+      {matchingRecurringPlan ? (
+        <section className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+          <p className="text-sm font-semibold text-amber-950">You already have this recurring cleaning.</p>
+          <p className="mt-1 text-xs leading-5 text-amber-900">
+            {customerFacingServiceLabel(matchingRecurringPlan.service_type)} · {cadenceLabel(matchingRecurringPlan.cadence)} at {matchingRecurringPlan.address_label}.
+          </p>
+          <p className="mt-1 text-xs leading-5 text-amber-800">{matchingRecurringPlan.address_display}</p>
+          <p className="mt-2 text-xs leading-5 text-amber-900">To avoid a duplicate plan, book this visit as one-time or manage the recurring plan you already have.</p>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            <Button type="button" onClick={() => void handleConfirm(true)} disabled={isSubmitting} loading={isSubmitting} variant="primaryBlue" size="md" fullWidth>
+              Book this as one-time
+            </Button>
+            <button type="button" onClick={() => navigate("/app/bookings")} className="min-h-11 rounded-xl border border-amber-300 bg-white px-4 text-sm font-semibold text-amber-950">Manage recurring cleaning</button>
+          </div>
+        </section>
+      ) : null}
+
       {submitError ? <div className="border-y border-red-200 bg-red-50 py-3 text-[12px] font-medium leading-5 text-red-600">{submitError}</div> : null}
 
-      <Button type="button" onClick={handleConfirm} disabled={isSubmitting || !state.serviceAddress.verified} loading={isSubmitting} variant="primaryBlue" size="lg" fullWidth>
-        {isSubmitting ? "Starting payment…" : "Continue to secure payment"}
-      </Button>
+      {!matchingRecurringPlan ? (
+        <Button type="button" onClick={() => void handleConfirm(false)} disabled={isSubmitting || !state.serviceAddress.verified} loading={isSubmitting} variant="primaryBlue" size="lg" fullWidth>
+          {isSubmitting ? "Starting payment…" : "Continue to secure payment"}
+        </Button>
+      ) : null}
       <p className="text-center text-[11px] leading-4 text-[#667085]">You'll see the final total before you're charged. Sign in only if needed.</p>
       <button type="button" onClick={onBack} className="w-full py-2 text-[12px] font-semibold text-[#475467]">Make changes</button>
       {legalDocuments.length === 0 ? <p className="text-center text-[10px] leading-4 text-[#98A2B3]">Any required legal documents will be shown for explicit review before payment.</p> : null}
