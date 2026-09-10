@@ -62,6 +62,7 @@ export function StepAddress({ onNext }: StepAddressProps) {
   const [suggestionsLoading, setSuggestionsLoading] = useState(false);
   const [autocompleteConfigured, setAutocompleteConfigured] = useState(true);
   const [choosingSuggestion, setChoosingSuggestion] = useState(false);
+  const [selectedSuggestionStreet, setSelectedSuggestionStreet] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -79,7 +80,8 @@ export function StepAddress({ onNext }: StepAddressProps) {
 
   useEffect(() => {
     const query = street.trim();
-    if (!showManualForm || !autocompleteConfigured || query.length < 4 || choosingSuggestion) {
+    const selectedStreet = selectedSuggestionStreet?.trim() ?? "";
+    if (!showManualForm || !autocompleteConfigured || query.length < 4 || choosingSuggestion || (selectedStreet && query === selectedStreet)) {
       setSuggestions([]);
       return;
     }
@@ -111,7 +113,7 @@ export function StepAddress({ onNext }: StepAddressProps) {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [street, showManualForm, autocompleteConfigured, choosingSuggestion, state.zipcode, zip]);
+  }, [street, showManualForm, autocompleteConfigured, choosingSuggestion, selectedSuggestionStreet, state.zipcode, zip]);
 
   const isFormComplete = useMemo(() => Boolean(street.trim() && city.trim() && region.trim() && /^\d{5}(?:-\d{4})?$/.test(zip.trim())), [street, city, region, zip]);
 
@@ -150,10 +152,13 @@ export function StepAddress({ onNext }: StepAddressProps) {
         throw new Error("That address is outside the ZIP you checked. Pick an address in the same ZIP.");
       }
       setStreet(result.street);
+      setSelectedSuggestionStreet(result.street.trim());
       setCity(result.city);
       setRegion(result.state.toUpperCase());
       setZip(result.zip);
+      setSuggestions([]);
     } catch (err) {
+      setSelectedSuggestionStreet(null);
       setError(err instanceof Error ? err.message : "We couldn't fill that address.");
     } finally {
       setChoosingSuggestion(false);
@@ -236,8 +241,11 @@ export function StepAddress({ onNext }: StepAddressProps) {
                   type="text"
                   autoComplete="street-address"
                   value={street}
-                  onChange={(e) => { setStreet(e.target.value); setError(null); }}
-                  onFocus={() => setChoosingSuggestion(false)}
+                  onChange={(e) => {
+                    setStreet(e.target.value);
+                    setSelectedSuggestionStreet(null);
+                    setError(null);
+                  }}
                   placeholder="Start typing your address"
                   className={inputClass}
                   aria-autocomplete="list"
