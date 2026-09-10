@@ -4,6 +4,7 @@ import { ChevronDown, Clock3, CalendarDays, SlidersHorizontal } from "lucide-rea
 import BottomSheet, { type Snap } from "../../../components/ui/BottomSheet";
 import { getProviderCalendarEvents, type ProviderCalendarEvent } from "../../../api/providerCalendar";
 import { supabase } from "../../../lib/supabase";
+import { customerFacingServiceLabel } from "../../../lib/serviceCatalog";
 import {
   CSP_INPUT,
   CSP_PRIMARY_BUTTON,
@@ -58,9 +59,16 @@ function parsePlatformFlag(value: string | null | undefined, fallback: boolean) 
   return fallback;
 }
 
-function formatCurrency(cents: number | null) {
+function formatCurrency(cents: number | null | undefined) {
   if (typeof cents !== "number") return "—";
   return new Intl.NumberFormat(undefined, { style: "currency", currency: "USD" }).format(cents / 100);
+}
+
+function readableStatus(status: string | null | undefined): string {
+  if (!status) return "";
+  if (status === "waiting_confirmation") return "Waiting on confirmation";
+  if (status === "expected") return "Expected";
+  return status.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
 function toLocalDateTimeInput(date: Date) {
@@ -73,8 +81,14 @@ function getDateRange(preset: RangePreset) {
   const start = new Date(now);
   start.setHours(0, 0, 0, 0);
   const end = new Date(now);
-  end.setDate(end.getDate() + (preset === "today" ? 0 : preset === "7d" ? 6 : 29));
+  end.setDate(end.getDate() + (preset === "today" ? 0 : preset === "7d" ? 6 : 30));
   end.setHours(23, 59, 59, 999);
+  return { startISO: start.toISOString(), endISO: end.toISOString() };
+}
+
+function getMonthDateRange(month: Date) {
+  const start = new Date(month.getFullYear(), month.getMonth(), 1, 0, 0, 0, 0);
+  const end = new Date(month.getFullYear(), month.getMonth() + 1, 1, 0, 0, 0, 0);
   return { startISO: start.toISOString(), endISO: end.toISOString() };
 }
 
@@ -136,7 +150,7 @@ function AgendaList({ events, loading, emptyLabel }: { events: ProviderCalendarE
       <div className="border-y border-white/10 py-7">
         <p className="text-sm font-semibold">{emptyLabel}</p>
         <p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>
-          Your bookings, time off, and blocked time will appear here.
+          Confirmed bookings, expected recurring visits, time off, and blocked time will appear here.
         </p>
       </div>
     );
@@ -152,14 +166,45 @@ function AgendaList({ events, loading, emptyLabel }: { events: ProviderCalendarE
               const start = new Date(event.start_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
               const end = new Date(event.end_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
               const isBooking = event.type === "booking";
+              const isExpected = event.type === "expected_recurring";
+              const title = isBooking || isExpected
+                ? customerFacingServiceLabel(event.service_type ?? "Cleaning")
+                : event.type === "time_off"
+                  ? "Time off"
+                  : "Blocked";
               return (
-                <div key={`${event.booking_id ?? event.time_off_id ?? event.manual_block_id ?? index}`} className="flex items-start justify-between gap-4">
+                <div
+                  key={`${event.booking_id ?? event.recurring_plan_id ?? event.time_off_id ?? event.manual_block_id ?? index}`}
+                  className={`flex items-start justify-between gap-4 ${isExpected ? "rounded-xl border border-dashed border-white/15 bg-white/[0.025] px-3 py-3" : ""}`}
+                >
                   <div className="min-w-0">
-                    <p className="text-sm font-semibold">{isBooking ? event.service_type ?? "Cleaning" : event.type === "time_off" ? "Time off" : "Blocked"}</p>
-                    <p className="mt-1 text-xs" style={{ color: CSP_TEXT_SECONDARY }}>{start}–{end}{isBooking && event.status ? ` · ${event.status}` : ""}</p>
-                    {!isBooking && event.reason ? <p className="mt-1 text-xs" style={{ color: CSP_TEXT_SECONDARY }}>{event.reason}</p> : null}
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-sm font-semibold">{title}</p>
+                      {isExpected ? (
+                        <span
+                          className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-semibold"
+                          style={{ color: event.status === "waiting_confirmation" ? "#F4D35E" : CSP_TEXT_SECONDARY }}
+                        >
+                          {readableStatus(event.status)}
+                        </span>
+                      ) : null}
+                    </div>
+                    <p className="mt-1 text-xs" style={{ color: CSP_TEXT_SECONDARY }}>
+                      {start}–{end}{isBooking && event.status ? ` · ${readableStatus(event.status)}` : ""}
+                    </p>
+                    {isExpected ? (
+                      <p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>
+                        Expected recurring time · not booked yet
+                      </p>
+                    ) : null}
+                    {!isBooking && !isExpected && event.reason ? <p className="mt-1 text-xs" style={{ color: CSP_TEXT_SECONDARY }}>{event.reason}</p> : null}
                   </div>
-                  {isBooking ? <p className="shrink-0 text-sm font-semibold">{formatCurrency(event.price_cents)}</p> : null}
+                  {isBooking ? (
+                    <div className="shrink-0 text-right">
+                      <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: CSP_TEXT_SECONDARY }}>Your payout</p>
+                      <p className="mt-1 text-sm font-semibold">{formatCurrency(event.provider_payout_cents)}</p>
+                    </div>
+                  ) : null}
                 </div>
               );
             })}
@@ -211,7 +256,7 @@ export default function CalendarScreen() {
         return;
       }
       setProviderId(user.id);
-      await Promise.all([loadFlags(), loadEvents(user.id, "30d"), loadAvailability(user.id)]);
+      await Promise.all([loadFlags(), loadEvents(user.id, getDateRange("30d")), loadAvailability(user.id)]);
       if (mounted) setLoading(false);
     }
     void load();
@@ -220,8 +265,12 @@ export default function CalendarScreen() {
 
   useEffect(() => {
     if (!providerId || !flags.calendar_enabled || activeTab === "availability") return;
-    void loadEvents(providerId, rangePreset);
-  }, [providerId, activeTab, flags.calendar_enabled, rangePreset]);
+    if (activeTab === "month") {
+      void loadEvents(providerId, getMonthDateRange(viewMonth));
+      return;
+    }
+    void loadEvents(providerId, getDateRange(rangePreset));
+  }, [providerId, activeTab, flags.calendar_enabled, rangePreset, viewMonth]);
 
   async function loadFlags() {
     const { data } = await supabase.from("platform_settings").select("key, value").in("key", ["calendar_enabled", "insights_enabled"]);
@@ -232,13 +281,20 @@ export default function CalendarScreen() {
     });
   }
 
-  async function loadEvents(currentProviderId: string, preset: RangePreset) {
+  async function loadEvents(currentProviderId: string, range: { startISO: string; endISO: string }) {
     try {
-      const { startISO, endISO } = getDateRange(preset);
-      setEvents(await getProviderCalendarEvents(currentProviderId, startISO, endISO));
+      setEvents(await getProviderCalendarEvents(currentProviderId, range.startISO, range.endISO));
     } catch (err) {
       setEvents([]);
       setError(err instanceof Error ? err.message : "Unable to load calendar events.");
+    }
+  }
+
+  async function reloadCurrentEvents(currentProviderId: string) {
+    if (activeTab === "month") {
+      await loadEvents(currentProviderId, getMonthDateRange(viewMonth));
+    } else {
+      await loadEvents(currentProviderId, getDateRange(rangePreset));
     }
   }
 
@@ -319,7 +375,7 @@ export default function CalendarScreen() {
     setSavingBlock(false);
     if (insertError) { setError(insertError.message); return; }
     setBlockOpen(false);
-    await loadEvents(providerId, rangePreset);
+    await reloadCurrentEvents(providerId);
     setToast("Block time added");
     window.setTimeout(() => setToast(null), 2200);
   }
@@ -337,22 +393,17 @@ export default function CalendarScreen() {
     setSavingTimeOff(false);
     if (insertError) { setError(insertError.message); return; }
     setTimeOffOpen(false);
-    await loadEvents(providerId, rangePreset);
+    await reloadCurrentEvents(providerId);
     setToast("Time off added");
     window.setTimeout(() => setToast(null), 2200);
   }
-
-  const monthEvents = useMemo(() => events.filter((event) => {
-    const d = new Date(event.start_at);
-    return d.getFullYear() === viewMonth.getFullYear() && d.getMonth() === viewMonth.getMonth();
-  }), [events, viewMonth]);
 
   return (
     <div className="relative z-0 isolate pb-4" style={{ color: CSP_TEXT_PRIMARY }}>
       <header className="mb-6">
         <h1 className="text-[28px] font-semibold tracking-[-0.025em]">Calendar</h1>
         <p className="mt-2 text-sm leading-6" style={{ color: CSP_TEXT_SECONDARY }}>
-          Your schedule first. Availability controls stay close when you need them.
+          Confirmed work and expected recurring visits, with your availability close by.
         </p>
       </header>
 
@@ -385,7 +436,7 @@ export default function CalendarScreen() {
             <div className="mb-4 flex items-center justify-between gap-3">
               <div>
                 <p className="text-sm font-semibold">Your schedule</p>
-                <p className="mt-1 text-xs" style={{ color: CSP_TEXT_SECONDARY }}>Bookings, blocks, and time off.</p>
+                <p className="mt-1 text-xs" style={{ color: CSP_TEXT_SECONDARY }}>Confirmed work, expected recurring visits, blocks, and time off.</p>
               </div>
               <div className="flex gap-1 rounded-xl border border-white/10 p-1">
                 {(["today", "7d", "30d"] as RangePreset[]).map((preset) => (
@@ -428,7 +479,7 @@ export default function CalendarScreen() {
             <p className="text-base font-semibold">{viewMonth.toLocaleDateString(undefined, { month: "long", year: "numeric" })}</p>
             <button type="button" className="min-h-11 min-w-11 text-xl" onClick={() => setViewMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1))}>›</button>
           </div>
-          <AgendaList events={monthEvents} loading={loading} emptyLabel="No schedule items this month." />
+          <AgendaList events={events} loading={loading} emptyLabel="No schedule items this month." />
         </section>
       ) : null}
 
