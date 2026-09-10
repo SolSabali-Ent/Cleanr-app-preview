@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#ffffff" />
+  <title>Cleanr Service Area</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; background: #f8fafc; color: #0b1220; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    body { display: flex; flex-direction: column; }
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 64px;
+      padding: 12px 18px;
+      border-bottom: 1px solid #e5e7eb;
+      background: rgba(255,255,255,.96);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+    }
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      min-width: 48px;
+      min-height: 44px;
+      text-decoration: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .brand img { display: block; width: auto; height: 34px; max-width: 165px; pointer-events: none; user-select: none; -webkit-user-drag: none; }
+    .back {
+      display: inline-flex;
+      align-items: center;
+      min-height: 44px;
+      padding: 8px 0 8px 14px;
+      color: #667085;
+      font-size: 14px;
+      font-weight: 600;
+      text-decoration: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    main { width: 100%; flex: 1; padding: 20px 12px 28px; }
+    .wrap { width: min(100%, 1080px); margin: 0 auto; }
+    .intro { margin: 0 auto 14px; max-width: 760px; text-align: center; }
+    .intro h1 { margin: 0; font-size: clamp(24px, 4vw, 36px); line-height: 1.1; }
+    .intro p { margin: 8px 0 0; color: #667085; font-size: 14px; line-height: 1.5; }
+    .map-frame {
+      position: relative;
+      overflow: hidden;
+      width: 100%;
+      border: 1px solid #e5e7eb;
+      border-radius: 18px;
+      background: #fff;
+      box-shadow: 0 12px 32px rgba(15, 23, 42, .08);
+    }
+    .map-frame img {
+      display: block;
+      width: 100%;
+      height: auto;
+      pointer-events: none;
+      user-select: none;
+      -webkit-user-drag: none;
+    }
+    .map-brand-hotspot {
+      position: absolute;
+      z-index: 2;
+      left: 1.5%;
+      top: 1.5%;
+      width: 27%;
+      height: 9.5%;
+      min-width: 86px;
+      min-height: 38px;
+      border-radius: 10px;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .map-brand-hotspot:focus-visible { outline: 3px solid #0000fe; outline-offset: 2px; }
+    .note { margin: 14px auto 0; max-width: 760px; color: #667085; font-size: 12px; line-height: 1.55; text-align: center; }
+    @media (max-width: 640px) {
+      .topbar { min-height: 58px; padding: 8px 14px; }
+      .brand img { height: 30px; max-width: 145px; }
+      .back { font-size: 13px; }
+      main { padding: 14px 8px 24px; }
+      .intro { margin-bottom: 10px; padding: 0 8px; }
+      .map-frame { border-radius: 12px; }
+      .map-brand-hotspot { left: 1%; top: 1%; width: 29%; height: 10.5%; }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="Back to Cleanr home">
+      <img src="/media/Cleanr_wordmark_black.png" alt="Cleanr" />
+    </a>
+    <a class="back" href="/">Back to site</a>
+  </header>
+
+  <main>
+    <div class="wrap">
+      <div class="intro">
+        <h1>Current service area</h1>
+        <p>Metro Atlanta pilot coverage. Exact address, time, and provider availability are checked before payment.</p>
+      </div>
+
+      <div class="map-frame">
+        <img src="/media/Cleanr%20Coverage%20Map%20(205).png" alt="Cleanr Metro Atlanta coverage map showing the current 50-mile pilot coverage area" />
+        <a class="map-brand-hotspot" href="/" aria-label="Back to Cleanr home" title="Back to Cleanr home"></a>
+      </div>
+
+      <p class="note">The map shows the current pilot footprint. A location inside the map still depends on exact address, provider range, and schedule availability.</p>
+    </div>
+  </main>
+</body>
+</html>
