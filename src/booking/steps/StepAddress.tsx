@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2, MapPin } from "lucide-react";
 import { Button } from "../../components/ui/Button";
 import { supabase } from "../../lib/supabase";
 import { listMyServiceAddressesForBooking, type BookingServiceAddress } from "../../lib/customerServiceAddressApi";
@@ -21,6 +21,31 @@ type GeocodeResponse = {
   error?: string;
 };
 
+type AddressSuggestion = {
+  placeId: string;
+  label: string;
+  mainText: string;
+  secondaryText: string;
+};
+
+type AddressSuggestionResponse = {
+  configured?: boolean;
+  suggestions?: AddressSuggestion[];
+  error?: string;
+};
+
+type AddressDetailsResponse = {
+  configured?: boolean;
+  formatted?: string;
+  street?: string;
+  city?: string;
+  state?: string;
+  zip?: string;
+  lat?: number | null;
+  lng?: number | null;
+  error?: string;
+};
+
 export function StepAddress({ onNext }: StepAddressProps) {
   const { state, update } = useBooking();
   const [street, setStreet] = useState(state.serviceAddress.street);
@@ -33,6 +58,10 @@ export function StepAddress({ onNext }: StepAddressProps) {
   const [savedPlaces, setSavedPlaces] = useState<BookingServiceAddress[]>([]);
   const [savedLoading, setSavedLoading] = useState(true);
   const [showManualForm, setShowManualForm] = useState(Boolean(state.serviceAddress.street));
+  const [suggestions, setSuggestions] = useState<AddressSuggestion[]>([]);
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false);
+  const [autocompleteConfigured, setAutocompleteConfigured] = useState(true);
+  const [choosingSuggestion, setChoosingSuggestion] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -47,6 +76,42 @@ export function StepAddress({ onNext }: StepAddressProps) {
       .finally(() => { if (active) setSavedLoading(false); });
     return () => { active = false; };
   }, [state.zipcode]);
+
+  useEffect(() => {
+    const query = street.trim();
+    if (!showManualForm || !autocompleteConfigured || query.length < 4 || choosingSuggestion) {
+      setSuggestions([]);
+      return;
+    }
+
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      setSuggestionsLoading(true);
+      void supabase.functions.invoke("address-autocomplete", {
+        body: { action: "suggest", query, zip: state.zipcode || zip },
+      }).then(({ data, error: fnError }) => {
+        if (cancelled) return;
+        if (fnError) {
+          setSuggestions([]);
+          return;
+        }
+        const result = data as AddressSuggestionResponse | null;
+        if (result?.configured === false) {
+          setAutocompleteConfigured(false);
+          setSuggestions([]);
+          return;
+        }
+        setSuggestions(Array.isArray(result?.suggestions) ? result!.suggestions! : []);
+      }).finally(() => {
+        if (!cancelled) setSuggestionsLoading(false);
+      });
+    }, 250);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [street, showManualForm, autocompleteConfigured, choosingSuggestion, state.zipcode, zip]);
 
   const isFormComplete = useMemo(() => Boolean(street.trim() && city.trim() && region.trim() && /^\d{5}(?:-\d{4})?$/.test(zip.trim())), [street, city, region, zip]);
 
@@ -66,6 +131,33 @@ export function StepAddress({ onNext }: StepAddressProps) {
       },
     });
     onNext();
+  }
+
+  async function useSuggestion(suggestion: AddressSuggestion) {
+    setChoosingSuggestion(true);
+    setSuggestions([]);
+    setError(null);
+    try {
+      const { data, error: fnError } = await supabase.functions.invoke("address-autocomplete", {
+        body: { action: "details", placeId: suggestion.placeId },
+      });
+      if (fnError) throw fnError;
+      const result = data as AddressDetailsResponse | null;
+      if (!result?.street || !result.city || !result.state || !result.zip) {
+        throw new Error("We couldn't fill that address. Please enter it below.");
+      }
+      if (state.zipcode && result.zip.slice(0, 5) !== state.zipcode.slice(0, 5)) {
+        throw new Error("That address is outside the ZIP you checked. Pick an address in the same ZIP.");
+      }
+      setStreet(result.street);
+      setCity(result.city);
+      setRegion(result.state.toUpperCase());
+      setZip(result.zip);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "We couldn't fill that address.");
+    } finally {
+      setChoosingSuggestion(false);
+    }
   }
 
   const handleSubmit = async (e: FormEvent) => {
@@ -137,7 +229,43 @@ export function StepAddress({ onNext }: StepAddressProps) {
         <form onSubmit={handleSubmit} className="space-y-4">
           {savedPlaces.length > 0 ? <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">New address</p> : null}
           <div className="space-y-3">
-            <label className="block"><span className={labelClass}>Street address</span><input type="text" autoComplete="street-address" value={street} onChange={(e) => setStreet(e.target.value)} placeholder="123 Peachtree St NW" className={inputClass} /></label>
+            <div className="relative">
+              <label className="block">
+                <span className={labelClass}>Street address</span>
+                <input
+                  type="text"
+                  autoComplete="street-address"
+                  value={street}
+                  onChange={(e) => { setStreet(e.target.value); setError(null); }}
+                  onFocus={() => setChoosingSuggestion(false)}
+                  placeholder="Start typing your address"
+                  className={inputClass}
+                  aria-autocomplete="list"
+                  aria-expanded={suggestions.length > 0}
+                />
+              </label>
+              {suggestionsLoading ? <span className="absolute right-3 top-9 text-[11px] text-slate-400">Searching…</span> : null}
+              {suggestions.length > 0 ? (
+                <div className="absolute left-0 right-0 top-full z-30 mt-1 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl" role="listbox">
+                  {suggestions.map((suggestion, index) => (
+                    <button
+                      key={suggestion.placeId}
+                      type="button"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => void useSuggestion(suggestion)}
+                      className={`flex w-full items-start gap-3 px-3 py-3 text-left hover:bg-slate-50 ${index > 0 ? "border-t border-slate-100" : ""}`}
+                      role="option"
+                    >
+                      <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
+                      <span className="min-w-0">
+                        <span className="block truncate text-sm font-semibold text-slate-900">{suggestion.mainText}</span>
+                        {suggestion.secondaryText ? <span className="mt-0.5 block truncate text-xs text-slate-500">{suggestion.secondaryText}</span> : null}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </div>
             <label className="block"><span className={labelClass}>Apartment / unit <span className="normal-case tracking-normal text-slate-400">(optional)</span></span><input type="text" autoComplete="address-line2" value={unit} onChange={(e) => setUnit(e.target.value)} placeholder="Unit 4B" className={inputClass} /></label>
             <div className="grid grid-cols-5 gap-2">
               <label className="col-span-3 block"><span className={labelClass}>City</span><input type="text" autoComplete="address-level2" value={city} onChange={(e) => setCity(e.target.value)} className={inputClass} /></label>
@@ -146,8 +274,8 @@ export function StepAddress({ onNext }: StepAddressProps) {
             <label className="block"><span className={labelClass}>ZIP code</span><input type="text" inputMode="numeric" autoComplete="postal-code" value={zip} onChange={(e) => setZip(e.target.value.replace(/[^0-9-]/g, "").slice(0, 10))} className={inputClass} /></label>
           </div>
           {error ? <p className="text-sm text-red-600">{error}</p> : null}
-          <Button type="submit" disabled={!isFormComplete || loading} loading={loading} variant="primaryBlue" size="lg" fullWidth>{loading ? "Checking address…" : "Use this address"}</Button>
-          <p className="text-center text-[10px] leading-4 text-slate-400">We verify the exact address for provider eligibility and safe arrival.</p>
+          <Button type="submit" disabled={!isFormComplete || loading || choosingSuggestion} loading={loading || choosingSuggestion} variant="primaryBlue" size="lg" fullWidth>{choosingSuggestion ? "Filling address…" : loading ? "Checking address…" : "Use this address"}</Button>
+          <p className="text-center text-[10px] leading-4 text-slate-400">Start typing to find your address. We still verify the exact address before booking.</p>
         </form>
       ) : savedLoading ? <p className="py-4 text-sm text-slate-500">Loading saved places…</p> : null}
     </div>
