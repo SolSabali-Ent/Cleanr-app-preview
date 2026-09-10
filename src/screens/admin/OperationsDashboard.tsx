@@ -44,6 +44,7 @@ type RelationshipRow = { id: string; origin: string; status: string };
 type NetworkRow = { status: string };
 type NorthStarRow = { status: string };
 type ContributionRow = { person_id: string };
+type PayoutNotice = { tone: "info" | "warning" | "success"; text: string };
 
 function providerCanActivateMarketplace(provider: ProviderOpsRow): boolean {
   return (
@@ -77,6 +78,7 @@ export function OperationsDashboard() {
   const [contributions, setContributions] = useState<ContributionRow[]>([]);
   const [bookingIdInput, setBookingIdInput] = useState("");
   const [message, setMessage] = useState<string | null>(null);
+  const [payoutMessage, setPayoutMessage] = useState<PayoutNotice | null>(null);
   const [loading, setLoading] = useState(true);
   const [payoutAction, setPayoutAction] = useState<"approve" | "release" | null>(null);
 
@@ -133,26 +135,36 @@ export function OperationsDashboard() {
   }, [bookings, network, relationships]);
 
   const approvePayout = async () => {
-    if (!bookingIdInput.trim()) return setMessage("Enter a booking id first.");
-    setMessage(null); setPayoutAction("approve");
+    if (!bookingIdInput.trim()) return setPayoutMessage({ tone: "warning", text: "Enter a booking id first." });
+    setPayoutMessage(null); setPayoutAction("approve");
     try {
       const { error } = await supabase.rpc("admin_approve_payout", { p_booking_id: bookingIdInput.trim() });
-      if (error) return setMessage(error.message);
-      setMessage("Payout approved. Stripe transfer is still separate.");
+      if (error) return setPayoutMessage({ tone: "warning", text: error.message });
       await load();
+      setPayoutMessage({ tone: "info", text: "Payout approved. Stripe transfer is still separate." });
     } finally { setPayoutAction(null); }
   };
 
   const releasePayout = async () => {
-    if (!bookingIdInput.trim()) return setMessage("Enter a booking id first.");
-    setMessage(null); setPayoutAction("release");
+    if (!bookingIdInput.trim()) return setPayoutMessage({ tone: "warning", text: "Enter a booking id first." });
+    setPayoutMessage(null); setPayoutAction("release");
     try {
       const { data, error } = await supabase.functions.invoke("release-provider-payout", { body: { booking_id: bookingIdInput.trim() } });
-      if (error) return setMessage(error.message || "Stripe payout release failed.");
+      if (error) return setPayoutMessage({ tone: "warning", text: error.message || "Stripe payout release failed." });
       const result = data as { error?: string; detail?: string; transfer_id?: string; already_released?: boolean } | null;
-      if (result?.error) return setMessage(result.detail ? `${result.error}: ${result.detail}` : result.error);
-      setMessage(result?.already_released ? `Payout was already released${result.transfer_id ? ` · ${result.transfer_id}` : ""}.` : `Stripe payout released${result?.transfer_id ? ` · ${result.transfer_id}` : ""}.`);
+      if (result?.error) {
+        return setPayoutMessage({
+          tone: "warning",
+          text: result.detail ? `${result.error}: ${result.detail}` : result.error,
+        });
+      }
       await load();
+      setPayoutMessage({
+        tone: "success",
+        text: result?.already_released
+          ? `Payout was already released${result.transfer_id ? ` · ${result.transfer_id}` : ""}.`
+          : `Stripe payout released${result?.transfer_id ? ` · ${result.transfer_id}` : ""}.`,
+      });
     } finally { setPayoutAction(null); }
   };
 
@@ -218,13 +230,21 @@ export function OperationsDashboard() {
           <div className="flex flex-wrap gap-2">
             <input
               value={bookingIdInput}
-              onChange={(event) => setBookingIdInput(event.target.value)}
+              onChange={(event) => {
+                setBookingIdInput(event.target.value);
+                setPayoutMessage(null);
+              }}
               placeholder="Booking ID"
               className="min-h-10 min-w-[260px] flex-1 rounded-lg border border-slate-200 px-3 text-sm text-slate-900 outline-none focus:border-slate-400"
             />
             <AdminPrimaryButton disabled={payoutAction !== null} onClick={() => void approvePayout()}>{payoutAction === "approve" ? "Approving…" : "Approve payout"}</AdminPrimaryButton>
             <AdminSecondaryButton disabled={payoutAction !== null} onClick={() => void releasePayout()}>{payoutAction === "release" ? "Sending…" : "Send Stripe payout"}</AdminSecondaryButton>
           </div>
+          {payoutMessage ? (
+            <div className="mt-3">
+              <AdminNotice tone={payoutMessage.tone}>{payoutMessage.text}</AdminNotice>
+            </div>
+          ) : null}
         </AdminPanel>
 
         <div className="mt-3">
@@ -234,7 +254,17 @@ export function OperationsDashboard() {
             </div>
             {loading ? <p className="px-5 py-5 text-sm text-slate-500">Loading bookings…</p> : bookings.length === 0 ? <p className="px-5 py-5 text-sm text-slate-500">No bookings yet.</p> : bookings.slice(0, 20).map((booking) => (
               <div key={booking.id} className="grid grid-cols-[minmax(200px,1.2fr)_160px_150px_150px_160px_minmax(220px,1fr)] items-center gap-4 border-b border-slate-200 px-5 py-4 text-xs last:border-b-0">
-                <button type="button" onClick={() => setBookingIdInput(booking.id)} className="truncate text-left font-mono text-[#0000FE] hover:underline" title="Use for payout actions">{booking.id}</button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setBookingIdInput(booking.id);
+                    setPayoutMessage(null);
+                  }}
+                  className="truncate text-left font-mono text-[#0000FE] hover:underline"
+                  title="Use for payout actions"
+                >
+                  {booking.id}
+                </button>
                 <span className="capitalize text-slate-700">{booking.status.replaceAll("_", " ")}</span>
                 <span className="text-slate-500">{booking.check_in_at ? new Date(booking.check_in_at).toLocaleString() : "—"}</span>
                 <span className="text-slate-500">{booking.check_out_at ? new Date(booking.check_out_at).toLocaleString() : "—"}</span>
