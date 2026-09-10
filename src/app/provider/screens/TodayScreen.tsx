@@ -2,8 +2,13 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowRight, CalendarClock, Compass, Handshake } from "lucide-react";
 import { findAvailableJobsForProvider, listMyJobsAsProvider, type AvailableJob } from "../../../lib/bookingApi";
+import {
+  listMyRecurringCleaningPlans,
+  type RecurringCleaningPlan,
+} from "../../../lib/recurringCleaningApi";
 import type { Booking } from "../../../domain/booking";
 import { isCurrentProviderWork, isMissedAcceptedVisit } from "../../../lib/bookingServiceDay";
+import { customerFacingServiceLabel } from "../../../lib/serviceCatalog";
 import { useStableSessionProfile } from "@/hooks/useStableSessionProfile";
 import { profileToProviderFlow, shouldShowMarketplacePendingPanel } from "@/lib/providerFlow";
 import { CSP_GROWTH_ROUTES } from "@/app/provider/growthRoutes";
@@ -50,11 +55,32 @@ function readableJobStatus(status: string | null | undefined): string {
   return normalized.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
+function cadenceLabel(cadence: RecurringCleaningPlan["cadence"]): string {
+  if (cadence === "weekly") return "Every week";
+  if (cadence === "bi-weekly") return "Every 2 weeks";
+  return "Every month";
+}
+
+function recurringAddress(value: Record<string, unknown>): string {
+  const text = (key: string) => String(value?.[key] ?? "").trim();
+  const raw = text("address") || text("formatted_address") || text("formattedAddress");
+  if (raw) return raw;
+
+  const street = text("street") || text("line1") || text("address_line_1");
+  const unit = text("unit") || text("line2") || text("address_line_2");
+  const city = text("city");
+  const state = text("state");
+  const zip = text("zip_code") || text("zip");
+  const cityStateZip = [city, [state, zip].filter(Boolean).join(" ")].filter(Boolean).join(", ");
+  return [street, unit, cityStateZip].filter(Boolean).join(", ") || "Service address";
+}
+
 export default function TodayScreen() {
   const { displayProfile, showInitialBlocking, stableOk, profileLoading } = useStableSessionProfile();
   const navigate = useNavigate();
   const [availableJobs, setAvailableJobs] = useState<AvailableJob[]>([]);
   const [myJobs, setMyJobs] = useState<Booking[]>([]);
+  const [recurringPlans, setRecurringPlans] = useState<RecurringCleaningPlan[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -68,6 +94,7 @@ export default function TodayScreen() {
     if (!displayProfile) {
       setAvailableJobs([]);
       setMyJobs([]);
+      setRecurringPlans([]);
       setLoading(false);
       return;
     }
@@ -75,15 +102,21 @@ export default function TodayScreen() {
     if (!providerId || !isUnlocked) {
       setAvailableJobs([]);
       setMyJobs([]);
+      setRecurringPlans([]);
       setLoading(false);
       return;
     }
     setLoading(true);
     setError(null);
-    Promise.all([findAvailableJobsForProvider(providerId, 20), listMyJobsAsProvider()])
-      .then(([available, mine]) => {
+    Promise.all([
+      findAvailableJobsForProvider(providerId, 20),
+      listMyJobsAsProvider(),
+      listMyRecurringCleaningPlans(),
+    ])
+      .then(([available, mine, plans]) => {
         setAvailableJobs(available);
         setMyJobs(mine);
+        setRecurringPlans(plans.filter((plan) => plan.preferredProviderId === providerId));
       })
       .catch((err) => setError(err instanceof Error ? err.message : "Unable to load your home screen"))
       .finally(() => setLoading(false));
@@ -113,6 +146,7 @@ export default function TodayScreen() {
     [myJobs]
   );
   const nextJob = activeJobs[0] ?? null;
+  const hasActiveRecurringPlan = recurringPlans.some((plan) => plan.status === "active");
 
   useEffect(() => {
     if (!import.meta.env.DEV) return;
@@ -249,12 +283,80 @@ export default function TodayScreen() {
         ) : (
           <AppEmptyState
             tone="provider"
-            title="No visit scheduled"
-            description={availableJobs.length > 0 ? "There are Cleanr jobs nearby." : "New jobs will appear in Jobs when they fit your choices."}
+            title={hasActiveRecurringPlan ? "No confirmed visit" : "No visit scheduled"}
+            description={hasActiveRecurringPlan
+              ? "Your recurring client is still active. The next expected date is below, but it is not booked yet."
+              : availableJobs.length > 0
+                ? "There are Cleanr jobs nearby."
+                : "New jobs will appear in Jobs when they fit your choices."}
             action={<button type="button" onClick={() => navigate("/csp/dashboard/jobs")} className="text-xs font-semibold" style={{ color: CSP_PRIMARY_BUTTON }}>Open Jobs</button>}
           />
         )}
       </section>
+
+      {!loading && recurringPlans.length > 0 ? (
+        <section className="mb-6">
+          <AppSectionHeader tone="provider" title="Recurring clients" />
+          <div className="space-y-3">
+            {recurringPlans.map((plan) => {
+              const confirmedBooking = plan.currentBookingId
+                ? activeJobs.find((job) => job.id === plan.currentBookingId) ?? null
+                : null;
+              const paused = plan.status === "paused";
+              return (
+                <AppPanel key={plan.id} tone="provider">
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl" style={{ backgroundColor: `${CSP_PRIMARY_BUTTON}18` }}>
+                      <CalendarClock size={18} style={{ color: CSP_PRIMARY_BUTTON }} />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-sm font-semibold">{customerFacingServiceLabel(plan.serviceType)}</p>
+                        <span
+                          className="rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                          style={{
+                            backgroundColor: paused ? "rgba(255,255,255,0.08)" : `${CSP_PRIMARY_BUTTON}18`,
+                            color: paused ? CSP_TEXT_SECONDARY : CSP_PRIMARY_BUTTON,
+                          }}
+                        >
+                          {paused ? "Paused" : "Active"}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-sm" style={{ color: CSP_TEXT_SECONDARY }}>{cadenceLabel(plan.cadence)}</p>
+                      <p className="mt-2 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>{recurringAddress(plan.serviceAddress)}</p>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 border-t border-white/10 pt-3">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.12em]" style={{ color: CSP_TEXT_SECONDARY }}>
+                      {confirmedBooking ? "Next confirmed visit" : paused ? "Expected after resume" : "Next expected"}
+                    </p>
+                    <p className="mt-1 text-sm font-semibold">{formatDateTime(confirmedBooking?.scheduled_start ?? plan.nextExpectedAt)}</p>
+                    <p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>
+                      {confirmedBooking
+                        ? "This visit is booked."
+                        : paused
+                          ? "This recurring cleaning is paused."
+                          : "Expected cadence, not a confirmed booking yet."}
+                    </p>
+                  </div>
+
+                  {confirmedBooking ? (
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/csp/dashboard/jobs/${confirmedBooking.id}`)}
+                      className="mt-3 flex w-full items-center justify-between border-t border-white/10 pt-3 text-left"
+                    >
+                      <span className="text-xs font-semibold" style={{ color: CSP_PRIMARY_BUTTON }}>Open visit</span>
+                      <ArrowRight size={16} style={{ color: CSP_PRIMARY_BUTTON }} />
+                    </button>
+                  ) : null}
+                </AppPanel>
+              );
+            })}
+          </div>
+        </section>
+      ) : null}
 
       {!loading && (activeJobs.length > 0 || availableJobs.length > 0) ? (
         <section className="mb-6">
