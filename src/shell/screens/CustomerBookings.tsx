@@ -7,6 +7,7 @@ import {
   updateMyRecurringCleaningPlan,
   type RecurringCleaningPlan,
 } from "../../lib/recurringCleaningApi";
+import { listMyVerifiedServiceAddresses, type CustomerServiceAddress } from "../../lib/customerServiceAddressApi";
 import type { Booking } from "../../domain/booking";
 import { CalendarClock, ChevronDown, ChevronRight, Pause, Play, Settings2 } from "lucide-react";
 import { useUnreadBookingMessageIds } from "../../hooks/useUnreadBookingMessageIds";
@@ -47,17 +48,53 @@ function cadenceLabel(cadence: RecurringCleaningPlan["cadence"]): string {
   return "Every month";
 }
 
+function normalizedAddressParts(value: Record<string, unknown>) {
+  const text = (key: string) => String(value[key] ?? "").trim();
+  return {
+    street: text("street").toLowerCase(),
+    unit: text("unit").toLowerCase(),
+    city: text("city").toLowerCase(),
+    state: text("state").toUpperCase(),
+    zip: (text("zip_code") || text("zip")).slice(0, 5),
+  };
+}
+
+function planLocation(plan: RecurringCleaningPlan, addresses: CustomerServiceAddress[]) {
+  const parts = normalizedAddressParts(plan.serviceAddress ?? {});
+  const match = addresses.find((address) =>
+    address.street.trim().toLowerCase() === parts.street &&
+    (address.unit ?? "").trim().toLowerCase() === parts.unit &&
+    address.city.trim().toLowerCase() === parts.city &&
+    address.state.trim().toUpperCase() === parts.state &&
+    address.zip.slice(0, 5) === parts.zip
+  );
+
+  const raw = String(plan.serviceAddress?.address ?? "").trim();
+  const addressDisplay = match?.formattedAddress || raw || [parts.street, parts.unit, parts.city, parts.state, parts.zip].filter(Boolean).join(", ") || "Service address";
+  return {
+    label: match?.label?.trim() || "Service address",
+    address: addressDisplay,
+  };
+}
+
+type MissedMeta = {
+  resolution: string | null;
+  dueAt: string | null;
+};
+
 function BookingRow({
   booking,
   hasUnreadMessages,
   compact = false,
-  forceNeedsRescheduling = false,
+  forceNeedsResolution = false,
+  closedMissed = false,
   divided = false,
 }: {
   booking: Booking;
   hasUnreadMessages: boolean;
   compact?: boolean;
-  forceNeedsRescheduling?: boolean;
+  forceNeedsResolution?: boolean;
+  closedMissed?: boolean;
   divided?: boolean;
 }) {
   const navigate = useNavigate();
@@ -71,8 +108,8 @@ function BookingRow({
     disputed: "bg-rose-100 text-rose-700",
   };
 
-  const statusLabel = forceNeedsRescheduling ? "Needs attention" : toCustomerBookingStatusLabel(booking.status);
-  const statusClass = forceNeedsRescheduling ? "bg-amber-100 text-amber-800" : statusStyles[booking.status] ?? "bg-slate-100 text-slate-700";
+  const statusLabel = closedMissed ? "Missed · Closed" : forceNeedsResolution ? "Missed · Needs resolution" : toCustomerBookingStatusLabel(booking.status);
+  const statusClass = closedMissed ? "bg-slate-100 text-slate-700" : forceNeedsResolution ? "bg-amber-100 text-amber-800" : statusStyles[booking.status] ?? "bg-slate-100 text-slate-700";
 
   return (
     <AppListRow
@@ -100,11 +137,13 @@ function BookingRow({
 function RecurringPlanCard({
   plan,
   currentBooking,
+  addresses,
   busy,
   onUpdate,
 }: {
   plan: RecurringCleaningPlan;
   currentBooking: Booking | null;
+  addresses: CustomerServiceAddress[];
   busy: boolean;
   onUpdate: (planId: string, action: "pause" | "resume" | "end") => Promise<void>;
 }) {
@@ -113,6 +152,7 @@ function RecurringPlanCard({
   const paused = plan.status === "paused";
   const missedCurrentVisit = Boolean(currentBooking && isMissedAcceptedVisit(currentBooking));
   const hasScheduledVisit = Boolean(plan.currentBookingId && currentBooking && !missedCurrentVisit);
+  const location = planLocation(plan, addresses);
 
   return (
     <div className="mb-3 rounded-2xl border border-[#CFE8C3] bg-[#F7FBF4] p-4">
@@ -121,11 +161,13 @@ function RecurringPlanCard({
           <CalendarClock className="h-4 w-4" />
         </div>
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <p className="text-sm font-semibold">Recurring cleaning</p>
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-sm font-semibold">{customerFacingServiceLabel(plan.serviceType)}</p>
             <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${paused ? "bg-[#F2F4F7] text-[#667085]" : "bg-emerald-100 text-emerald-700"}`}>{paused ? "Paused" : "Active"}</span>
           </div>
           <p className="mt-1 text-sm text-[#475467]">{cadenceLabel(plan.cadence)}{cleanerName ? ` · ${cleanerName}` : ""}</p>
+          <p className="mt-2 text-xs font-semibold text-[#344054]">{location.label}</p>
+          <p className="mt-0.5 line-clamp-2 text-xs leading-5 text-[#667085]">{location.address}</p>
         </div>
       </div>
 
@@ -139,7 +181,7 @@ function RecurringPlanCard({
         </div>
       ) : (
         <p className="mt-4 border-y border-[#DCEED7] py-3 text-xs leading-5 text-[#667085]">
-          Your recurring plan stays active while the missed visit above is resolved.
+          This recurring plan stays active while the missed visit is resolved.
         </p>
       )}
 
@@ -185,7 +227,8 @@ export function CustomerBookings() {
   const navigate = useNavigate();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [plans, setPlans] = useState<RecurringCleaningPlan[]>([]);
-  const [resolvedMissedIds, setResolvedMissedIds] = useState<Set<string>>(new Set());
+  const [addresses, setAddresses] = useState<CustomerServiceAddress[]>([]);
+  const [missedMeta, setMissedMeta] = useState<Map<string, MissedMeta>>(new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [planError, setPlanError] = useState<string | null>(null);
@@ -199,16 +242,33 @@ export function CustomerBookings() {
   const { unreadBookingIds } = useUnreadBookingMessageIds();
 
   useEffect(() => {
-    const resolvedQuery = supabase.from("bookings").select("id").eq("missed_visit_resolution", "not_rescheduling");
-    Promise.all([listBookingsForCustomer(), listMyRecurringCleaningPlans(), resolvedQuery])
-      .then(([bookingRows, planRows, resolvedResult]) => {
+    const missedQuery = supabase
+      .from("bookings")
+      .select("id,missed_visit_resolution,missed_visit_resolution_due_at")
+      .not("missed_visit_resolution_due_at", "is", null);
+
+    Promise.all([listBookingsForCustomer(), listMyRecurringCleaningPlans(), listMyVerifiedServiceAddresses().catch(() => []), missedQuery])
+      .then(([bookingRows, planRows, addressRows, missedResult]) => {
         setBookings(bookingRows);
         setPlans(planRows);
-        setResolvedMissedIds(new Set((resolvedResult.data ?? []).map((row) => String(row.id))));
+        setAddresses(addressRows);
+        const next = new Map<string, MissedMeta>();
+        for (const row of missedResult.data ?? []) {
+          next.set(String(row.id), {
+            resolution: row.missed_visit_resolution ? String(row.missed_visit_resolution) : null,
+            dueAt: row.missed_visit_resolution_due_at ? String(row.missed_visit_resolution_due_at) : null,
+          });
+        }
+        setMissedMeta(next);
       })
       .catch((err) => setError(err?.message ?? "Failed to load bookings"))
       .finally(() => setLoading(false));
   }, []);
+
+  const resolvedMissedIds = useMemo(
+    () => new Set([...missedMeta.entries()].filter(([, meta]) => Boolean(meta.resolution)).map(([id]) => id)),
+    [missedMeta]
+  );
 
   const missed = useMemo(
     () => bookings.filter((booking) => isMissedAcceptedVisit(booking) && !resolvedMissedIds.has(booking.id)).sort((a, b) => new Date(b.scheduled_start).getTime() - new Date(a.scheduled_start).getTime()),
@@ -223,8 +283,10 @@ export function CustomerBookings() {
     [bookings]
   );
   const history = useMemo(
-    () => bookings.filter((booking) => isHistoryBookingStatus(booking.status)).sort((a, b) => new Date(b.scheduled_start).getTime() - new Date(a.scheduled_start).getTime()),
-    [bookings]
+    () => bookings
+      .filter((booking) => isHistoryBookingStatus(booking.status) || resolvedMissedIds.has(booking.id))
+      .sort((a, b) => new Date(b.scheduled_start).getTime() - new Date(a.scheduled_start).getTime()),
+    [bookings, resolvedMissedIds]
   );
 
   useEffect(() => {
@@ -252,7 +314,12 @@ export function CustomerBookings() {
     setResolutionNotice(null);
     try {
       const result = await resolveMyMissedVisitWithoutReschedule(bookingId);
-      setResolvedMissedIds((current) => new Set([...current, bookingId]));
+      setMissedMeta((current) => {
+        const next = new Map(current);
+        const existing = next.get(bookingId);
+        next.set(bookingId, { resolution: "not_rescheduling", dueAt: existing?.dueAt ?? null });
+        return next;
+      });
       if (result.recurringPlanId) {
         setPlans((current) => current.map((plan) => plan.id === result.recurringPlanId ? { ...plan, currentBookingId: null, nextExpectedAt: result.nextExpectedAt ?? plan.nextExpectedAt } : plan));
       }
@@ -284,35 +351,39 @@ export function CustomerBookings() {
 
       {missed.length > 0 ? (
         <section className="mb-5 border-y border-amber-200 bg-amber-50 py-4">
-          <p className="text-sm font-semibold text-amber-950">{missed.length} visit{missed.length === 1 ? "" : "s"} {missed.length === 1 ? "needs" : "need"} attention</p>
-          <p className="mt-1 text-xs leading-5 text-amber-800">Choose what happens to each missed visit.</p>
+          <p className="text-sm font-semibold text-amber-950">{missed.length} missed visit{missed.length === 1 ? "" : "s"} need resolution</p>
+          <p className="mt-1 text-xs leading-5 text-amber-800">Choose whether to reschedule or close each missed visit. Your recurring plan does not end automatically.</p>
           <div className="mt-3 space-y-3">
-            {missed.map((booking) => (
-              <div key={booking.id} className="rounded-2xl border border-amber-200 bg-white">
-                <AppList>
-                  <BookingRow booking={booking} hasUnreadMessages={unreadBookingIds.has(booking.id)} compact forceNeedsRescheduling />
-                </AppList>
-                <div className="grid grid-cols-2 border-t border-amber-100">
-                  <button
-                    type="button"
-                    onClick={() => navigate(`/app/bookings/${booking.id}`)}
-                    className="min-h-11 border-r border-amber-100 px-3 text-xs font-semibold text-[#0B1220]"
-                  >
-                    Reschedule visit
-                  </button>
-                  <button
-                    type="button"
-                    disabled={resolutionBusyId === booking.id}
-                    onClick={() => {
-                      if (window.confirm("Skip this missed visit and keep any recurring plan active? This closes the scheduling warning without marking service complete or automatically changing payment/refund status.")) void handleResolveMissed(booking.id);
-                    }}
-                    className="min-h-11 px-3 text-xs font-semibold text-amber-800 disabled:opacity-50"
-                  >
-                    {resolutionBusyId === booking.id ? "Updating…" : "Skip this visit"}
-                  </button>
+            {missed.map((booking) => {
+              const dueAt = missedMeta.get(booking.id)?.dueAt ?? null;
+              return (
+                <div key={booking.id} className="rounded-2xl border border-amber-200 bg-white">
+                  <AppList>
+                    <BookingRow booking={booking} hasUnreadMessages={unreadBookingIds.has(booking.id)} compact forceNeedsResolution />
+                  </AppList>
+                  {dueAt ? <p className="border-t border-amber-100 px-4 py-2 text-[10px] font-medium text-amber-800">Resolve by {formatDate(dueAt)} · {formatTime(dueAt)}</p> : null}
+                  <div className="grid grid-cols-2 border-t border-amber-100">
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/app/bookings/${booking.id}`)}
+                      className="min-h-11 border-r border-amber-100 px-3 text-xs font-semibold text-[#0B1220]"
+                    >
+                      Reschedule visit
+                    </button>
+                    <button
+                      type="button"
+                      disabled={resolutionBusyId === booking.id}
+                      onClick={() => {
+                        if (window.confirm("Close this missed visit without rescheduling? This does not mark service complete or automatically decide any refund or payment review.")) void handleResolveMissed(booking.id);
+                      }}
+                      className="min-h-11 px-3 text-xs font-semibold text-amber-800 disabled:opacity-50"
+                    >
+                      {resolutionBusyId === booking.id ? "Updating…" : "Close this visit"}
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </section>
       ) : null}
@@ -336,6 +407,7 @@ export function CustomerBookings() {
                   key={plan.id}
                   plan={plan}
                   currentBooking={plan.currentBookingId ? bookingById.get(plan.currentBookingId) ?? null : null}
+                  addresses={addresses}
                   busy={planBusyId === plan.id}
                   onUpdate={handlePlanUpdate}
                 />
@@ -373,12 +445,12 @@ export function CustomerBookings() {
       ) : (
         <section>
           {history.length === 0 ? (
-            <AppEmptyState title="No history yet" description="Completed and cancelled visits will appear here." />
+            <AppEmptyState title="No history yet" description="Completed, cancelled, and closed missed visits will appear here." />
           ) : (
             <>
               <AppList>
                 {visibleHistory.map((booking, index) => (
-                  <BookingRow key={booking.id} booking={booking} hasUnreadMessages={unreadBookingIds.has(booking.id)} compact divided={index > 0} />
+                  <BookingRow key={booking.id} booking={booking} hasUnreadMessages={unreadBookingIds.has(booking.id)} compact closedMissed={resolvedMissedIds.has(booking.id)} divided={index > 0} />
                 ))}
               </AppList>
               {historyLimit < history.length ? (
