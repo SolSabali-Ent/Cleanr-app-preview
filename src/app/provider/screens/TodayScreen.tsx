@@ -75,6 +75,13 @@ function recurringAddress(value: Record<string, unknown>): string {
   return [street, unit, cityStateZip].filter(Boolean).join(", ") || "Service address";
 }
 
+function recurringConfirmationState(plan: RecurringCleaningPlan): "expected" | "waiting" {
+  if (plan.cadence === "weekly") return "waiting";
+  const windowDays = plan.cadence === "monthly" ? 14 : 7;
+  const opensAt = new Date(plan.nextExpectedAt).getTime() - windowDays * 24 * 60 * 60 * 1000;
+  return Date.now() >= opensAt ? "waiting" : "expected";
+}
+
 export default function TodayScreen() {
   const { displayProfile, showInitialBlocking, stableOk, profileLoading } = useStableSessionProfile();
   const navigate = useNavigate();
@@ -146,7 +153,12 @@ export default function TodayScreen() {
     [myJobs]
   );
   const nextJob = activeJobs[0] ?? null;
-  const hasActiveRecurringPlan = recurringPlans.some((plan) => plan.status === "active");
+  const nextExpectedPlan = useMemo(
+    () => [...recurringPlans]
+      .filter((plan) => plan.status === "active" && !plan.currentBookingId)
+      .sort((a, b) => new Date(a.nextExpectedAt).getTime() - new Date(b.nextExpectedAt).getTime())[0] ?? null,
+    [recurringPlans]
+  );
 
   useEffect(() => {
     if (!import.meta.env.DEV) return;
@@ -241,6 +253,8 @@ export default function TodayScreen() {
     );
   }
 
+  const expectedState = nextExpectedPlan ? recurringConfirmationState(nextExpectedPlan) : null;
+
   return (
     <div className="relative min-h-[60vh]" style={{ color: CSP_TEXT_PRIMARY }}>
       <AppPageHeader tone="provider" title="Home" description="Your accepted work, clients, and new Cleanr jobs." />
@@ -259,7 +273,7 @@ export default function TodayScreen() {
       <section className="mb-6">
         <AppSectionHeader
           tone="provider"
-          title="Next visit"
+          title="Coming up"
           action={<button type="button" onClick={() => navigate("/csp/dashboard/jobs")} className="text-xs font-semibold" style={{ color: CSP_PRIMARY_BUTTON }}>All jobs</button>}
         />
         {loading ? (
@@ -273,22 +287,46 @@ export default function TodayScreen() {
             <AppPanel tone="provider">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <p className="text-lg font-semibold tracking-[-0.02em]">{formatDateTime(nextJob.scheduled_start)}</p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-lg font-semibold tracking-[-0.02em]">{formatDateTime(nextJob.scheduled_start)}</p>
+                    <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold" style={{ backgroundColor: `${CSP_PRIMARY_BUTTON}18`, color: CSP_PRIMARY_BUTTON }}>Confirmed</span>
+                  </div>
                   <p className="mt-1 text-xs" style={{ color: CSP_TEXT_SECONDARY }}>{readableJobStatus(nextJob.status)}</p>
                 </div>
                 <ArrowRight size={18} className="mt-1 shrink-0" style={{ color: CSP_PRIMARY_BUTTON }} />
               </div>
             </AppPanel>
           </button>
+        ) : nextExpectedPlan ? (
+          <AppPanel tone="provider">
+            <div className="flex items-start gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl" style={{ backgroundColor: `${CSP_PRIMARY_BUTTON}18` }}>
+                <CalendarClock size={18} style={{ color: CSP_PRIMARY_BUTTON }} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-sm font-semibold">{customerFacingServiceLabel(nextExpectedPlan.serviceType)}</p>
+                  <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-semibold" style={{ color: expectedState === "waiting" ? "#F4D35E" : CSP_TEXT_SECONDARY }}>
+                    {expectedState === "waiting" ? "Waiting on confirmation" : "Expected"}
+                  </span>
+                </div>
+                <p className="mt-2 text-lg font-semibold tracking-[-0.02em]">{formatDateTime(nextExpectedPlan.nextExpectedAt)}</p>
+                <p className="mt-1 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>
+                  {cadenceLabel(nextExpectedPlan.cadence)} · {recurringAddress(nextExpectedPlan.serviceAddress)}
+                </p>
+                <p className="mt-2 text-xs leading-5" style={{ color: CSP_TEXT_SECONDARY }}>
+                  {expectedState === "waiting"
+                    ? "This recurring visit is getting close, but it is not booked yet."
+                    : "This is the expected recurring date. It is not booked yet."}
+                </p>
+              </div>
+            </div>
+          </AppPanel>
         ) : (
           <AppEmptyState
             tone="provider"
-            title={hasActiveRecurringPlan ? "No confirmed visit" : "No visit scheduled"}
-            description={hasActiveRecurringPlan
-              ? "Your recurring client is still active. The next expected date is below, but it is not booked yet."
-              : availableJobs.length > 0
-                ? "There are Cleanr jobs nearby."
-                : "New jobs will appear in Jobs when they fit your choices."}
+            title="No visit scheduled"
+            description={availableJobs.length > 0 ? "There are Cleanr jobs nearby." : "New jobs will appear in Jobs when they fit your choices."}
             action={<button type="button" onClick={() => navigate("/csp/dashboard/jobs")} className="text-xs font-semibold" style={{ color: CSP_PRIMARY_BUTTON }}>Open Jobs</button>}
           />
         )}
