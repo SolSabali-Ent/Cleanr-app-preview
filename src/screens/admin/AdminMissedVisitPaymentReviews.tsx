@@ -185,11 +185,11 @@ export function AdminMissedVisitPaymentReviews() {
             <AdminEmptyState title="No scheduling or address exceptions" description="Missed visits and accepted bookings without verified addresses will surface here." />
           ) : (
             <AdminTableShell>
-              <div className="grid grid-cols-[170px_minmax(260px,1fr)_180px_190px_140px_minmax(180px,0.7fr)] gap-4 border-b border-slate-200 bg-slate-50 px-5 py-3 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+              <div className="grid grid-cols-[130px_minmax(210px,1fr)_145px_145px_100px_minmax(165px,0.8fr)] gap-4 border-b border-slate-200 bg-slate-50 px-5 py-3 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
                 <span>Issue</span><span>Visit</span><span>Scheduled</span><span>Resolve by</span><span>Amount</span><span>Inspect</span>
               </div>
               {schedulingExceptions.map((row) => (
-                <div key={`${row.exception_type}:${row.booking_id}`} className="grid grid-cols-[170px_minmax(260px,1fr)_180px_190px_140px_minmax(180px,0.7fr)] items-center gap-4 border-b border-slate-200 px-5 py-4 text-xs last:border-b-0">
+                <div key={`${row.exception_type}:${row.booking_id}`} className="grid grid-cols-[130px_minmax(210px,1fr)_145px_145px_100px_minmax(165px,0.8fr)] items-center gap-4 border-b border-slate-200 px-5 py-4 text-xs last:border-b-0">
                   <AdminStatus tone={exceptionTone(row.exception_type)}>{exceptionLabel(row.exception_type)}</AdminStatus>
                   <div className="min-w-0">
                     <p className="truncate font-semibold text-slate-950">{row.service_type}</p>
@@ -220,11 +220,11 @@ export function AdminMissedVisitPaymentReviews() {
 
           {rows.length > 0 ? (
             <AdminTableShell>
-              <div className="grid grid-cols-[minmax(220px,1.2fr)_190px_130px_130px_130px_minmax(280px,1.4fr)] gap-4 border-b border-slate-200 bg-slate-50 px-5 py-3 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+              <div className="grid grid-cols-[minmax(185px,1.1fr)_120px_90px_90px_90px_minmax(290px,1.45fr)] gap-4 border-b border-slate-200 bg-slate-50 px-5 py-3 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
                 <span>Visit</span><span>Provider</span><span>Paid</span><span>Refunded</span><span>Net</span><span>Decision</span>
               </div>
               {rows.map((row) => (
-                <div key={row.booking_id} className="grid grid-cols-[minmax(220px,1.2fr)_190px_130px_130px_130px_minmax(280px,1.4fr)] gap-4 border-b border-slate-200 px-5 py-5 last:border-b-0">
+                <div key={row.booking_id} className="grid grid-cols-[minmax(185px,1.1fr)_120px_90px_90px_90px_minmax(290px,1.45fr)] gap-4 border-b border-slate-200 px-5 py-5 last:border-b-0">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="truncate text-sm font-semibold text-slate-950">{row.customer_name}</p>
@@ -242,7 +242,7 @@ export function AdminMissedVisitPaymentReviews() {
                   <p className="text-sm font-semibold text-slate-950">{money(row.refunded_amount_cents)}</p>
                   <p className="text-sm font-semibold text-slate-950">{money(row.net_payment_cents)}</p>
 
-                  <div>
+                  <div className="min-w-0">
                     <textarea
                       value={notes[row.booking_id] ?? ""}
                       onChange={(event) => setNotes((current) => ({ ...current, [row.booking_id]: event.target.value }))}
@@ -250,7 +250,7 @@ export function AdminMissedVisitPaymentReviews() {
                       rows={2}
                       className="w-full resize-none rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-400"
                     />
-                    <div className="mt-2 flex flex-wrap gap-2">
+                    <div className="mt-2 grid grid-cols-3 gap-2">
                       <AdminSecondaryButton disabled={busyId === row.booking_id} onClick={() => void resolve(row, "refund_recorded")}>Refund</AdminSecondaryButton>
                       <AdminSecondaryButton disabled={busyId === row.booking_id} onClick={() => void resolve(row, "credit_recorded")}>Credit</AdminSecondaryButton>
                       <AdminPrimaryButton disabled={busyId === row.booking_id} onClick={() => void resolve(row, "no_adjustment_needed")}>No adjustment</AdminPrimaryButton>
