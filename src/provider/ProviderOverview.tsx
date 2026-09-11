@@ -139,7 +139,6 @@ export function ProviderOverview() {
             ) : null}
             <div className="mt-2 flex flex-wrap gap-1.5">
               {selectedProvider.background_checked ? <span className="provider-badge">Background checked</span> : null}
-              {selectedProvider.insured ? <span className="provider-badge">Provider insurance verified</span> : null}
               {selectedProvider.platform_verified ? <span className="provider-badge">Verified</span> : null}
             </div>
           </div>

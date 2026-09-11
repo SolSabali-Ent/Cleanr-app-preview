@@ -131,7 +131,6 @@ export function ProviderDetail() {
   const trustBadges = [
     rating !== null && rating >= 4.8 ? "Top Rated" : null,
     profile?.background_checked ? "Background Checked" : null,
-    profile?.insured ? "Provider insurance verified" : null,
     profile?.platform_verified ? "Cleanr Verified" : null,
     profile?.marketplace_access ? "Active in your area" : null,
   ].filter((item): item is string => Boolean(item));
