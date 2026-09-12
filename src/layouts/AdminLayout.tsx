@@ -138,7 +138,7 @@ function AdminSidebar() {
           alt="Cleanr"
           width={906}
           height={209}
-          className="h-10 w-auto max-w-[170px] object-contain object-left"
+          className="h-[120px] w-auto max-w-[510px] object-contain object-left"
         />
         <div className="mt-3 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/45">
           <Wrench className="h-3 w-3" aria-hidden />
