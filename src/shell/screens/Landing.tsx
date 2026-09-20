@@ -140,7 +140,7 @@ export default function Landing() {
               alt="Cleanr service professional connecting with a customer"
               loading="lazy"
               decoding="async"
-              className="aspect-[4/3] h-full w-full object-cover object-center lg:aspect-[4/5]"
+              className="aspect-[5/4] h-full w-full object-cover object-[center_18%] lg:aspect-[4/5] lg:object-center"
             />
           </div>
 
