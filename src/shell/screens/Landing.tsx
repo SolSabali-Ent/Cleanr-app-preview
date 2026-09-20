@@ -93,26 +93,39 @@ export default function Landing() {
       <PublicProviderShowcase />
 
       <section className="bg-white px-6 py-16 sm:py-24">
-        <div className="mx-auto grid max-w-6xl gap-12 lg:grid-cols-[0.9fr_1.1fr] lg:gap-20">
-          <div>
-            <p className="text-sm font-semibold uppercase tracking-wide text-[#166534]">Founding Circle · Metro Atlanta</p>
-            <h2 className="mt-3 max-w-xl text-3xl font-bold tracking-tight text-[#0B1220] sm:text-4xl">Grow the work without giving up the relationship.</h2>
-            <p className="mt-4 max-w-xl text-lg leading-relaxed text-[#667085]">The Founding Circle is for Cleanr&apos;s first group of providers. Bring households who already trust you, or join without existing clients, and help shape what we build.</p>
-            <div className="mt-8 flex flex-col items-start gap-3 sm:flex-row sm:items-center">
-              <BluePrimaryLink to={FOUNDING_CIRCLE_ENTRY_PATH}>Explore the Founding Circle <ArrowRight className="h-4 w-4" /></BluePrimaryLink>
-              <Link to="/csp/signup" className="inline-flex min-h-12 items-center px-2 text-sm font-semibold text-[#0000FE]">Apply now</Link>
+        <div className="mx-auto max-w-6xl">
+          <div className="grid gap-10 lg:grid-cols-[0.95fr_1.05fr] lg:items-center lg:gap-16">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-wide text-[#166534]">Founding Circle · Metro Atlanta</p>
+              <h2 className="mt-3 max-w-xl text-3xl font-bold tracking-tight text-[#0B1220] sm:text-4xl">Grow the work without giving up the relationship.</h2>
+              <p className="mt-4 max-w-xl text-lg leading-relaxed text-[#667085]">The Founding Circle is for Cleanr&apos;s first group of providers. Bring households who already trust you, or join without existing clients, and help shape what we build.</p>
+              <div className="mt-8 flex flex-col items-start gap-3 sm:flex-row sm:items-center">
+                <BluePrimaryLink to={FOUNDING_CIRCLE_ENTRY_PATH}>Explore the Founding Circle <ArrowRight className="h-4 w-4" /></BluePrimaryLink>
+                <Link to="/csp/signup" className="inline-flex min-h-12 items-center px-2 text-sm font-semibold text-[#0000FE]">Apply now</Link>
+              </div>
+            </div>
+
+            <div className="overflow-hidden rounded-2xl bg-slate-100">
+              <img
+                src="/media/people/cleanr-csp-portrait.jpg"
+                alt="Cleanr service professional in a customer's home"
+                loading="lazy"
+                decoding="async"
+                className="aspect-[4/5] h-full w-full object-cover object-center sm:aspect-[16/10] lg:aspect-[4/5]"
+              />
             </div>
           </div>
 
-          <div className="border-y border-slate-200">
+          <div className="mt-12 grid divide-y divide-slate-200 border-y border-slate-200 lg:grid-cols-3 lg:divide-x lg:divide-y-0">
             {[
               ["01", "Bring relationships you already have", "If you already serve households, Cleanr keeps track that the relationship started with you and adds scheduling, payments, and support."],
               ["02", "Choose new jobs that fit", "Set when and where you want to work, then choose which new Cleanr jobs make sense for you. You are not forced to accept jobs."],
               ["03", "Build toward what comes next", "A strong cleaning business can be the goal. Or it can help you move toward mentoring, owning a business, school, another career, or other goals."],
             ].map(([number, title, body]) => (
-              <div key={number} className="grid gap-3 border-b border-slate-200 py-7 last:border-b-0 sm:grid-cols-[72px_1fr] sm:gap-6">
+              <div key={number} className="py-7 lg:px-8 lg:first:pl-0 lg:last:pr-0">
                 <p className="text-2xl font-semibold tracking-tight text-slate-300">{number}</p>
-                <div><h3 className="text-lg font-semibold text-[#0B1220]">{title}</h3><p className="mt-2 max-w-2xl text-sm leading-6 text-[#667085]">{body}</p></div>
+                <h3 className="mt-3 text-lg font-semibold text-[#0B1220]">{title}</h3>
+                <p className="mt-2 text-sm leading-6 text-[#667085]">{body}</p>
               </div>
             ))}
           </div>
@@ -120,24 +133,39 @@ export default function Landing() {
       </section>
 
       <section className="bg-[#0B1220] px-6 py-16 text-white sm:py-24">
-        <div className="mx-auto grid max-w-6xl gap-12 lg:grid-cols-[1fr_1fr] lg:items-end lg:gap-20">
+        <div className="mx-auto grid max-w-6xl gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:items-center lg:gap-16">
+          <div className="overflow-hidden rounded-2xl bg-white/5">
+            <img
+              src="/media/people/cleanr-customer-csp-connection.jpg"
+              alt="Cleanr service professional connecting with a customer"
+              loading="lazy"
+              decoding="async"
+              className="aspect-[4/3] h-full w-full object-cover object-center lg:aspect-[4/5]"
+            />
+          </div>
+
           <div>
             <p className="text-sm font-semibold uppercase tracking-wide text-[#8DCC64]">Built for repeat trust</p>
             <h2 className="mt-3 max-w-3xl text-3xl font-bold tracking-tight sm:text-4xl">Choose who cleans your home. Keep the connection when it works.</h2>
             <p className="mt-4 max-w-2xl text-lg leading-relaxed text-white/70">Cleanr handles the busywork around each visit so a good relationship can keep growing.</p>
-          </div>
-          <div className="divide-y divide-white/15 border-y border-white/15">
-            {[
-              ["Know who you're booking", "See real CSP profiles before you choose who may come into your home."],
-              ["Keep a good match", "When things work well, your past visits and home preferences stay connected."],
-              ["Let Cleanr handle the busywork", "Scheduling, payments, updates, and support stay organized around the relationship."],
-            ].map(([title, body]) => (
-              <div key={title} className="py-5"><p className="font-semibold text-white">{title}</p><p className="mt-1 text-sm leading-6 text-white/60">{body}</p></div>
-            ))}
-          </div>
-          <div className="flex flex-col gap-3 sm:flex-row lg:col-span-2">
-            <Link to={CUSTOMER_ENTRY_PATH} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-[#0000FE] px-7 py-3 font-medium text-white">Book now <ArrowRight className="h-4 w-4" /></Link>
-            <a href="#meet-cleanr-csps" className="inline-flex min-h-12 items-center justify-center border-b border-white/40 px-2 font-medium text-white">Meet CSPs</a>
+
+            <div className="mt-8 divide-y divide-white/15 border-y border-white/15">
+              {[
+                ["Know who you're booking", "See real CSP profiles before you choose who may come into your home."],
+                ["Keep a good match", "When things work well, your past visits and home preferences stay connected."],
+                ["Let Cleanr handle the busywork", "Scheduling, payments, updates, and support stay organized around the relationship."],
+              ].map(([title, body]) => (
+                <div key={title} className="py-5">
+                  <p className="font-semibold text-white">{title}</p>
+                  <p className="mt-1 text-sm leading-6 text-white/60">{body}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+              <Link to={CUSTOMER_ENTRY_PATH} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-[#0000FE] px-7 py-3 font-medium text-white">Book now <ArrowRight className="h-4 w-4" /></Link>
+              <a href="#meet-cleanr-csps" className="inline-flex min-h-12 items-center justify-center border-b border-white/40 px-2 font-medium text-white">Meet CSPs</a>
+            </div>
           </div>
         </div>
       </section>
